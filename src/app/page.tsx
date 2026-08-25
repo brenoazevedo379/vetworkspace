@@ -124,8 +124,8 @@ interface ChatSession {
 }
 
 const INITIAL_DRUGS: VetDrug[] = [
-  { name: 'Meloxicam (Cão)', category: 'Anti-inflamatório', defaultDosage: 0.1, defaultConcentration: 2 },
-  { name: 'Meloxicam (Gato)', category: 'Anti-inflamatório', defaultDosage: 0.05, defaultConcentration: 0.5 },
+  { name: 'Meloxicam (Cão)', category: 'Anti-inflamatório (AINE)', defaultDosage: 0.1, defaultConcentration: 2 },
+  { name: 'Meloxicam (Gato)', category: 'Anti-inflamatório (AINE)', defaultDosage: 0.05, defaultConcentration: 0.5 },
   { name: 'Dipirona', category: 'Analgésico / Antitérmico', defaultDosage: 25, defaultConcentration: 500 },
   { name: 'Tramadol', category: 'Analgésico Opióide', defaultDosage: 2, defaultConcentration: 50 },
   { name: 'Omeprazol', category: 'Protetor Gástrico', defaultDosage: 1, defaultConcentration: 20 },
@@ -133,10 +133,10 @@ const INITIAL_DRUGS: VetDrug[] = [
   { name: 'Cloridrato de Doxiciclina', category: 'Antibiótico', defaultDosage: 10, defaultConcentration: 50 },
   { name: 'Amoxicilina + Ácido Clavulânico', category: 'Antibiótico', defaultDosage: 20, defaultConcentration: 50 },
   { name: 'Prednisolona', category: 'Corticoide', defaultDosage: 1, defaultConcentration: 3 },
-  { name: 'Furosemida', category: 'Diurético', defaultDosage: 2, defaultConcentration: 10 }
+  { name: 'Fluoxetina', category: 'Antidepressivo / Inibidor da Serotonina', defaultDosage: 1, defaultConcentration: 20 }
 ]
 
-export default function VetWorkspaceBeatrizV23() {
+export default function VetWorkspaceBeatrizV24() {
   const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'ia' | 'condolencias' | 'tarefas' | 'calendario' | 'financas'>('painel')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Salvo automaticamente')
@@ -144,10 +144,9 @@ export default function VetWorkspaceBeatrizV23() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [studySubTab, setStudySubTab] = useState<'resumo' | 'diferenciais' | 'pontos'>('resumo')
 
-  // Estado de Sessões do Copiloto IA Salvas
   const [chatSessions, setChatSessions] = useState<ChatSession[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_chat_sessions_v23')
+      const saved = localStorage.getItem('vet_chat_sessions_v24')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return [
@@ -165,14 +164,13 @@ export default function VetWorkspaceBeatrizV23() {
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [isListening, setIsListening] = useState(false)
 
-  // Estado para Ferramenta de Condolências Humanizadas
   const [condolenceTutor, setCondolenceTutor] = useState('')
   const [condolencePet, setCondolencePet] = useState('')
   const [condolenceTone, setCondolenceTone] = useState<'acolhedor' | 'curto' | 'luta_longa'>('acolhedor')
   const [generatedCondolence, setGeneratedCondolence] = useState('')
 
   useEffect(() => {
-    localStorage.setItem('vet_chat_sessions_v23', JSON.stringify(chatSessions))
+    localStorage.setItem('vet_chat_sessions_v24', JSON.stringify(chatSessions))
   }, [chatSessions])
 
   const currentChatSession = chatSessions.find(s => s.id === currentChatId) || chatSessions[0]
@@ -208,7 +206,6 @@ export default function VetWorkspaceBeatrizV23() {
     }
   }
 
-  // Função de Reconhecimento de Voz (Ditado)
   const toggleListening = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
       alert('Seu navegador não suporta reconhecimento de voz. Use o Google Chrome.')
@@ -238,7 +235,6 @@ export default function VetWorkspaceBeatrizV23() {
     recognition.start()
   }
 
-  // Injetar Template Rápido de Anamnese
   const applyAnamnesisTemplate = (templateType: 'cao_ gastro' | 'gato_flutd' | 'dermato') => {
     let templateText = ''
     if (templateType === 'cao_ gastro') {
@@ -251,7 +247,6 @@ export default function VetWorkspaceBeatrizV23() {
     setChatInput(templateText)
   }
 
-  // Gerador de Mensagens de Condolências Humanizadas
   const handleGenerateCondolence = (e: React.FormEvent) => {
     e.preventDefault()
     if (!condolenceTutor.trim() || !condolencePet.trim()) return
@@ -267,7 +262,6 @@ export default function VetWorkspaceBeatrizV23() {
     setGeneratedCondolence(text)
   }
 
-  // 1. Estudos & Pós
   const [items, setItems] = useState<DocumentItem[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vet_items_v18')
@@ -280,7 +274,6 @@ export default function VetWorkspaceBeatrizV23() {
   })
   const [selectedItemId, setSelectedItemId] = useState<string>('p-1')
 
-  // 2. Pacientes & Timeline
   const [patients, setPatients] = useState<PatientRecord[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vet_patients_v18')
@@ -372,11 +365,11 @@ export default function VetWorkspaceBeatrizV23() {
     printWindow.document.close()
   }
 
-  // 3. Calculadora & Alerta de Interações
+  // Calculadora & Alerta Inteligente por Categoria + Nome + Explicação Técnica
   const [calcMode, setCalcMode] = useState<'dose' | 'fluido'>('dose')
   const [customDrugs, setCustomDrugs] = useState<VetDrug[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_custom_drugs_v18')
+      const saved = localStorage.getItem('vet_custom_drugs_v24')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return INITIAL_DRUGS
@@ -388,14 +381,29 @@ export default function VetWorkspaceBeatrizV23() {
   const [calcConcentration, setCalcConcentration] = useState<string>('')
   const [calcResult, setCalcResult] = useState<number | null>(null)
 
-  // Detector automático de Alerta de Interação Medicamentosa
-  const getDrugInteractionAlert = (drugName: string) => {
-    const lower = drugName.toLowerCase()
-    if (lower.includes('meloxicam') || lower.includes('prednisolona') || lower.includes('dexametasona')) {
-      return '⚠️ ALERTA DE INTERAÇÃO: Associação de AINEs com Corticoides é estritamente contraindicada pelo risco severo de ulceração gástrica e perfuração!'
+  // Função avançada de cruzamento de categoria + nome + explicação técnica do risco
+  const getAdvancedDrugAlert = (drugName: string) => {
+    const foundDrug = customDrugs.find(d => d.name.toLowerCase() === drugName.toLowerCase())
+    const cat = foundDrug ? foundDrug.category.toLowerCase() : ''
+    const nameLower = drugName.toLowerCase()
+
+    if (cat.includes('aine') || cat.includes('anti-inflamatório') || nameLower.includes('meloxicam') || nameLower.includes('carprofeno') || nameLower.includes('cetoprofeno')) {
+      return {
+        title: '⚠️ ALERTA DE CLASSE (AINE): RISCO GÁSTRICO',
+        desc: 'Fármacos anti-inflamatórios não esteroidais inibem as enzimas COX. Nunca associe com corticoides ou outro AINE pelo risco severo de úlceras, perfuração gastrintestinal e insuficiência renal aguda.'
+      }
     }
-    if (lower.includes('tramadol') && lower.includes('fluoxetina')) {
-      return '⚠️ ALERTA DE INTERAÇÃO: Opióides associados a inibidores da recaptação de serotonina aumentam o risco de Síndrome Serotoninérgica.'
+    if (cat.includes('corticoide') || cat.includes('esteroidal') || nameLower.includes('prednisona') || nameLower.includes('prednisolona') || nameLower.includes('dexametasona')) {
+      return {
+        title: '⚠️ ALERTA DE CLASSE (CORTICOIDE): RESTRIÇÃO DE ASSOCIAÇÃO',
+        desc: 'Corticoides possuem alto potencial ulcerogênico e imunossupressor. A coadministração com AINEs é vetada. Requer intervalo de segurança (Washout) rigoroso.'
+      }
+    }
+    if (cat.includes('antidepressivo') || cat.includes('serotonina') || nameLower.includes('fluoxetina') || nameLower.includes('tramadol')) {
+      return {
+        title: '⚠️ ALERTA NEUROLOGICO / PSIQUIÁTRICO',
+        desc: 'Agentes que elevam a serotonina combinados com opioides (ex: tramadol) ou inibidores podem desencadear Síndrome Serotoninérgica (vocalização, tremores, hipertermia).'
+      }
     }
     return null
   }
@@ -405,11 +413,10 @@ export default function VetWorkspaceBeatrizV23() {
   const [fluidResultMlHour, setFluidResultMlHour] = useState<number | null>(null)
 
   const [newDrugName, setNewDrugName] = useState('')
-  const [newDrugCat, setNewDrugCat] = useState('Personalizado')
+  const [newDrugCat, setNewDrugCat] = useState('Anti-inflamatório (AINE)')
   const [newDrugDosage, setNewDrugDosage] = useState('')
   const [newDrugConc, setNewDrugConc] = useState('')
 
-  // 4. Finanças
   const [monthlyIncome, setMonthlyIncome] = useState<number>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vet_income_v18')
@@ -431,7 +438,6 @@ export default function VetWorkspaceBeatrizV23() {
   const [editingIncome, setEditingIncome] = useState(false)
   const [tempIncome, setTempIncome] = useState('0')
 
-  // 5. Tarefas
   const [tasks, setTasks] = useState<TaskItem[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vet_tasks_v18')
@@ -444,7 +450,6 @@ export default function VetWorkspaceBeatrizV23() {
   const [newTaskNotes, setNewTaskNotes] = useState('')
   const [activeTaskForAttach, setActiveTaskForAttach] = useState<string | null>(null)
 
-  // 6. Calendário
   const [events, setEvents] = useState<CalendarEvent[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vet_events_v18')
@@ -459,7 +464,7 @@ export default function VetWorkspaceBeatrizV23() {
   useEffect(() => {
     localStorage.setItem('vet_items_v18', JSON.stringify(items))
     localStorage.setItem('vet_patients_v18', JSON.stringify(patients))
-    localStorage.setItem('vet_custom_drugs_v18', JSON.stringify(customDrugs))
+    localStorage.setItem('vet_custom_drugs_v24', JSON.stringify(customDrugs))
     localStorage.setItem('vet_income_v18', monthlyIncome.toString())
     localStorage.setItem('vet_finances_v18', JSON.stringify(finances))
     localStorage.setItem('vet_tasks_v18', JSON.stringify(tasks))
@@ -675,7 +680,6 @@ export default function VetWorkspaceBeatrizV23() {
     )
   }
 
-  // Enviar mensagem para a IA e atualizar histórico
   const handleSendAiMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!chatInput.trim() || isAiLoading) return
@@ -807,7 +811,6 @@ export default function VetWorkspaceBeatrizV23() {
             </div>
           </div>
 
-          {/* Nova Aba de Condolências Humanizadas */}
           <button onClick={() => setActiveTab('condolencias')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'condolencias' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
             <HeartHandshake className="w-4 h-4 text-pink-500" /> Mensagem de Apoio 🕊️
           </button>
@@ -864,7 +867,6 @@ export default function VetWorkspaceBeatrizV23() {
 
         <div className="flex-1 overflow-y-auto p-8 lg:px-12 space-y-6">
           
-          {/* PAINEL */}
           {activeTab === 'painel' && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -900,10 +902,8 @@ export default function VetWorkspaceBeatrizV23() {
             </div>
           )}
 
-          {/* ESTUDOS & PÓS */}
           {activeTab === 'estudos' && selectedItem && (
             <div className="max-w-5xl mx-auto bg-white/95 backdrop-blur-md border border-pink-100 p-8 lg:p-10 rounded-3xl shadow-sm space-y-6">
-              
               <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-pink-100 pb-5 gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 text-[11px] font-extrabold text-pink-500 uppercase tracking-wider mb-1">
@@ -917,7 +917,6 @@ export default function VetWorkspaceBeatrizV23() {
                     placeholder="Título do Estudo ou Matéria..."
                   />
                 </div>
-                
                 <div className="flex items-center gap-2.5">
                   <button onClick={() => { setActiveTaskForAttach(null); fileInputRef.current?.click(); }} className="bg-pink-100 hover:bg-pink-200 text-pink-800 px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-2xs flex items-center gap-1.5 cursor-pointer">
                     <Paperclip className="w-4 h-4" /> Anexar Material
@@ -926,108 +925,60 @@ export default function VetWorkspaceBeatrizV23() {
               </div>
 
               <div className="flex items-center gap-2 border-b border-pink-100 pb-3">
-                <button 
-                  onClick={() => setStudySubTab('resumo')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${studySubTab === 'resumo' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}
-                >
+                <button onClick={() => setStudySubTab('resumo')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${studySubTab === 'resumo' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}>
                   <FileText className="w-3.5 h-3.5" /> Resumo Teórico & Aulas
                 </button>
-                <button 
-                  onClick={() => setStudySubTab('diferenciais')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${studySubTab === 'diferenciais' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}
-                >
+                <button onClick={() => setStudySubTab('diferenciais')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${studySubTab === 'diferenciais' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}>
                   <Layers className="w-3.5 h-3.5" /> Diagnósticos Diferenciais
                 </button>
-                <button 
-                  onClick={() => setStudySubTab('pontos')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${studySubTab === 'pontos' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}
-                >
+                <button onClick={() => setStudySubTab('pontos')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${studySubTab === 'pontos' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}>
                   <Bookmark className="w-3.5 h-3.5" /> Pontos de Atenção / Prova
                 </button>
               </div>
 
               {studySubTab === 'resumo' && (
                 <div className="space-y-3">
-                  <label className="text-xs font-bold text-pink-900 flex items-center gap-1">
-                    <FileText className="w-3.5 h-3.5 text-pink-500" /> Resumo e Anotações da Matéria
-                  </label>
-                  <textarea 
-                    value={selectedItem.content || ''}
-                    onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, content: e.target.value } : i))}
-                    rows={12}
-                    className="w-full bg-pink-50/20 border border-pink-100 p-4 rounded-2xl text-stone-700 text-sm leading-relaxed focus:outline-none focus:border-pink-300 resize-none font-normal placeholder-stone-300"
-                    placeholder="Digite aqui as explicações, fisiopatologia, posologias e conceitos abordados na pós..."
-                  />
+                  <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><FileText className="w-3.5 h-3.5 text-pink-500" /> Resumo e Anotações da Matéria</label>
+                  <textarea value={selectedItem.content || ''} onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, content: e.target.value } : i))} rows={12} className="w-full bg-pink-50/20 border border-pink-100 p-4 rounded-2xl text-stone-700 text-sm leading-relaxed focus:outline-none focus:border-pink-300 resize-none font-normal placeholder-stone-300" placeholder="Digite aqui as explicações, fisiopatologia, posologias..." />
                 </div>
               )}
-
               {studySubTab === 'diferenciais' && (
                 <div className="space-y-3">
-                  <label className="text-xs font-bold text-pink-900 flex items-center gap-1">
-                    <Layers className="w-3.5 h-3.5 text-pink-500" /> Diagnósticos Diferenciais por Sistema
-                  </label>
-                  <textarea 
-                    value={selectedItem.differential || ''}
-                    onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, differential: e.target.value } : i))}
-                    rows={12}
-                    className="w-full bg-pink-50/20 border border-pink-100 p-4 rounded-2xl text-stone-700 text-sm leading-relaxed focus:outline-none focus:border-pink-300 resize-none font-normal placeholder-stone-300"
-                    placeholder="Liste aqui os diferenciais clínicos, exames necessários para exclusão e achados laboratoriais..."
-                  />
+                  <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><Layers className="w-3.5 h-3.5 text-pink-500" /> Diagnósticos Diferenciais por Sistema</label>
+                  <textarea value={selectedItem.differential || ''} onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, differential: e.target.value } : i))} rows={12} className="w-full bg-pink-50/20 border border-pink-100 p-4 rounded-2xl text-stone-700 text-sm leading-relaxed focus:outline-none focus:border-pink-300 resize-none font-normal placeholder-stone-300" placeholder="Liste aqui os diferenciais clínicos..." />
                 </div>
               )}
-
               {studySubTab === 'pontos' && (
                 <div className="space-y-3">
-                  <label className="text-xs font-bold text-pink-900 flex items-center gap-1">
-                    <Bookmark className="w-3.5 h-3.5 text-pink-500" /> Alertas Críticos & Pegadinhas de Prova / Residência
-                  </label>
-                  <textarea 
-                    value={selectedItem.notes || ''}
-                    onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, notes: e.target.value } : i))}
-                    rows={12}
-                    className="w-full bg-pink-50/20 border border-pink-100 p-4 rounded-2xl text-stone-700 text-sm leading-relaxed focus:outline-none focus:border-pink-300 resize-none font-normal placeholder-stone-300"
-                    placeholder="Anotações importantes que costumam cair em provas, contraindicações severas ou detalhes que não podem ser esquecidos..."
-                  />
+                  <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><Bookmark className="w-3.5 h-3.5 text-pink-500" /> Alertas Críticos & Pegadinhas de Prova</label>
+                  <textarea value={selectedItem.notes || ''} onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, notes: e.target.value } : i))} rows={12} className="w-full bg-pink-50/20 border border-pink-100 p-4 rounded-2xl text-stone-700 text-sm leading-relaxed focus:outline-none focus:border-pink-300 resize-none font-normal placeholder-stone-300" placeholder="Anotações importantes..." />
                 </div>
               )}
-
             </div>
           )}
 
-          {/* COPILOTO IA VET COM TEMPLATES RÁPIDOS DE ANAMNESE */}
           {activeTab === 'ia' && (
             <div className="max-w-4xl mx-auto h-[calc(100vh-140px)] flex flex-col bg-white/95 backdrop-blur-md border border-pink-100 rounded-3xl shadow-sm overflow-hidden">
               <div className="p-4 border-b border-pink-100 bg-pink-50/50 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm">
-                      <Bot className="w-5 h-5" />
-                    </div>
+                    <div className="w-10 h-10 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Bot className="w-5 h-5" /></div>
                     <div>
                       <h2 className="text-sm font-extrabold text-pink-950">Copiloto IA Veterinária - {currentChatSession.title}</h2>
                       <p className="text-[11px] text-pink-500 font-medium">Raciocínio clínico com templates rápidos e IA avançada</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={handleNewChatSession} className="bg-pink-600 hover:bg-pink-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition">
-                      + Novo Caso
-                    </button>
+                    <button onClick={handleNewChatSession} className="bg-pink-600 hover:bg-pink-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition">+ Novo Caso</button>
                     <span className="text-[10px] bg-pink-100 text-pink-700 px-3 py-1 rounded-full font-bold">API Conectada</span>
                   </div>
                 </div>
 
-                {/* BOTÕES DE TEMPLATES RÁPIDOS DE ANAMNESE */}
                 <div className="flex items-center gap-2 pt-1 border-t border-pink-100/60 overflow-x-auto pb-1">
                   <span className="text-[11px] font-bold text-stone-500 whitespace-nowrap">Templates Rápidos:</span>
-                  <button onClick={() => applyAnamnesisTemplate('cao_ gastro')} className="bg-white hover:bg-pink-100 text-pink-800 border border-pink-200 px-3 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap shadow-2xs">
-                    🐕 Cão: Vômito/Gastro
-                  </button>
-                  <button onClick={() => applyAnamnesisTemplate('gato_flutd')} className="bg-white hover:bg-pink-100 text-pink-800 border border-pink-200 px-3 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap shadow-2xs">
-                    🐈 Gato: Urinário (FLUTD)
-                  </button>
-                  <button onClick={() => applyAnamnesisTemplate('dermato')} className="bg-white hover:bg-pink-100 text-pink-800 border border-pink-200 px-3 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap shadow-2xs">
-                    🩺 Dermatologia Geral
-                  </button>
+                  <button onClick={() => applyAnamnesisTemplate('cao_ gastro')} className="bg-white hover:bg-pink-100 text-pink-800 border border-pink-200 px-3 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap shadow-2xs">🐕 Cão: Vômito/Gastro</button>
+                  <button onClick={() => applyAnamnesisTemplate('gato_flutd')} className="bg-white hover:bg-pink-100 text-pink-800 border border-pink-200 px-3 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap shadow-2xs">🐈 Gato: Urinário (FLUTD)</button>
+                  <button onClick={() => applyAnamnesisTemplate('dermato')} className="bg-white hover:bg-pink-100 text-pink-800 border border-pink-200 px-3 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap shadow-2xs">🩺 Dermatologia Geral</button>
                 </div>
               </div>
 
@@ -1049,21 +1000,10 @@ export default function VetWorkspaceBeatrizV23() {
               </div>
 
               <form onSubmit={handleSendAiMessage} className="p-4 border-t border-pink-100 bg-white flex gap-2 items-center">
-                <button
-                  type="button"
-                  onClick={toggleListening}
-                  title={isListening ? "Ouvindo..." : "Falar por voz"}
-                  className={`p-3 rounded-xl transition flex items-center justify-center ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-pink-100 hover:bg-pink-200 text-pink-700'}`}
-                >
+                <button type="button" onClick={toggleListening} title={isListening ? "Ouvindo..." : "Falar por voz"} className={`p-3 rounded-xl transition flex items-center justify-center ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-pink-100 hover:bg-pink-200 text-pink-700'}`}>
                   {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                 </button>
-                <input 
-                  type="text" 
-                  placeholder={isListening ? "Ouvindo sua fala..." : "Digite o caso ou escolha um template acima..."} 
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  className="flex-1 bg-pink-50/50 border border-pink-200 rounded-xl px-4 py-3 text-xs text-pink-950 focus:outline-none font-medium"
-                />
+                <input type="text" placeholder={isListening ? "Ouvindo sua fala..." : "Digite o caso ou escolha um template acima..."} value={chatInput} onChange={(e) => setChatInput(e.target.value)} className="flex-1 bg-pink-50/50 border border-pink-200 rounded-xl px-4 py-3 text-xs text-pink-950 focus:outline-none font-medium" />
                 <button type="submit" disabled={isAiLoading} className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50">
                   <Send className="w-4 h-4" /> Perguntar
                 </button>
@@ -1071,14 +1011,11 @@ export default function VetWorkspaceBeatrizV23() {
             </div>
           )}
 
-          {/* NOVA ABA: GERADOR DE MENSAGENS DE CONDOLÊNCIAS HUMANIZADAS */}
           {activeTab === 'condolencias' && (
             <div className="max-w-3xl mx-auto space-y-6">
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
                 <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm">
-                    <HeartHandshake className="w-6 h-6" />
-                  </div>
+                  <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><HeartHandshake className="w-6 h-6" /></div>
                   <div>
                     <h2 className="text-base font-extrabold text-pink-950">Gerador de Mensagem de Apoio (Condolências)</h2>
                     <p className="text-xs text-pink-500 font-medium">Crie textos humanizados, acolhedores e naturais para enviar aos tutores em momentos de perda</p>
@@ -1126,7 +1063,6 @@ export default function VetWorkspaceBeatrizV23() {
             </div>
           )}
 
-          {/* PACIENTES & CASOS CLÍNICOS REAIS */}
           {activeTab === 'pacientes' && (
             <div className="max-w-4xl mx-auto space-y-6">
               <h2 className="text-xl font-extrabold text-pink-950">Módulo de Casos Clínicos & Prontuário de Pacientes</h2>
@@ -1179,27 +1115,19 @@ export default function VetWorkspaceBeatrizV23() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2.5">
-                          <button 
-                            onClick={() => handlePrintPatient(p)} 
-                            className="bg-pink-100 hover:bg-pink-200 text-pink-800 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                            title="Imprimir ou Salvar Ficha em PDF"
-                          >
+                          <button onClick={() => handlePrintPatient(p)} className="bg-pink-100 hover:bg-pink-200 text-pink-800 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer">
                             <Printer className="w-3.5 h-3.5" /> Imprimir / PDF
                           </button>
                           <span className={`text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-wider ${p.status === 'Internado' ? 'bg-amber-100 text-amber-800' : p.status === 'Alta' ? 'bg-emerald-100 text-emerald-800' : 'bg-pink-100 text-pink-800'}`}>
                             {p.status}
                           </span>
-                          <button onClick={() => setPatients(patients.filter(item => item.id !== p.id))} className="text-stone-400 hover:text-red-500">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <button onClick={() => setPatients(patients.filter(item => item.id !== p.id))} className="text-stone-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </div>
 
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-pink-900 flex items-center gap-1.5">
-                            <Clock className="w-3.5 h-3.5 text-pink-500" /> Linha do Tempo (Evoluções & Retornos)
-                          </span>
+                          <span className="text-xs font-bold text-pink-900 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-pink-500" /> Linha do Tempo (Evoluções & Retornos)</span>
                           <button onClick={() => setActivePatientForEvolution(activePatientForEvolution === p.id ? null : p.id)} className="text-xs font-bold text-pink-600 hover:underline bg-pink-50 px-3 py-1 rounded-lg border border-pink-200">
                             {activePatientForEvolution === p.id ? 'Fechar' : '+ Adicionar Retorno'}
                           </button>
@@ -1235,18 +1163,13 @@ export default function VetWorkspaceBeatrizV23() {
             </div>
           )}
 
-          {/* CALCULADORA & ALERTA DE INTERAÇÕES MEDICAMENTOSAS */}
           {activeTab === 'calculadora' && (
             <div className="max-w-4xl mx-auto space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-extrabold text-pink-950">Calculadora Veterinária & Alerta de Interações</h2>
+                <h2 className="text-xl font-extrabold text-pink-950">Calculadora Veterinária & Alerta Inteligente por Categoria</h2>
                 <div className="flex gap-2">
-                  <button onClick={() => setCalcMode('dose')} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${calcMode === 'dose' ? 'bg-pink-500 text-white shadow-sm' : 'bg-white text-pink-900 border border-pink-200'}`}>
-                    💊 Dose de Fármacos
-                  </button>
-                  <button onClick={() => setCalcMode('fluido')} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${calcMode === 'fluido' ? 'bg-pink-500 text-white shadow-sm' : 'bg-white text-pink-900 border border-pink-200'}`}>
-                    💧 Taxa de Soro (Fluidoterapia)
-                  </button>
+                  <button onClick={() => setCalcMode('dose')} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${calcMode === 'dose' ? 'bg-pink-500 text-white shadow-sm' : 'bg-white text-pink-900 border border-pink-200'}`}>💊 Dose de Fármacos</button>
+                  <button onClick={() => setCalcMode('fluido')} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${calcMode === 'fluido' ? 'bg-pink-500 text-white shadow-sm' : 'bg-white text-pink-900 border border-pink-200'}`}>💧 Taxa de Soro (Fluidoterapia)</button>
                 </div>
               </div>
 
@@ -1257,13 +1180,7 @@ export default function VetWorkspaceBeatrizV23() {
                     
                     <div className="relative">
                       <Search className="absolute left-3.5 top-3 w-4 h-4 text-pink-400" />
-                      <input 
-                        type="text" 
-                        placeholder="Pesquisar remédio salvo..." 
-                        value={drugSearchQuery}
-                        onChange={(e) => setDrugSearchQuery(e.target.value)}
-                        className="w-full bg-pink-50/50 border border-pink-200 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
-                      />
+                      <input type="text" placeholder="Pesquisar remédio salvo..." value={drugSearchQuery} onChange={(e) => setDrugSearchQuery(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
                     </div>
 
                     <div className="max-h-36 overflow-y-auto space-y-1 pr-1 border border-pink-100 p-2 rounded-xl bg-pink-50/20">
@@ -1271,15 +1188,7 @@ export default function VetWorkspaceBeatrizV23() {
                         <p className="text-[11px] text-stone-400 text-center py-4">Nenhum remédio encontrado. Cadastre abaixo!</p>
                       ) : (
                         filteredDrugs.map((drug, idx) => (
-                          <div 
-                            key={idx}
-                            onClick={() => {
-                              setSelectedDrugName(drug.name)
-                              setCalcDosage(drug.defaultDosage.toString())
-                              setCalcConcentration(drug.defaultConcentration.toString())
-                            }}
-                            className={`p-2 rounded-lg text-xs cursor-pointer transition flex justify-between items-center ${selectedDrugName === drug.name ? 'bg-pink-500 text-white font-bold' : 'bg-white text-stone-700 hover:bg-pink-100'}`}
-                          >
+                          <div key={idx} onClick={() => { setSelectedDrugName(drug.name); setCalcDosage(drug.defaultDosage.toString()); setCalcConcentration(drug.defaultConcentration.toString()); }} className={`p-2 rounded-lg text-xs cursor-pointer transition flex justify-between items-center ${selectedDrugName === drug.name ? 'bg-pink-500 text-white font-bold' : 'bg-white text-stone-700 hover:bg-pink-100'}`}>
                             <div>
                               <span className="font-bold">{drug.name}</span>
                               <span className="text-[10px] ml-1 opacity-80">({drug.category})</span>
@@ -1290,11 +1199,16 @@ export default function VetWorkspaceBeatrizV23() {
                       )}
                     </div>
 
-                    {/* ALERTA AUTOMÁTICO DE INTERAÇÃO MEDICAMENTOSA */}
-                    {getDrugInteractionAlert(selectedDrugName) && (
-                      <div className="bg-amber-50 border border-amber-300 p-3.5 rounded-xl text-amber-900 text-xs flex items-start gap-2 animate-pulse">
-                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                        <span>{getDrugInteractionAlert(selectedDrugName)}</span>
+                    {/* ALERTA INTELIGENTE POR CATEGORIA COM EXPLICAÇÃO TÉCNICA */}
+                    {getAdvancedDrugAlert(selectedDrugName) && (
+                      <div className="bg-amber-50 border border-amber-300 p-4 rounded-xl text-amber-900 text-xs space-y-1 animate-pulse shadow-xs">
+                        <div className="font-extrabold flex items-center gap-1.5 text-amber-950">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                          {getAdvancedDrugAlert(selectedDrugName)?.title}
+                        </div>
+                        <p className="text-[11px] text-amber-900/95 leading-relaxed pl-5">
+                          {getAdvancedDrugAlert(selectedDrugName)?.desc}
+                        </p>
                       </div>
                     )}
 
@@ -1338,9 +1252,20 @@ export default function VetWorkspaceBeatrizV23() {
                     </div>
 
                     <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-3">
-                      <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">2. Salvar Novo Fármaco Permanentemente</h3>
+                      <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">2. Cadastrar Novo Fármaco com Categoria Inteligente</h3>
                       <form onSubmit={handleSaveNewDrug} className="space-y-2.5">
                         <input type="text" placeholder="Nome do Fármaco" value={newDrugName} onChange={(e) => setNewDrugName(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
+                        <div>
+                          <label className="text-[10px] font-bold text-stone-500 block mb-1">Categoria (Ativa Alertas Automáticos)</label>
+                          <select value={newDrugCat} onChange={(e) => setNewDrugCat(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium">
+                            <option value="Anti-inflamatório (AINE)">Anti-inflamatório (AINE)</option>
+                            <option value="Corticoide / Esteroidal">Corticoide / Esteroidal</option>
+                            <option value="Antidepressivo / Inibidor da Serotonina">Antidepressivo / Inibidor da Serotonina</option>
+                            <option value="Antibiótico">Antibiótico</option>
+                            <option value="Analgésico / Opióide">Analgésico / Opióide</option>
+                            <option value="Outro / Geral">Outro / Geral</option>
+                          </select>
+                        </div>
                         <div className="grid grid-cols-2 gap-2">
                           <input type="number" step="0.01" placeholder="Dose (mg/kg)" value={newDrugDosage} onChange={(e) => setNewDrugDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
                           <input type="number" step="0.01" placeholder="Conc. (mg/ml)" value={newDrugConc} onChange={(e) => setNewDrugConc(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
@@ -1404,11 +1329,9 @@ export default function VetWorkspaceBeatrizV23() {
             </div>
           )}
 
-          {/* TAREFAS */}
           {activeTab === 'tarefas' && (
             <div className="max-w-4xl mx-auto space-y-6">
               <h2 className="text-xl font-extrabold text-pink-950">Gerenciador de Tarefas</h2>
-              
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
                 <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Nova Tarefa ou Meta</h3>
                 <form onSubmit={(e) => {
@@ -1423,9 +1346,7 @@ export default function VetWorkspaceBeatrizV23() {
                     <input type="text" placeholder="Categoria" value={newTaskCategory} onChange={(e) => setNewTaskCategory(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
                   </div>
                   <textarea placeholder="Detalhes..." value={newTaskNotes} onChange={(e) => setNewTaskNotes(e.target.value)} rows={2} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium resize-none" />
-                  <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
-                    <Plus className="w-4 h-4" /> Adicionar Tarefa
-                  </button>
+                  <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5"><Plus className="w-4 h-4" /> Adicionar Tarefa</button>
                 </form>
               </div>
 
@@ -1441,52 +1362,30 @@ export default function VetWorkspaceBeatrizV23() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button onClick={() => { setActiveTaskForAttach(t.id); fileInputRef.current?.click(); }} className="text-xs text-pink-600 hover:bg-pink-50 px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1 border border-pink-200">
-                          <Paperclip className="w-3 h-3" /> Anexar
-                        </button>
-                        <button onClick={() => setTasks(tasks.filter(item => item.id !== t.id))} className="text-stone-400 hover:text-red-500 p-1">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <button onClick={() => { setActiveTaskForAttach(t.id); fileInputRef.current?.click(); }} className="text-xs text-pink-600 hover:bg-pink-50 px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1 border border-pink-200"><Paperclip className="w-3 h-3" /> Anexar</button>
+                        <button onClick={() => setTasks(tasks.filter(item => item.id !== t.id))} className="text-stone-400 hover:text-red-500 p-1"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </div>
                     {t.notes && <p className="text-xs text-stone-600 pl-7">{t.notes}</p>}
-                    {t.attachments && t.attachments.length > 0 && (
-                      <div className="pl-7 flex flex-wrap gap-2 pt-1">
-                        {t.attachments.map(att => (
-                          <div key={att.id} className="flex items-center gap-2 bg-pink-50 border border-pink-200 px-2.5 py-1 rounded-lg text-[11px]">
-                            <span className="font-bold text-stone-700">{att.name}</span>
-                            <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-pink-600 font-bold hover:underline">Abrir</a>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* CALENDÁRIO */}
           {activeTab === 'calendario' && (
             <div className="max-w-4xl mx-auto space-y-6">
               <h2 className="text-xl font-extrabold text-pink-950">Calendário Diário & Metas</h2>
-              
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
                   <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Agosto / 2026</h3>
                   <div className="grid grid-cols-7 gap-1.5 text-center">
-                    {['D','S','T','Q','Q','S','S'].map((d, i) => (
-                      <span key={i} className="text-[10px] font-bold text-pink-400">{d}</span>
-                    ))}
+                    {['D','S','T','Q','Q','S','S'].map((d, i) => (<span key={i} className="text-[10px] font-bold text-pink-400">{d}</span>))}
                     {calendarDays.map(cd => {
                       const hasEv = events.some(ev => ev.dateKey === cd.dateKey)
                       const isSelected = selectedDate === cd.dateKey
                       return (
-                        <button 
-                          key={cd.dateKey}
-                          onClick={() => setSelectedDate(cd.dateKey)}
-                          className={`h-9 rounded-xl text-xs font-bold flex flex-col items-center justify-center transition relative ${isSelected ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/50 text-pink-950 hover:bg-pink-100'}`}
-                        >
+                        <button key={cd.dateKey} onClick={() => setSelectedDate(cd.dateKey)} className={`h-9 rounded-xl text-xs font-bold flex flex-col items-center justify-center transition relative ${isSelected ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/50 text-pink-950 hover:bg-pink-100'}`}>
                           {cd.day}
                           {hasEv && <span className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-pink-500'} mt-0.5`}></span>}
                         </button>
@@ -1523,9 +1422,7 @@ export default function VetWorkspaceBeatrizV23() {
                               <div className="text-xs font-bold text-pink-950">{ev.title}</div>
                               {ev.description && <div className="text-[11px] text-stone-600 mt-0.5">{ev.description}</div>}
                             </div>
-                            <button onClick={() => setEvents(events.filter(item => !(item.title === ev.title && item.dateKey === ev.dateKey)))} className="text-stone-400 hover:text-red-500">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <button onClick={() => setEvents(events.filter(item => !(item.title === ev.title && item.dateKey === ev.dateKey)))} className="text-stone-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                           </div>
                         ))
                       )}
@@ -1536,11 +1433,9 @@ export default function VetWorkspaceBeatrizV23() {
             </div>
           )}
 
-          {/* FINANÇAS */}
           {activeTab === 'financas' && (
             <div className="max-w-4xl mx-auto space-y-6">
               <h2 className="text-xl font-extrabold text-pink-950">Controle Financeiro & Gráficos</h2>
-              
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
                   <span className="text-xs font-bold text-stone-400">Renda / Entrada do Mês</span>
@@ -1566,13 +1461,10 @@ export default function VetWorkspaceBeatrizV23() {
 
                 <div className={`border p-5 rounded-2xl shadow-xs flex flex-col justify-between backdrop-blur-md ${saldoRestante >= 0 ? 'bg-emerald-50/60 border-emerald-200' : 'bg-rose-50/60 border-rose-200'}`}>
                   <span className="text-xs font-bold text-stone-500">Saldo Restante</span>
-                  <div className={`text-2xl font-extrabold mt-2 ${saldoRestante >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
-                    R$ {saldoRestante.toFixed(2)}
-                  </div>
+                  <div className={`text-2xl font-extrabold mt-2 ${saldoRestante >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>R$ {saldoRestante.toFixed(2)}</div>
                 </div>
               </div>
 
-              {/* GRÁFICO VISUAL */}
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-3">
                 <div className="flex justify-between items-center text-xs font-bold">
                   <span className="text-pink-950">Progresso do Orçamento (Gastos vs Renda)</span>
@@ -1598,9 +1490,7 @@ export default function VetWorkspaceBeatrizV23() {
                   ) : (
                     <input type="number" step="0.01" placeholder="Valor (R$)" value={finAmount} onChange={(e) => setFinAmount(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
                   )}
-                  {finCategory === 'Outro' ? null : (
-                    <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-xs font-bold transition shadow-md">Adicionar</button>
-                  )}
+                  {finCategory === 'Outro' ? null : (<button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-xs font-bold transition shadow-md">Adicionar</button>)}
                 </form>
                 {finCategory === 'Outro' && (
                   <form onSubmit={handleAddFinancial} className="flex gap-3">
@@ -1608,32 +1498,6 @@ export default function VetWorkspaceBeatrizV23() {
                     <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-6 rounded-xl text-xs font-bold transition shadow-md">Adicionar</button>
                   </form>
                 )}
-              </div>
-
-              <div className="bg-white/95 backdrop-blur-md border border-pink-100 rounded-2xl overflow-hidden shadow-xs">
-                <div className="px-6 py-4 border-b border-pink-100 text-xs font-bold text-pink-900">Histórico de Despesas</div>
-                <div className="divide-y divide-pink-50">
-                  {finances.length === 0 ? (
-                    <p className="text-xs text-stone-400 py-6 text-center">Nenhuma despesa registrada ainda.</p>
-                  ) : (
-                    finances.map(f => (
-                      <div key={f.id} className="px-6 py-3.5 flex items-center justify-between text-xs">
-                        <div>
-                          <div className="font-bold text-pink-950">{f.description}</div>
-                          <div className="text-[10px] text-stone-400">
-                            {f.date} • <span className="uppercase font-semibold text-pink-600">{f.category}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <span className="font-extrabold text-rose-500">- R$ {f.amount.toFixed(2)}</span>
-                          <button onClick={() => setFinances(finances.filter(item => item.id !== f.id))} className="text-stone-400 hover:text-red-500">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
               </div>
             </div>
           )}
