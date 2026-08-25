@@ -3,15 +3,12 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { 
   LayoutDashboard, 
-  FileText, 
   BookOpen, 
   CheckSquare, 
   Calendar as CalendarIcon, 
   DollarSign, 
   Settings, 
   ChevronRight, 
-  Folder, 
-  FolderPlus, 
   Plus, 
   Trash2, 
   Sparkles, 
@@ -23,9 +20,11 @@ import {
   Save,
   CreditCard,
   Wallet,
-  Heart,
+  Cat,
   Flower2,
-  Cat
+  Stethoscope,
+  Calculator,
+  Search
 } from 'lucide-react'
 
 interface AttachedFile {
@@ -69,16 +68,51 @@ interface CalendarEvent {
   description: string
 }
 
-export default function VetWorkspaceBeatrizAnimated() {
-  const [activeTab, setActiveTab] = useState<'painel' | 'documentos' | 'estudos' | 'tarefas' | 'calendario' | 'financas'>('painel')
+interface PatientRecord {
+  id: string
+  petName: string
+  species: string
+  breed: string
+  age: string
+  weight: string
+  tutor: string
+  complaint: string
+  evolution: string
+  status: 'Em Atendimento' | 'Internado' | 'Alta' | 'Observação'
+  date: string
+}
+
+interface VetDrug {
+  name: string
+  category: string
+  defaultDosage: number // mg/kg
+  defaultConcentration: number // mg/ml
+}
+
+const COMMON_DRUGS: VetDrug[] = [
+  { name: 'Meloxicam (Cão)', category: 'Anti-inflamatório', defaultDosage: 0.1, defaultConcentration: 2 },
+  { name: 'Meloxicam (Gato)', category: 'Anti-inflamatório', defaultDosage: 0.05, defaultConcentration: 0.5 },
+  { name: 'Dipirona', category: 'Analgésico / Antitérmico', defaultDosage: 25, defaultConcentration: 500 },
+  { name: 'Tramadol', category: 'Analgésico Opióide', defaultDosage: 2, defaultConcentration: 50 },
+  { name: 'Omeprazol', category: 'Protetor Gástrico', defaultDosage: 1, defaultConcentration: 20 },
+  { name: 'Maropitant (Cerenia)', category: 'Antiemético', defaultDosage: 1, defaultConcentration: 10 },
+  { name: 'Cloridrato de Doxiciclina', category: 'Antibiótico', defaultDosage: 10, defaultConcentration: 50 },
+  { name: 'Amoxicilina + Ácido Clavulânico', category: 'Antibiótico', defaultDosage: 20, defaultConcentration: 50 },
+  { name: 'Prednisolona', category: 'Corticoide', defaultDosage: 1, defaultConcentration: 3 },
+  { name: 'Furosemida', category: 'Diurético', defaultDosage: 2, defaultConcentration: 10 }
+]
+
+export default function VetWorkspaceBeatrizV3() {
+  const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'tarefas' | 'calendario' | 'financas'>('painel')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Salvo automaticamente')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // 1. Estudos & Pós
   const [items, setItems] = useState<DocumentItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_items_v5')
+      const saved = localStorage.getItem('vet_items_v8')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return [
@@ -88,17 +122,43 @@ export default function VetWorkspaceBeatrizAnimated() {
   })
   const [selectedItemId, setSelectedItemId] = useState<string>('p-1')
 
+  // 2. Pacientes & Casos Clínicos
+  const [patients, setPatients] = useState<PatientRecord[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_patients_v8')
+      if (saved) { try { return JSON.parse(saved) } catch (e) {} }
+    }
+    return []
+  })
+  const [newPetName, setNewPetName] = useState('')
+  const [newSpecies, setNewSpecies] = useState('Canino')
+  const [newBreed, setNewBreed] = useState('')
+  const [newAge, setNewAge] = useState('')
+  const [newWeight, setNewWeight] = useState('')
+  const [newTutor, setNewTutor] = useState('')
+  const [newComplaint, setNewComplaint] = useState('')
+  const [newEvolution, setNewEvolution] = useState('')
+  const [newStatus, setNewStatus] = useState<'Em Atendimento' | 'Internado' | 'Alta' | 'Observação'>('Em Atendimento')
+
+  // 3. Calculadora Veterinária com Busca e Personalizados
+  const [calcWeight, setCalcWeight] = useState<string>('')
+  const [drugSearchQuery, setDrugSearchQuery] = useState<string>('')
+  const [selectedDrugName, setSelectedDrugName] = useState<string>('Outro / Personalizado')
+  const [calcDosage, setCalcDosage] = useState<string>('')
+  const [calcConcentration, setCalcConcentration] = useState<string>('')
+  const [calcResult, setCalcResult] = useState<number | null>(null)
+
+  // 4. Finanças
   const [monthlyIncome, setMonthlyIncome] = useState<number>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_income_v5')
+      const saved = localStorage.getItem('vet_income_v8')
       if (saved) return parseFloat(saved)
     }
     return 0.00
   })
-
   const [finances, setFinances] = useState<FinancialItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_finances_v5')
+      const saved = localStorage.getItem('vet_finances_v8')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return []
@@ -110,9 +170,10 @@ export default function VetWorkspaceBeatrizAnimated() {
   const [editingIncome, setEditingIncome] = useState(false)
   const [tempIncome, setTempIncome] = useState('0')
 
+  // 5. Tarefas
   const [tasks, setTasks] = useState<TaskItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_tasks_v5')
+      const saved = localStorage.getItem('vet_tasks_v8')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return []
@@ -122,9 +183,10 @@ export default function VetWorkspaceBeatrizAnimated() {
   const [newTaskNotes, setNewTaskNotes] = useState('')
   const [activeTaskForAttach, setActiveTaskForAttach] = useState<string | null>(null)
 
+  // 6. Calendário
   const [events, setEvents] = useState<CalendarEvent[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_events_v5')
+      const saved = localStorage.getItem('vet_events_v8')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return []
@@ -134,15 +196,16 @@ export default function VetWorkspaceBeatrizAnimated() {
   const [eventDesc, setEventDesc] = useState('')
 
   useEffect(() => {
-    localStorage.setItem('vet_items_v5', JSON.stringify(items))
-    localStorage.setItem('vet_income_v5', monthlyIncome.toString())
-    localStorage.setItem('vet_finances_v5', JSON.stringify(finances))
-    localStorage.setItem('vet_tasks_v5', JSON.stringify(tasks))
-    localStorage.setItem('vet_events_v5', JSON.stringify(events))
+    localStorage.setItem('vet_items_v8', JSON.stringify(items))
+    localStorage.setItem('vet_patients_v8', JSON.stringify(patients))
+    localStorage.setItem('vet_income_v8', monthlyIncome.toString())
+    localStorage.setItem('vet_finances_v8', JSON.stringify(finances))
+    localStorage.setItem('vet_tasks_v8', JSON.stringify(tasks))
+    localStorage.setItem('vet_events_v8', JSON.stringify(events))
     setSaveStatus('Salvo com sucesso!')
     const timer = setTimeout(() => setSaveStatus('Salvo automaticamente'), 2000)
     return () => clearTimeout(timer)
-  }, [items, monthlyIncome, finances, tasks, events])
+  }, [items, patients, monthlyIncome, finances, tasks, events])
 
   const selectedItem = items.find(i => i.id === selectedItemId && i.type === 'page') || items.find(i => i.type === 'page')
 
@@ -172,6 +235,7 @@ export default function VetWorkspaceBeatrizAnimated() {
 
   const totalGastos = finances.reduce((acc, f) => acc + f.amount, 0)
   const saldoRestante = monthlyIncome - totalGastos
+  const percentualGastos = monthlyIncome > 0 ? Math.min(100, (totalGastos / monthlyIncome) * 100) : 0
 
   const handleAddFinancial = (e: React.FormEvent) => {
     e.preventDefault()
@@ -190,6 +254,34 @@ export default function VetWorkspaceBeatrizAnimated() {
     setFinCustomCategory('')
   }
 
+  const handleAddPatient = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newPetName.trim()) return
+    const newP: PatientRecord = {
+      id: Date.now().toString(),
+      petName: newPetName,
+      species: newSpecies,
+      breed: newBreed || 'Não informada',
+      age: newAge || 'Não informada',
+      weight: newWeight || '0',
+      tutor: newTutor || 'Não informado',
+      complaint: newComplaint || 'Sem queixa relatada',
+      evolution: newEvolution || 'Sem evolução registrada',
+      status: newStatus,
+      date: new Date().toLocaleDateString('pt-BR')
+    }
+    setPatients([newP, ...patients])
+    setNewPetName('')
+    setNewBreed('')
+    setNewAge('')
+    setNewWeight('')
+    setNewTutor('')
+    setNewComplaint('')
+    setNewEvolution('')
+  }
+
+  const filteredDrugs = COMMON_DRUGS.filter(d => d.name.toLowerCase().includes(drugSearchQuery.toLowerCase()) || d.category.toLowerCase().includes(drugSearchQuery.toLowerCase()))
+
   const calendarDays = Array.from({ length: 31 }, (_, i) => {
     const dayNum = i + 1
     const formattedDay = dayNum < 10 ? `0${dayNum}` : `${dayNum}`
@@ -199,19 +291,13 @@ export default function VetWorkspaceBeatrizAnimated() {
   return (
     <div className="relative flex h-screen bg-pink-50/40 text-stone-800 font-sans overflow-hidden select-none">
       
-      {/* ANIMAÇÃO DE FUNDO (Gatos e Flores Flutuantes Sutis) */}
+      {/* ANIMAÇÃO DE FUNDO */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 opacity-20">
         <div className="absolute top-10 left-20 animate-bounce duration-1000 text-pink-400">
           <Cat className="w-12 h-12" />
         </div>
         <div className="absolute bottom-20 right-32 animate-pulse text-pink-300">
           <Flower2 className="w-16 h-16" />
-        </div>
-        <div className="absolute top-1/2 right-1/4 animate-bounce duration-700 text-pink-400">
-          <Cat className="w-10 h-10 rotate-12" />
-        </div>
-        <div className="absolute bottom-1/3 left-1/4 animate-pulse text-pink-300">
-          <Flower2 className="w-12 h-12 -rotate-12" />
         </div>
       </div>
 
@@ -234,6 +320,12 @@ export default function VetWorkspaceBeatrizAnimated() {
           <button onClick={() => setActiveTab('estudos')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'estudos' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
             <BookOpen className="w-4 h-4" /> Estudos & Pós
           </button>
+          <button onClick={() => setActiveTab('pacientes')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'pacientes' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+            <Stethoscope className="w-4 h-4" /> Pacientes & Casos ({patients.length})
+          </button>
+          <button onClick={() => setActiveTab('calculadora')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'calculadora' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+            <Calculator className="w-4 h-4" /> Calculadora Vet
+          </button>
           <button onClick={() => setActiveTab('tarefas')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'tarefas' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
             <CheckSquare className="w-4 h-4" /> Tarefas ({tasks.filter(t => !t.completed).length})
           </button>
@@ -241,7 +333,7 @@ export default function VetWorkspaceBeatrizAnimated() {
             <CalendarIcon className="w-4 h-4" /> Calendário & Metas
           </button>
           <button onClick={() => setActiveTab('financas')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'financas' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
-            <DollarSign className="w-4 h-4" /> Finanças
+            <DollarSign className="w-4 h-4" /> Finanças & Gráficos
           </button>
         </div>
 
@@ -286,7 +378,7 @@ export default function VetWorkspaceBeatrizAnimated() {
           {/* PAINEL */}
           {activeTab === 'painel' && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div onClick={() => setActiveTab('financas')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
                   <div>
                     <span className="text-xs font-semibold text-pink-400">Renda do Mês</span>
@@ -300,6 +392,13 @@ export default function VetWorkspaceBeatrizAnimated() {
                     <div className="text-2xl font-extrabold text-rose-500 mt-1">R$ {totalGastos.toFixed(2)}</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500"><CreditCard className="w-5 h-5" /></div>
+                </div>
+                <div onClick={() => setActiveTab('pacientes')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
+                  <div>
+                    <span className="text-xs font-semibold text-pink-400">Pacientes Registrados</span>
+                    <div className="text-2xl font-extrabold text-pink-950 mt-1">{patients.length}</div>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-pink-500"><Stethoscope className="w-5 h-5" /></div>
                 </div>
                 <div onClick={() => setActiveTab('tarefas')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
                   <div>
@@ -325,11 +424,9 @@ export default function VetWorkspaceBeatrizAnimated() {
                     className="w-full bg-transparent text-2xl font-extrabold text-pink-950 focus:outline-none mt-1"
                   />
                 </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => { setActiveTaskForAttach(null); fileInputRef.current?.click(); }} className="bg-pink-100 hover:bg-pink-200 text-pink-800 px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer">
-                    <Paperclip className="w-4 h-4" /> Anexar Arquivo (.docx, .xlsx...)
-                  </button>
-                </div>
+                <button onClick={() => { setActiveTaskForAttach(null); fileInputRef.current?.click(); }} className="bg-pink-100 hover:bg-pink-200 text-pink-800 px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer">
+                  <Paperclip className="w-4 h-4" /> Anexar Arquivo
+                </button>
               </div>
 
               {selectedItem.attachments && selectedItem.attachments.length > 0 && (
@@ -356,7 +453,7 @@ export default function VetWorkspaceBeatrizAnimated() {
                           <a href={att.url} download={att.name} className="p-1.5 rounded-lg text-white bg-pink-500 hover:bg-pink-600 text-[11px] font-bold flex items-center gap-1 shadow-xs">
                             <Download className="w-3.5 h-3.5" /> Baixar
                           </a>
-                          <button onClick={() => setItems(items.map(i => i.id === selectedItem.id ? { ...i, attachments: i.attachments?.filter(a => a.id !== att.id) } : i))} className="p-1.5 rounded-lg text-stone-400 hover:text-red-500 hover:bg-red-50">
+                          <button onClick={() => setItems(items.map(i => i.id === selectedItem.id ? { ...i, attachments: i.attachments?.filter(a => a.id !== att.id) } : i))} className="p-1.5 rounded-lg text-stone-400 hover:text-red-500">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -376,6 +473,185 @@ export default function VetWorkspaceBeatrizAnimated() {
             </div>
           )}
 
+          {/* PACIENTES */}
+          {activeTab === 'pacientes' && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <h2 className="text-xl font-extrabold text-pink-950">Módulo de Pacientes & Casos Clínicos</h2>
+              
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
+                <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Nova Ficha de Atendimento</h3>
+                <form onSubmit={handleAddPatient} className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input type="text" placeholder="Nome do Pet" value={newPetName} onChange={(e) => setNewPetName(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                    <select value={newSpecies} onChange={(e) => setNewSpecies(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                      <option value="Canino">Canino</option>
+                      <option value="Felino">Felino</option>
+                      <option value="Ave / Silvestre">Ave / Silvestre</option>
+                      <option value="Outro">Outro</option>
+                    </select>
+                    <input type="text" placeholder="Raça" value={newBreed} onChange={(e) => setNewBreed(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input type="text" placeholder="Idade" value={newAge} onChange={(e) => setNewAge(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                    <input type="text" placeholder="Peso (ex: 12kg)" value={newWeight} onChange={(e) => setNewWeight(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                    <input type="text" placeholder="Nome do Tutor" value={newTutor} onChange={(e) => setNewTutor(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <input type="text" placeholder="Queixa Principal / Anamnese" value={newComplaint} onChange={(e) => setNewComplaint(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                    <select value={newStatus} onChange={(e) => setNewStatus(e.target.value as any)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                      <option value="Em Atendimento">Em Atendimento</option>
+                      <option value="Internado">Internado</option>
+                      <option value="Observação">Observação</option>
+                      <option value="Alta">Alta</option>
+                    </select>
+                  </div>
+                  <textarea placeholder="Evolução clínica / Conduta médica..." value={newEvolution} onChange={(e) => setNewEvolution(e.target.value)} rows={2} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium resize-none" />
+                  <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
+                    <Plus className="w-4 h-4" /> Cadastrar Ficha de Paciente
+                  </button>
+                </form>
+              </div>
+
+              <div className="space-y-3">
+                {patients.length === 0 ? (
+                  <p className="text-xs text-stone-400 py-6 text-center bg-white/50 rounded-2xl border border-pink-100">Nenhum paciente cadastrado ainda.</p>
+                ) : (
+                  patients.map(p => (
+                    <div key={p.id} className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs space-y-3">
+                      <div className="flex items-center justify-between border-b border-pink-50 pb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-pink-50 text-pink-600 flex items-center justify-center font-bold">🐾</div>
+                          <div>
+                            <h4 className="text-sm font-extrabold text-pink-950">{p.petName} <span className="text-xs font-normal text-stone-500">({p.species} - {p.breed})</span></h4>
+                            <p className="text-[11px] text-stone-400">Tutor: {p.tutor} • Peso: {p.weight} • Idade: {p.age}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className={`text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-wider ${p.status === 'Internado' ? 'bg-amber-100 text-amber-800' : p.status === 'Alta' ? 'bg-emerald-100 text-emerald-800' : 'bg-pink-100 text-pink-800'}`}>
+                            {p.status}
+                          </span>
+                          <button onClick={() => setPatients(patients.filter(item => item.id !== p.id))} className="text-stone-400 hover:text-red-500">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                        <div className="bg-pink-50/40 p-3 rounded-xl border border-pink-100/50">
+                          <span className="font-bold text-pink-900 block mb-1">Queixa Principal:</span>
+                          <span className="text-stone-700">{p.complaint}</span>
+                        </div>
+                        <div className="bg-pink-50/40 p-3 rounded-xl border border-pink-100/50">
+                          <span className="font-bold text-pink-900 block mb-1">Evolução / Conduta:</span>
+                          <span className="text-stone-700">{p.evolution}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* CALCULADORA VETERINÁRIA COM LUPA E LISTA INTELIGENTE */}
+          {activeTab === 'calculadora' && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <h2 className="text-xl font-extrabold text-pink-950">Calculadora Veterinária de Bolso (Com Busca de Fármacos)</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
+                  <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">1. Selecionar ou Pesquisar Fármaco</h3>
+                  
+                  {/* BARRA DE PESQUISA COM LUPA */}
+                  <div className="relative">
+                    <Search className="absolute left-3.5 top-3 w-4 h-4 text-pink-400" />
+                    <input 
+                      type="text" 
+                      placeholder="Pesquisar remédio (ex: Meloxicam, Dipirona...)" 
+                      value={drugSearchQuery}
+                      onChange={(e) => setDrugSearchQuery(e.target.value)}
+                      className="w-full bg-pink-50/50 border border-pink-200 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
+                    />
+                  </div>
+
+                  {/* LISTA DE SUGESTÕES FILTRADAS */}
+                  <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1 border border-pink-100 p-2 rounded-xl bg-pink-50/20">
+                    <div 
+                      onClick={() => {
+                        setSelectedDrugName('Outro / Personalizado')
+                        setCalcDosage('')
+                        setCalcConcentration('')
+                      }} 
+                      className={`p-2 rounded-lg text-xs font-bold cursor-pointer transition ${selectedDrugName === 'Outro / Personalizado' ? 'bg-pink-500 text-white' : 'bg-white text-pink-950 hover:bg-pink-100'}`}
+                    >
+                      ✨ Outro / Remédio Personalizado (Digitação Manual)
+                    </div>
+
+                    {filteredDrugs.map((drug, idx) => (
+                      <div 
+                        key={idx}
+                        onClick={() => {
+                          setSelectedDrugName(drug.name)
+                          setCalcDosage(drug.defaultDosage.toString())
+                          setCalcConcentration(drug.defaultConcentration.toString())
+                        }}
+                        className={`p-2 rounded-lg text-xs cursor-pointer transition flex justify-between items-center ${selectedDrugName === drug.name ? 'bg-pink-500 text-white font-bold' : 'bg-white text-stone-700 hover:bg-pink-100'}`}
+                      >
+                        <div>
+                          <span className="font-bold">{drug.name}</span>
+                          <span className="text-[10px] ml-1 opacity-80">({drug.category})</span>
+                        </div>
+                        <span className="text-[10px] opacity-90">{drug.defaultDosage} mg/kg</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="space-y-3 pt-2">
+                    <div>
+                      <label className="text-[11px] font-bold text-stone-600 block mb-1">Peso do Animal (kg)</label>
+                      <input type="number" step="0.1" placeholder="Ex: 15" value={calcWeight} onChange={(e) => setCalcWeight(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-stone-600 block mb-1">Dose Recomendada (mg/kg)</label>
+                      <input type="number" step="0.01" placeholder="Ex: 0.1" value={calcDosage} onChange={(e) => setCalcDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-stone-600 block mb-1">Concentração do Fármaco (mg/ml)</label>
+                      <input type="number" step="0.01" placeholder="Ex: 2" value={calcConcentration} onChange={(e) => setCalcConcentration(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                    </div>
+                    <button onClick={() => {
+                      const w = parseFloat(calcWeight) || 0
+                      const d = parseFloat(calcDosage) || 0
+                      const c = parseFloat(calcConcentration) || 1
+                      const totalMg = w * d
+                      const totalMl = totalMg / c
+                      setCalcResult(totalMl)
+                    }} className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md">
+                      Calcular Volume (ml)
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs flex flex-col justify-between">
+                  <div>
+                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider mb-4">Resultado do Cálculo ({selectedDrugName})</h3>
+                    {calcResult !== null ? (
+                      <div className="bg-pink-50 border border-pink-200 p-6 rounded-2xl text-center space-y-2">
+                        <span className="text-xs font-bold text-pink-600 uppercase">Volume Total Necessário</span>
+                        <div className="text-3xl font-extrabold text-pink-950">{calcResult.toFixed(2)} ml</div>
+                        <p className="text-[11px] text-stone-500">Baseado no peso, dose e concentração informados.</p>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-stone-400 text-center py-12">Selecione um remédio ou digite os dados e clique em calcular.</p>
+                    )}
+                  </div>
+                  <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 text-[11px] text-stone-600">
+                    💡 <strong>Dica Vet:</strong> Você pode usar os remédios pré-carregados da lista ou digitar qualquer fármaco personalizado e ajustar a dose livremente.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* TAREFAS */}
           {activeTab === 'tarefas' && (
             <div className="max-w-4xl mx-auto space-y-6">
@@ -392,9 +668,9 @@ export default function VetWorkspaceBeatrizAnimated() {
                 }} className="space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <input type="text" placeholder="O que precisa ser feito?" value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} className="md:col-span-2 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
-                    <input type="text" placeholder="Categoria (Ex: Clínica, Vendas)" value={newTaskCategory} onChange={(e) => setNewTaskCategory(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                    <input type="text" placeholder="Categoria" value={newTaskCategory} onChange={(e) => setNewTaskCategory(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
                   </div>
-                  <textarea placeholder="Detalhes ou observações..." value={newTaskNotes} onChange={(e) => setNewTaskNotes(e.target.value)} rows={2} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium resize-none" />
+                  <textarea placeholder="Detalhes..." value={newTaskNotes} onChange={(e) => setNewTaskNotes(e.target.value)} rows={2} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium resize-none" />
                   <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
                     <Plus className="w-4 h-4" /> Adicionar Tarefa
                   </button>
@@ -441,7 +717,7 @@ export default function VetWorkspaceBeatrizAnimated() {
           {/* CALENDÁRIO */}
           {activeTab === 'calendario' && (
             <div className="max-w-4xl mx-auto space-y-6">
-              <h2 className="text-xl font-extrabold text-pink-950">Calendário Diário & Metas de Vendas</h2>
+              <h2 className="text-xl font-extrabold text-pink-950">Calendário Diário & Metas</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
@@ -469,7 +745,7 @@ export default function VetWorkspaceBeatrizAnimated() {
 
                 <div className="md:col-span-2 space-y-6">
                   <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
-                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Adicionar Meta ou Vendas para o dia {selectedDate}</h3>
+                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Adicionar Evento para o dia {selectedDate}</h3>
                     <form onSubmit={(e) => {
                       e.preventDefault()
                       if (!eventTitle.trim()) return
@@ -477,8 +753,8 @@ export default function VetWorkspaceBeatrizAnimated() {
                       setEventTitle('')
                       setEventDesc('')
                     }} className="space-y-3">
-                      <input type="text" placeholder="Título (Ex: Vendas: 10 atendimentos hoje)" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
-                      <textarea placeholder="Detalhes da meta..." value={eventDesc} onChange={(e) => setEventDesc(e.target.value)} rows={2} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium resize-none" />
+                      <input type="text" placeholder="Título" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                      <textarea placeholder="Detalhes..." value={eventDesc} onChange={(e) => setEventDesc(e.target.value)} rows={2} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium resize-none" />
                       <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs">Salvar no Dia</button>
                     </form>
                   </div>
@@ -511,7 +787,7 @@ export default function VetWorkspaceBeatrizAnimated() {
           {/* FINANÇAS */}
           {activeTab === 'financas' && (
             <div className="max-w-4xl mx-auto space-y-6">
-              <h2 className="text-xl font-extrabold text-pink-950">Controle Financeiro</h2>
+              <h2 className="text-xl font-extrabold text-pink-950">Controle Financeiro & Gráficos</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
@@ -544,10 +820,21 @@ export default function VetWorkspaceBeatrizAnimated() {
                 </div>
               </div>
 
+              {/* GRÁFICO VISUAL */}
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-3">
+                <div className="flex justify-between items-center text-xs font-bold">
+                  <span className="text-pink-950">Progresso do Orçamento (Gastos vs Renda)</span>
+                  <span className={percentualGastos > 85 ? 'text-rose-500' : 'text-emerald-600'}>{percentualGastos.toFixed(1)}% comprometido</span>
+                </div>
+                <div className="w-full bg-pink-100 h-3 rounded-full overflow-hidden">
+                  <div className={`h-full transition-all duration-500 ${percentualGastos > 85 ? 'bg-rose-500' : 'bg-pink-500'}`} style={{ width: `${percentualGastos}%` }}></div>
+                </div>
+              </div>
+
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
                 <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Adicionar Despesa</h3>
                 <form onSubmit={handleAddFinancial} className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                  <input type="text" placeholder="Descrição (Ex: Fatura, Supermercado)" value={finDesc} onChange={(e) => setFinDesc(e.target.value)} className="md:col-span-2 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                  <input type="text" placeholder="Descrição" value={finDesc} onChange={(e) => setFinDesc(e.target.value)} className="md:col-span-2 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
                   <select value={finCategory} onChange={(e) => setFinCategory(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
                     <option value="Cartão de Crédito">Cartão de Crédito</option>
                     <option value="Filha">Filha</option>
