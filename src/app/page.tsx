@@ -1554,9 +1554,21 @@ export default function VetWorkspaceBeatrizV26() {
                             <div className="text-2xl font-extrabold text-pink-950">{calcResultMl.toFixed(2)} ml / dia</div>
                           </div>
                           {calcPillMg !== '' && parseFloat(calcPillMg) > 0 && (
-                            <div className="pt-2 border-t border-pink-200/60">
+                            <div className="pt-2 border-t border-pink-200/60 space-y-1">
                               <span className="text-[10px] font-bold text-stone-500 uppercase">Quantidade de Comprimidos</span>
                               <div className="text-xl font-extrabold text-emerald-600">{calcResultPills?.toFixed(2)} comp. / dia</div>
+
+                              {calcResultPills !== null && calcResultPills > 4 && (
+                                <div className="mt-2 bg-rose-50 border border-rose-300 p-3 rounded-xl text-rose-900 text-left space-y-1 animate-pulse">
+                                  <div className="font-extrabold flex items-center gap-1.5 text-rose-950 text-xs">
+                                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                                    ⚠️ ATENÇÃO: NÚMERO EXCESSIVO DE COMPRIMIDOS!
+                                  </div>
+                                  <p className="text-[11px] text-rose-900/95 leading-relaxed pl-5">
+                                    Este cálculo resultou em mais de 4 comprimidos por dia ({calcResultPills.toFixed(1)} comp.). A administração diária nesta quantidade é inviável e gera alto risco de erro posológico. Avalie usar um comprimido de maior concentração (mg) ou suspensão líquida manipulada.
+                                  </p>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
