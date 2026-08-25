@@ -23,7 +23,9 @@ import {
   Save,
   CreditCard,
   Wallet,
-  AlertCircle
+  Heart,
+  Flower2,
+  Cat
 } from 'lucide-react'
 
 interface AttachedFile {
@@ -62,22 +64,21 @@ interface TaskItem {
 }
 
 interface CalendarEvent {
-  dateKey: string // YYYY-MM-DD
+  dateKey: string 
   title: string
   description: string
 }
 
-export default function VetWorkspaceBeatrizClean() {
+export default function VetWorkspaceBeatrizAnimated() {
   const [activeTab, setActiveTab] = useState<'painel' | 'documentos' | 'estudos' | 'tarefas' | 'calendario' | 'financas'>('painel')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Salvo automaticamente')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // 1. Estudos & Pós (Zerado/Inicial limpo)
   const [items, setItems] = useState<DocumentItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_items_v4')
+      const saved = localStorage.getItem('vet_items_v5')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return [
@@ -87,10 +88,9 @@ export default function VetWorkspaceBeatrizClean() {
   })
   const [selectedItemId, setSelectedItemId] = useState<string>('p-1')
 
-  // 2. Finanças (Zeradas por padrão)
   const [monthlyIncome, setMonthlyIncome] = useState<number>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_income_v4')
+      const saved = localStorage.getItem('vet_income_v5')
       if (saved) return parseFloat(saved)
     }
     return 0.00
@@ -98,7 +98,7 @@ export default function VetWorkspaceBeatrizClean() {
 
   const [finances, setFinances] = useState<FinancialItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_finances_v4')
+      const saved = localStorage.getItem('vet_finances_v5')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return []
@@ -110,10 +110,9 @@ export default function VetWorkspaceBeatrizClean() {
   const [editingIncome, setEditingIncome] = useState(false)
   const [tempIncome, setTempIncome] = useState('0')
 
-  // 3. Tarefas
   const [tasks, setTasks] = useState<TaskItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_tasks_v4')
+      const saved = localStorage.getItem('vet_tasks_v5')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return []
@@ -123,10 +122,9 @@ export default function VetWorkspaceBeatrizClean() {
   const [newTaskNotes, setNewTaskNotes] = useState('')
   const [activeTaskForAttach, setActiveTaskForAttach] = useState<string | null>(null)
 
-  // 4. Calendário
   const [events, setEvents] = useState<CalendarEvent[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_events_v4')
+      const saved = localStorage.getItem('vet_events_v5')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return []
@@ -136,11 +134,11 @@ export default function VetWorkspaceBeatrizClean() {
   const [eventDesc, setEventDesc] = useState('')
 
   useEffect(() => {
-    localStorage.setItem('vet_items_v4', JSON.stringify(items))
-    localStorage.setItem('vet_income_v4', monthlyIncome.toString())
-    localStorage.setItem('vet_finances_v4', JSON.stringify(finances))
-    localStorage.setItem('vet_tasks_v4', JSON.stringify(tasks))
-    localStorage.setItem('vet_events_v4', JSON.stringify(events))
+    localStorage.setItem('vet_items_v5', JSON.stringify(items))
+    localStorage.setItem('vet_income_v5', monthlyIncome.toString())
+    localStorage.setItem('vet_finances_v5', JSON.stringify(finances))
+    localStorage.setItem('vet_tasks_v5', JSON.stringify(tasks))
+    localStorage.setItem('vet_events_v5', JSON.stringify(events))
     setSaveStatus('Salvo com sucesso!')
     const timer = setTimeout(() => setSaveStatus('Salvo automaticamente'), 2000)
     return () => clearTimeout(timer)
@@ -199,12 +197,28 @@ export default function VetWorkspaceBeatrizClean() {
   })
 
   return (
-    <div className="flex h-screen bg-pink-50/40 text-stone-800 font-sans overflow-hidden select-none">
+    <div className="relative flex h-screen bg-pink-50/40 text-stone-800 font-sans overflow-hidden select-none">
       
+      {/* ANIMAÇÃO DE FUNDO (Gatos e Flores Flutuantes Sutis) */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 opacity-20">
+        <div className="absolute top-10 left-20 animate-bounce duration-1000 text-pink-400">
+          <Cat className="w-12 h-12" />
+        </div>
+        <div className="absolute bottom-20 right-32 animate-pulse text-pink-300">
+          <Flower2 className="w-16 h-16" />
+        </div>
+        <div className="absolute top-1/2 right-1/4 animate-bounce duration-700 text-pink-400">
+          <Cat className="w-10 h-10 rotate-12" />
+        </div>
+        <div className="absolute bottom-1/3 left-1/4 animate-pulse text-pink-300">
+          <Flower2 className="w-12 h-12 -rotate-12" />
+        </div>
+      </div>
+
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".docx,.doc,.xlsx,.xls,.png,.jpg,.jpeg,.pdf" />
 
       {/* BARRA LATERAL */}
-      <div className={`${isSidebarOpen ? 'w-64' : 'w-0'} transition-all duration-200 bg-white border-r border-pink-100 flex flex-col z-10 overflow-hidden shadow-xs`}>
+      <div className={`${isSidebarOpen ? 'w-64' : 'w-0'} transition-all duration-200 bg-white/90 backdrop-blur-md border-r border-pink-100 flex flex-col z-10 overflow-hidden shadow-xs`}>
         <div className="p-4 border-b border-pink-100 flex items-center gap-2.5 bg-pink-50/30">
           <div className="w-8 h-8 rounded-xl bg-pink-500 flex items-center justify-center text-white font-bold text-xs shadow-sm">V</div>
           <div>
@@ -238,7 +252,7 @@ export default function VetWorkspaceBeatrizClean() {
           <div className="flex items-center justify-between px-2 pt-1">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-pink-600 text-white font-bold flex items-center justify-center text-[10px]">B</div>
-              <span className="font-bold text-pink-950 text-xs">beatriz</span>
+              <span className="font-bold text-pink-950 text-xs">Dra. Beatriz</span>
             </div>
             <LogOut className="w-3.5 h-3.5 text-pink-400 hover:text-red-500 cursor-pointer" />
           </div>
@@ -246,14 +260,14 @@ export default function VetWorkspaceBeatrizClean() {
       </div>
 
       {/* CONTEÚDO PRINCIPAL */}
-      <div className="flex-1 flex flex-col h-full bg-pink-50/30 overflow-hidden">
-        <div className="h-16 border-b border-pink-100 flex items-center justify-between px-8 bg-white shadow-xs">
+      <div className="flex-1 flex flex-col h-full bg-transparent z-10 overflow-hidden">
+        <div className="h-16 border-b border-pink-100/80 flex items-center justify-between px-8 bg-white/80 backdrop-blur-md shadow-xs">
           <div className="flex items-center gap-4">
             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-xl text-pink-600 hover:bg-pink-50 transition">
               <ChevronRight className={`w-4 h-4 transition-transform ${isSidebarOpen ? 'rotate-180' : ''}`} />
             </button>
             <div>
-              <h1 className="text-base font-extrabold text-pink-950 capitalize">Boa noite, Breno & Beatriz!</h1>
+              <h1 className="text-base font-extrabold text-pink-950">Dra. Beatriz Contreiras</h1>
               <p className="text-xs text-pink-400 font-medium">Terça-Feira, 25 De Agosto De 2026</p>
             </div>
           </div>
@@ -273,21 +287,21 @@ export default function VetWorkspaceBeatrizClean() {
           {activeTab === 'painel' && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div onClick={() => setActiveTab('financas')} className="bg-white border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
+                <div onClick={() => setActiveTab('financas')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
                   <div>
                     <span className="text-xs font-semibold text-pink-400">Renda do Mês</span>
                     <div className="text-2xl font-extrabold text-emerald-600 mt-1">R$ {monthlyIncome.toFixed(2)}</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600"><Wallet className="w-5 h-5" /></div>
                 </div>
-                <div onClick={() => setActiveTab('financas')} className="bg-white border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
+                <div onClick={() => setActiveTab('financas')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
                   <div>
                     <span className="text-xs font-semibold text-pink-400">Total de Despesas</span>
                     <div className="text-2xl font-extrabold text-rose-500 mt-1">R$ {totalGastos.toFixed(2)}</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500"><CreditCard className="w-5 h-5" /></div>
                 </div>
-                <div onClick={() => setActiveTab('tarefas')} className="bg-white border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
+                <div onClick={() => setActiveTab('tarefas')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
                   <div>
                     <span className="text-xs font-semibold text-pink-400">Tarefas Pendentes</span>
                     <div className="text-2xl font-extrabold text-pink-950 mt-1">{tasks.filter(t => !t.completed).length}</div>
@@ -300,7 +314,7 @@ export default function VetWorkspaceBeatrizClean() {
 
           {/* ESTUDOS & PÓS */}
           {activeTab === 'estudos' && selectedItem && (
-            <div className="max-w-4xl mx-auto bg-white border border-pink-100 p-10 rounded-2xl shadow-xs space-y-6">
+            <div className="max-w-4xl mx-auto bg-white/95 backdrop-blur-md border border-pink-100 p-10 rounded-2xl shadow-xs space-y-6">
               <div className="flex items-center justify-between border-b border-pink-100 pb-4">
                 <div className="flex-1 mr-4">
                   <span className="text-[10px] font-bold text-pink-500 uppercase tracking-wider">Estudos & Pós</span>
@@ -367,7 +381,7 @@ export default function VetWorkspaceBeatrizClean() {
             <div className="max-w-4xl mx-auto space-y-6">
               <h2 className="text-xl font-extrabold text-pink-950">Gerenciador de Tarefas</h2>
               
-              <div className="bg-white border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
                 <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Nova Tarefa ou Meta</h3>
                 <form onSubmit={(e) => {
                   e.preventDefault()
@@ -389,7 +403,7 @@ export default function VetWorkspaceBeatrizClean() {
 
               <div className="space-y-3">
                 {tasks.map(t => (
-                  <div key={t.id} className={`bg-white border p-4 rounded-2xl shadow-xs flex flex-col gap-3 transition ${t.completed ? 'border-emerald-200 bg-emerald-50/20 opacity-80' : 'border-pink-100'}`}>
+                  <div key={t.id} className={`bg-white/95 backdrop-blur-md border p-4 rounded-2xl shadow-xs flex flex-col gap-3 transition ${t.completed ? 'border-emerald-200 bg-emerald-50/20 opacity-80' : 'border-pink-100'}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <input type="checkbox" checked={t.completed} onChange={() => setTasks(tasks.map(item => item.id === t.id ? { ...item, completed: !item.completed } : item))} className="w-4 h-4 accent-pink-500 cursor-pointer" />
@@ -430,7 +444,7 @@ export default function VetWorkspaceBeatrizClean() {
               <h2 className="text-xl font-extrabold text-pink-950">Calendário Diário & Metas de Vendas</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
+                <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
                   <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Agosto / 2026</h3>
                   <div className="grid grid-cols-7 gap-1.5 text-center">
                     {['D','S','T','Q','Q','S','S'].map((d, i) => (
@@ -454,7 +468,7 @@ export default function VetWorkspaceBeatrizClean() {
                 </div>
 
                 <div className="md:col-span-2 space-y-6">
-                  <div className="bg-white border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
+                  <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
                     <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Adicionar Meta ou Vendas para o dia {selectedDate}</h3>
                     <form onSubmit={(e) => {
                       e.preventDefault()
@@ -469,7 +483,7 @@ export default function VetWorkspaceBeatrizClean() {
                     </form>
                   </div>
 
-                  <div className="bg-white border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
+                  <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
                     <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Registros do dia {selectedDate}</h3>
                     <div className="space-y-2">
                       {events.filter(ev => ev.dateKey === selectedDate).length === 0 ? (
@@ -494,13 +508,13 @@ export default function VetWorkspaceBeatrizClean() {
             </div>
           )}
 
-          {/* FINANÇAS LIMPAS E FLEXÍVEIS */}
+          {/* FINANÇAS */}
           {activeTab === 'financas' && (
             <div className="max-w-4xl mx-auto space-y-6">
               <h2 className="text-xl font-extrabold text-pink-950">Controle Financeiro</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white border border-pink-100 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
+                <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
                   <span className="text-xs font-bold text-stone-400">Renda / Entrada do Mês</span>
                   <div className="flex items-center justify-between mt-2">
                     {editingIncome ? (
@@ -517,12 +531,12 @@ export default function VetWorkspaceBeatrizClean() {
                   </div>
                 </div>
 
-                <div className="bg-white border border-pink-100 p-5 rounded-2xl shadow-xs">
+                <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs">
                   <span className="text-xs font-bold text-stone-400">Total de Despesas</span>
                   <div className="text-2xl font-extrabold text-rose-500 mt-2">R$ {totalGastos.toFixed(2)}</div>
                 </div>
 
-                <div className={`border p-5 rounded-2xl shadow-xs flex flex-col justify-between ${saldoRestante >= 0 ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50/40 border-rose-200'}`}>
+                <div className={`border p-5 rounded-2xl shadow-xs flex flex-col justify-between backdrop-blur-md ${saldoRestante >= 0 ? 'bg-emerald-50/60 border-emerald-200' : 'bg-rose-50/60 border-rose-200'}`}>
                   <span className="text-xs font-bold text-stone-500">Saldo Restante</span>
                   <div className={`text-2xl font-extrabold mt-2 ${saldoRestante >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
                     R$ {saldoRestante.toFixed(2)}
@@ -530,7 +544,7 @@ export default function VetWorkspaceBeatrizClean() {
                 </div>
               </div>
 
-              <div className="bg-white border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
                 <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Adicionar Despesa</h3>
                 <form onSubmit={handleAddFinancial} className="grid grid-cols-1 md:grid-cols-5 gap-3">
                   <input type="text" placeholder="Descrição (Ex: Fatura, Supermercado)" value={finDesc} onChange={(e) => setFinDesc(e.target.value)} className="md:col-span-2 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
@@ -557,7 +571,7 @@ export default function VetWorkspaceBeatrizClean() {
                 )}
               </div>
 
-              <div className="bg-white border border-pink-100 rounded-2xl overflow-hidden shadow-xs">
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 rounded-2xl overflow-hidden shadow-xs">
                 <div className="px-6 py-4 border-b border-pink-100 text-xs font-bold text-pink-900">Histórico de Despesas</div>
                 <div className="divide-y divide-pink-50">
                   {finances.length === 0 ? (
