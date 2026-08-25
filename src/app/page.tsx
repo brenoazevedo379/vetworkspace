@@ -54,14 +54,13 @@ interface FinancialItem {
   date: string
 }
 
-export default function VetWorkspaceBeatrizPersistent() {
+export default function VetWorkspaceBeatrizProduction() {
   const [activeTab, setActiveTab] = useState<'painel' | 'documentos' | 'estudos' | 'tarefas' | 'calendario' | 'financas'>('painel')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Salvo automaticamente')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Carrega do navegador ou usa os dados iniciais
   const [items, setItems] = useState<DocumentItem[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vet_workspace_items')
@@ -96,7 +95,6 @@ export default function VetWorkspaceBeatrizPersistent() {
   const [newAmount, setNewAmount] = useState('')
   const [newType, setNewType] = useState<'entrada' | 'saida'>('entrada')
 
-  // Salva automaticamente no navegador sempre que houver alteração
   useEffect(() => {
     localStorage.setItem('vet_workspace_items', JSON.stringify(items))
     localStorage.setItem('vet_workspace_finances', JSON.stringify(finances))
@@ -206,8 +204,12 @@ export default function VetWorkspaceBeatrizPersistent() {
                 <span className="truncate">{item.title}</span>
               </div>
               <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1">
-                <Plus onClick={(e) => { e.stopPropagation(); handleCreatePage(item.id) }} className="w-3 h-3 text-pink-500 hover:text-pink-800" title="Nova página" />
-                <Trash2 onClick={(e) => handleDeleteItem(item.id, e)} className="w-3 h-3 text-pink-400 hover:text-red-500" />
+                <span onClick={(e) => { e.stopPropagation(); handleCreatePage(item.id) }} className="cursor-pointer p-0.5 text-pink-500 hover:text-pink-800">
+                  <Plus className="w-3 h-3" />
+                </span>
+                <span onClick={(e) => handleDeleteItem(item.id, e)} className="cursor-pointer p-0.5 text-pink-400 hover:text-red-500">
+                  <Trash2 className="w-3 h-3" />
+                </span>
               </div>
             </div>
             {item.isOpen && <div className="pl-4 border-l border-pink-200 ml-2 space-y-1">{renderTree(item.id)}</div>}
@@ -225,7 +227,7 @@ export default function VetWorkspaceBeatrizPersistent() {
               <span className="truncate">{item.title}</span>
             </div>
             <button onClick={(e) => handleDeleteItem(item.id, e)} className="opacity-0 group-hover:opacity-100 text-pink-400 hover:text-red-500 p-0.5">
-              <Trash2 className="w-3.5 h-3" />
+              <Trash2 className="w-3 h-3" />
             </button>
           </div>
         )
@@ -284,8 +286,12 @@ export default function VetWorkspaceBeatrizPersistent() {
             <div className="flex items-center justify-between text-[11px] font-bold text-pink-400 uppercase tracking-wider px-2 mb-2">
               <span>Pastas da Pós</span>
               <div className="flex items-center gap-1">
-                <Plus onClick={() => handleCreatePage(null)} className="w-3.5 h-3.5 cursor-pointer hover:text-pink-700" title="Nova Página" />
-                <FolderPlus onClick={() => handleCreateFolder(null)} className="w-3.5 h-3.5 cursor-pointer hover:text-pink-700" title="Nova Pasta" />
+                <span onClick={() => handleCreatePage(null)} className="cursor-pointer hover:text-pink-700">
+                  <Plus className="w-3.5 h-3.5" />
+                </span>
+                <span onClick={() => handleCreateFolder(null)} className="cursor-pointer hover:text-pink-700">
+                  <FolderPlus className="w-3.5 h-3.5" />
+                </span>
               </div>
             </div>
             {renderTree(null)}
