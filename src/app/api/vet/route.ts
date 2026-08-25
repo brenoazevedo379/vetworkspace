@@ -20,36 +20,17 @@ export async function POST(req: Request) {
     4. Conduta Terapêutica de Suporte / Fármacos (com indicação de cautela e avaliação de parâmetros).
     Responda de forma direta, limpa, organizada com bullet points (•) e sem poluição visual.`
 
-    let reply = ''
-    let lastError = null
-
-    // Lista oficial de modelos vigentes para garantir estabilidade máxima
-    const modelsToTry = ['gemini-3.7-flash', 'gemini-2.5-flash']
-
-    for (const modelName of modelsToTry) {
-      try {
-        const response = await ai.models.generateContent({
-          model: modelName,
-          contents: prompt,
-          config: {
-            systemInstruction: systemInstruction,
-            temperature: 0.3,
-          }
-        })
-
-        if (response && response.text) {
-          reply = response.text
-          break // Sucesso, gerou a resposta
-        }
-      } catch (err: any) {
-        lastError = err
-        continue // Se der erro em um, tenta o próximo modelo da lista
+    // Chamada direta e limpa com o modelo estável padrão
+    const response = await ai.models.generateContent({
+      model: 'gemini-1.5-pro',
+      contents: prompt,
+      config: {
+        systemInstruction: systemInstruction,
+        temperature: 0.3,
       }
-    }
+    })
 
-    if (!reply) {
-      throw lastError || new Error('Não foi possível gerar a resposta com nenhum modelo disponível.')
-    }
+    const reply = response.text || 'Não foi possível gerar a resposta clínica.'
 
     return NextResponse.json({ reply })
   } catch (error: any) {
