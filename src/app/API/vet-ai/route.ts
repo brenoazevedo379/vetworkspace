@@ -1,21 +1,40 @@
 import { NextResponse } from 'next/server'
+import { GoogleGenAI } from '@google/genai'
 
 export async function POST(req: Request) {
   try {
     const { prompt } = await req.json()
 
-    const clinicalReply = `Análise Técnica Veterinária Especializada:\n\n` +
-      `• Achados e Sintomas Relatados: "${prompt}"\n\n` +
-      `• Principais Hipóteses Diagnósticas:\n` +
-      `- Investigar processos inflamatórios agudos ou infecciosos sistêmicos.\n` +
-      `- Avaliar distúrbios metabólicos e hidroeletrolíticos associados.\n\n` +
-      `• Conduta e Exames Recomendados:\n` +
-      `- Hemograma completo e perfil bioquímico sérico (Ureia, Creatinina, ALT, FA).\n` +
-      `- Fluidoterapia intravenosa de suporte e monitoramento rigoroso dos parâmetros vitais.\n` +
-      `- Avaliação de analgesia e suporte sintomático conforme o peso e espécie.`
+    
+const apiKey = process.env.GEMINI_API_KEY    
+    if (!apiKey) {
+      return NextResponse.json({ reply: 'Chave de API do Gemini não configurada.' }, { status: 500 })
+    }
 
-    return NextResponse.json({ reply: clinicalReply })
-  } catch (error) {
-    return NextResponse.json({ reply: 'Erro ao processar a solicitação no servidor de IA.' }, { status: 500 })
+    const ai = new GoogleGenAI({ apiKey })
+
+    const systemInstruction = `Você é o Copiloto Clínico Veterinário da Dra. Beatriz Contreiras. 
+    Seu papel é atuar com rigor técnico, base científica, clareza e precisão profissional. 
+    Sempre analise os sintomas, espécie, peso ou histórico relatados estruturando:
+    1. Quadro Clínico e Alertas de Urgência
+    2. Principais Hipóteses Diagnósticas e Diferenciais
+    3. Exames Complementares Recomendados
+    4. Conduta Terapêutica de Suporte / Fármacos (com indicação de cautela e avaliação de parâmetros).
+    Responda de forma direta, limpa, organizada com bullet points (•) e sem poluição visual.`
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        systemInstruction: systemInstruction,
+        temperature: 0.3,
+      }
+    })
+
+    const reply = response.text || 'Não foi possível gerar a resposta clínica.'
+
+    return NextResponse.json({ reply })
+  } catch (error: any) {
+    return NextResponse.json({ reply: 'Erro ao processar a solicitação com a IA: ' + (error.message || error) }, { status: 500 })
   }
 }
