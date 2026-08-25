@@ -38,7 +38,8 @@ import {
   Mic,
   MicOff,
   HeartHandshake,
-  AlertTriangle
+  AlertTriangle,
+  Scale
 } from 'lucide-react'
 
 interface AttachedFile {
@@ -136,8 +137,8 @@ const INITIAL_DRUGS: VetDrug[] = [
   { name: 'Fluoxetina', category: 'Antidepressivo / Inibidor da Serotonina', defaultDosage: 1, defaultConcentration: 20 }
 ]
 
-export default function VetWorkspaceBeatrizV24() {
-  const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'ia' | 'condolencias' | 'tarefas' | 'calendario' | 'financas'>('painel')
+export default function VetWorkspaceBeatrizV25() {
+  const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'bsa' | 'ia' | 'condolencias' | 'tarefas' | 'calendario' | 'financas'>('painel')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Salvo automaticamente')
 
@@ -146,7 +147,7 @@ export default function VetWorkspaceBeatrizV24() {
 
   const [chatSessions, setChatSessions] = useState<ChatSession[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_chat_sessions_v24')
+      const saved = localStorage.getItem('vet_chat_sessions_v25')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return [
@@ -164,13 +165,18 @@ export default function VetWorkspaceBeatrizV24() {
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [isListening, setIsListening] = useState(false)
 
+  // Estado para Superfície Corporal (BSA m2)
+  const [bsaWeightKg, setBsaWeightKg] = useState('')
+  const [bsaSpecies, setBsaSpecies] = useState<'cao' | 'gato'>('cao')
+  const [bsaResult, setBsaResult] = useState<number | null>(null)
+
   const [condolenceTutor, setCondolenceTutor] = useState('')
   const [condolencePet, setCondolencePet] = useState('')
   const [condolenceTone, setCondolenceTone] = useState<'acolhedor' | 'curto' | 'luta_longa'>('acolhedor')
   const [generatedCondolence, setGeneratedCondolence] = useState('')
 
   useEffect(() => {
-    localStorage.setItem('vet_chat_sessions_v24', JSON.stringify(chatSessions))
+    localStorage.setItem('vet_chat_sessions_v25', JSON.stringify(chatSessions))
   }, [chatSessions])
 
   const currentChatSession = chatSessions.find(s => s.id === currentChatId) || chatSessions[0]
@@ -295,6 +301,23 @@ export default function VetWorkspaceBeatrizV24() {
   const [evoTemp, setEvoTemp] = useState('')
   const [evoNotes, setEvoNotes] = useState('')
 
+  // Função para exportar resposta da IA diretamente para o Prontuário de um paciente
+  const handleExportAiToPatient = (aiText: string, targetPatientId: string) => {
+    if (!targetPatientId) {
+      alert('Selecione um paciente para exportar.')
+      return
+    }
+    const newEvo: PatientEvolution = {
+      id: Date.now().toString(),
+      date: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      weight: 'N/I',
+      temperature: 'N/I',
+      notes: '[Parecer Copiloto IA]: ' + aiText
+    }
+    setPatients(patients.map(p => p.id === targetPatientId ? { ...p, evolutions: [newEvo, ...p.evolutions] } : p))
+    alert('Resposta da IA exportada com sucesso para o prontuário do paciente!')
+  }
+
   const handlePrintPatient = (p: PatientRecord) => {
     const printWindow = window.open('', '_blank')
     if (!printWindow) return
@@ -365,7 +388,6 @@ export default function VetWorkspaceBeatrizV24() {
     printWindow.document.close()
   }
 
-  // Calculadora & Alerta Inteligente por Categoria + Nome + Explicação Técnica
   const [calcMode, setCalcMode] = useState<'dose' | 'fluido'>('dose')
   const [customDrugs, setCustomDrugs] = useState<VetDrug[]>(() => {
     if (typeof window !== 'undefined') {
@@ -381,7 +403,6 @@ export default function VetWorkspaceBeatrizV24() {
   const [calcConcentration, setCalcConcentration] = useState<string>('')
   const [calcResult, setCalcResult] = useState<number | null>(null)
 
-  // Função avançada de cruzamento de categoria + nome + explicação técnica do risco
   const getAdvancedDrugAlert = (drugName: string) => {
     const foundDrug = customDrugs.find(d => d.name.toLowerCase() === drugName.toLowerCase())
     const cat = foundDrug ? foundDrug.category.toLowerCase() : ''
@@ -818,6 +839,12 @@ export default function VetWorkspaceBeatrizV24() {
           <button onClick={() => setActiveTab('calculadora')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'calculadora' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
             <Calculator className="w-4 h-4" /> Calculadora & Soro
           </button>
+
+          {/* NOVA ABA: CALCULADORA BSA (Superfície Corporal m2) */}
+          <button onClick={() => setActiveTab('bsa')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'bsa' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+            <Scale className="w-4 h-4 text-pink-500" /> Calculadora BSA ($m^2$)
+          </button>
+
           <button onClick={() => setActiveTab('tarefas')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'tarefas' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
             <CheckSquare className="w-4 h-4" /> Tarefas ({tasks.filter(t => !t.completed).length})
           </button>
@@ -891,12 +918,12 @@ export default function VetWorkspaceBeatrizV24() {
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-pink-500"><Stethoscope className="w-5 h-5" /></div>
                 </div>
-                <div onClick={() => setActiveTab('condolencias')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
+                <div onClick={() => setActiveTab('bsa')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
                   <div>
-                    <span className="text-xs font-semibold text-pink-400">Mensagens de Apoio</span>
-                    <div className="text-xs font-bold text-pink-600 mt-1 flex items-center gap-1">Gerador Humanizado <HeartHandshake className="w-3 h-3" /></div>
+                    <span className="text-xs font-semibold text-pink-400">Calculadora BSA</span>
+                    <div className="text-xs font-bold text-pink-600 mt-1 flex items-center gap-1">Superfície Corporal <Scale className="w-3 h-3" /></div>
                   </div>
-                  <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-pink-500"><HeartHandshake className="w-5 h-5" /></div>
+                  <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-pink-500"><Scale className="w-5 h-5" /></div>
                 </div>
               </div>
             </div>
@@ -957,6 +984,7 @@ export default function VetWorkspaceBeatrizV24() {
             </div>
           )}
 
+          {/* COPILOTO IA VET COM BOTÃO DE EXPORTAÇÃO PARA PRONTUÁRIO */}
           {activeTab === 'ia' && (
             <div className="max-w-4xl mx-auto h-[calc(100vh-140px)] flex flex-col bg-white/95 backdrop-blur-md border border-pink-100 rounded-3xl shadow-sm overflow-hidden">
               <div className="p-4 border-b border-pink-100 bg-pink-50/50 flex flex-col gap-3">
@@ -965,7 +993,7 @@ export default function VetWorkspaceBeatrizV24() {
                     <div className="w-10 h-10 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Bot className="w-5 h-5" /></div>
                     <div>
                       <h2 className="text-sm font-extrabold text-pink-950">Copiloto IA Veterinária - {currentChatSession.title}</h2>
-                      <p className="text-[11px] text-pink-500 font-medium">Raciocínio clínico com templates rápidos e IA avançada</p>
+                      <p className="text-[11px] text-pink-500 font-medium">Raciocínio clínico com templates rápidos e exportação para prontuário</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -984,10 +1012,33 @@ export default function VetWorkspaceBeatrizV24() {
 
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {currentChatSession.messages.map((msg, idx) => (
-                  <div key={idx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div key={idx} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
                     <div className={`max-w-2xl p-4 rounded-2xl text-xs leading-relaxed whitespace-pre-line shadow-xs ${msg.sender === 'user' ? 'bg-pink-500 text-white rounded-br-xs' : 'bg-pink-50/70 border border-pink-100 text-stone-800 rounded-bl-xs'}`}>
                       {msg.text}
                     </div>
+
+                    {/* BOTÃO DE EXPORTAÇÃO PARA PRONTUÁRIO (SÓ APARECE NAS RESPOSTAS DA IA) */}
+                    {msg.sender === 'ai' && patients.length > 0 && (
+                      <div className="flex items-center gap-2 mt-1.5 pl-1">
+                        <select 
+                          id={`export-select-${idx}`}
+                          className="bg-white border border-pink-200 rounded-lg px-2 py-1 text-[10px] text-pink-950 font-medium focus:outline-none"
+                        >
+                          {patients.map(p => (
+                            <option key={p.id} value={p.id}>🐾 {p.petName} ({p.tutor})</option>
+                          ))}
+                        </select>
+                        <button 
+                          onClick={() => {
+                            const selectEl = document.getElementById(`export-select-${idx}`) as HTMLSelectElement
+                            if (selectEl) handleExportAiToPatient(msg.text, selectEl.value)
+                          }}
+                          className="bg-pink-100 hover:bg-pink-200 text-pink-800 px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 border border-pink-200 shadow-2xs cursor-pointer"
+                        >
+                          📥 Enviar para Prontuário
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
                 {isAiLoading && (
@@ -1008,6 +1059,61 @@ export default function VetWorkspaceBeatrizV24() {
                   <Send className="w-4 h-4" /> Perguntar
                 </button>
               </form>
+            </div>
+          )}
+
+          {/* NOVA ABA: CALCULADORA BSA (SUPERFÍCIE CORPORAL M2) */}
+          {activeTab === 'bsa' && (
+            <div className="max-w-3xl mx-auto space-y-6">
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
+                <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Scale className="w-6 h-6" /></div>
+                  <div>
+                    <h2 className="text-base font-extrabold text-pink-950">Calculadora de Superfície Corporal (BSA em $m^2$)</h2>
+                    <p className="text-xs text-pink-500 font-medium">Fórmula padrão para oncologia e fármacos de alta precisão veterinária</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-stone-700 block mb-1">Peso do Animal (kg)</label>
+                      <input type="number" step="0.1" placeholder="Ex: 12.5" value={bsaWeightKg} onChange={(e) => setBsaWeightKg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-stone-700 block mb-1">Espécie / Constante (K)</label>
+                      <select value={bsaSpecies} onChange={(e) => setBsaSpecies(e.target.value as any)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                        <option value="cao">Canino (K = 10.1)</option>
+                        <option value="gato">Felino (K = 10.0)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <button onClick={() => {
+                    const w = parseFloat(bsaWeightKg) || 0
+                    if (w <= 0) {
+                      setBsaResult(null)
+                      return
+                    }
+                    // Fórmula padrão veterinária: BSA = (K * (W^(2/3))) / 100
+                    const k = bsaSpecies === 'cao' ? 10.1 : 10.0
+                    const bsa = (k * Math.pow(w, 2/3)) / 100
+                    setBsaResult(bsa)
+                  }} className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
+                    <Calculator className="w-4 h-4" /> Calcular Superfície Corporal ($m^2$)
+                  </button>
+                </div>
+
+                {bsaResult !== null && (
+                  <div className="space-y-3 pt-4 border-t border-pink-100">
+                    <div className="bg-pink-50 border border-pink-200 p-6 rounded-2xl text-center space-y-1">
+                      <span className="text-xs font-bold text-pink-600 uppercase tracking-wider">Superfície Corporal Calculada</span>
+                      <div className="text-3xl font-extrabold text-pink-950">{bsaResult.toFixed(3)} $m^2$</div>
+                      <p className="text-[11px] text-stone-500 pt-1">Pronto para conversão de doses oncológicas ou medicamentos especiais.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1199,7 +1305,6 @@ export default function VetWorkspaceBeatrizV24() {
                       )}
                     </div>
 
-                    {/* ALERTA INTELIGENTE POR CATEGORIA COM EXPLICAÇÃO TÉCNICA */}
                     {getAdvancedDrugAlert(selectedDrugName) && (
                       <div className="bg-amber-50 border border-amber-300 p-4 rounded-xl text-amber-900 text-xs space-y-1 animate-pulse shadow-xs">
                         <div className="font-extrabold flex items-center gap-1.5 text-amber-950">
