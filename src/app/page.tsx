@@ -39,7 +39,8 @@ import {
   MicOff,
   HeartHandshake,
   AlertTriangle,
-  Scale
+  Scale,
+  HelpCircle
 } from 'lucide-react'
 
 interface AttachedFile {
@@ -111,7 +112,7 @@ interface VetDrug {
   category: string
   defaultDosage: number
   defaultConcentration: number
-  maxDays: number // Limite máximo de dias de uso contínuo seguro
+  maxDays: number
 }
 
 interface OncolocicalDrug {
@@ -154,7 +155,7 @@ const ONCO_DRUGS: OncolocicalDrug[] = [
     category: 'Antraciclina / Quimioterápico',
     dosagePerM2: 30,
     concentration: 2,
-    maxDays: 1, // Dose única em bolus/infusão a cada 21 dias
+    maxDays: 1,
     alertTitle: '⚠️ ALERTA ONCOLÓGICO CRÍTICO: DOXORRUBICINA',
     alertDesc: '• Frequência/Duração: Administrado em dose única a cada 21 dias (máximo 1 dia por ciclo).\n• Reações Adversas: Cardiotoxicidade cumulativa grave, náusea intensa, vômito e mielossupressão (nadir em 7-14 dias).\n• Restrições: Estritamente contraindicado uso com agentes cardiotóxicos. Vesicante potente (necrose tecidual).'
   },
@@ -163,7 +164,7 @@ const ONCO_DRUGS: OncolocicalDrug[] = [
     category: 'Alquilante / Quimioterápico',
     dosagePerM2: 250,
     concentration: 50,
-    maxDays: 4, // Geralmente ciclos curtos em dias alternados
+    maxDays: 4,
     alertTitle: '⚠️ ALERTA ONCOLÓGICO: CICLOFOSFAMIDA',
     alertDesc: '• Frequência/Duração: Protocolos intermitentes (ex: 4 dias consecutivos ou 1x por semana).\n• Reações Adversas: Cistite hemorrágica estéril (metabólito acroleína), mielossupressão e alopecia.\n• Restrições: Administrar pela manhã com ampla hidratação.'
   },
@@ -172,7 +173,7 @@ const ONCO_DRUGS: OncolocicalDrug[] = [
     category: 'Alcalóide da Vinca / Quimioterápico',
     dosagePerM2: 0.7,
     concentration: 1,
-    maxDays: 1, // Aplicação semanal única
+    maxDays: 1,
     alertTitle: '⚠️ ALERTA ONCOLÓGICO: VINCRISTINA',
     alertDesc: '• Frequência/Duração: Aplicação intravenosa semanal.\n• Reações Adversas: Neurotoxicidade periférica (íleo paralítico), mielossupressão branda.\n• Restrições: Vesicante severo. Uso exclusivo intravenoso rigoroso.'
   },
@@ -181,7 +182,7 @@ const ONCO_DRUGS: OncolocicalDrug[] = [
     category: 'Alquilante / Quimioterápico (Uso Oral)',
     dosagePerM2: 20,
     concentration: 2,
-    maxDays: 30, // Uso contínuo ou em pulsos conforme protocolo felino
+    maxDays: 30,
     alertTitle: '⚠️ ALERTA ONCOLÓGICO: CLORAMBUCIL',
     alertDesc: '• Frequência/Duração: Uso diário contínuo ou em dias alternados sob rigoroso controle hematológico.\n• Reações Adversas: Mielossupressão branda a moderada, distúrbios gastrintestinais leves.\n• Restrições: Muito utilizado em protocolos felinos (linfoma, IBD).'
   },
@@ -190,7 +191,7 @@ const ONCO_DRUGS: OncolocicalDrug[] = [
     category: 'Nitrosureia / Quimioterápico',
     dosagePerM2: 60,
     concentration: 40,
-    maxDays: 1, // Dose única oral a cada 6 semanas
+    maxDays: 1,
     alertTitle: '⚠️ ALERTA ONCOLÓGICO: LOMUSTINA',
     alertDesc: '• Frequência/Duração: Dose única oral a cada 6 semanas (mínimo de intervalo obrigatório).\n• Reações Adversas: Hepatotoxicidade cumulativa significativa e mielossupressão tardia biphasica.\n• Restrições: Avaliar enzimas hepáticas (ALT, FA) antes de cada administração.'
   }
@@ -230,7 +231,7 @@ export default function VetWorkspaceBeatrizV26() {
   const [selectedOncoDrugName, setSelectedOncoDrugName] = useState<string>('Doxorrubicina')
   const [oncoCustomDosage, setOncoCustomDosage] = useState<string>('30')
   const [oncoCustomConc, setOncoCustomConc] = useState<string>('2')
-  const [oncoPillMg, setOncoPillMg] = useState<string>('2') // mg do comprimido oncológico
+  const [oncoPillMg, setOncoPillMg] = useState<string>('2')
   const [oncoResultMg, setOncoResultMg] = useState<number | null>(null)
   const [oncoResultMl, setOncoResultMl] = useState<number | null>(null)
   const [oncoResultPills, setOncoResultPills] = useState<number | null>(null)
@@ -466,14 +467,12 @@ export default function VetWorkspaceBeatrizV26() {
   const [selectedDrugName, setSelectedDrugName] = useState<string>('Selecione ou adicione...')
   const [calcDosage, setCalcDosage] = useState<string>('')
   const [calcConcentration, setCalcConcentration] = useState<string>('')
-  const [calcPillMg, setCalcPillMg] = useState<string>('') // mg do comprimido para fármacos normais
+  const [calcPillMg, setCalcPillMg] = useState<string>('')
   const [calcResultMl, setCalcResultMl] = useState<number | null>(null)
   const [calcResultPills, setCalcResultPills] = useState<number | null>(null)
 
-  // Obter o fármaco selecionado nas rotinas normais
   const currentSelectedDrugObj = customDrugs.find(d => d.name.toLowerCase() === selectedDrugName.toLowerCase())
 
-  // ALERTA AVANÇADO DE CLASSE E TEMPO MÁXIMO DE USO PARA FÁRMACOS NORMAIS
   const getAdvancedDrugAlert = (drugName: string) => {
     const foundDrug = currentSelectedDrugObj
     const cat = foundDrug ? foundDrug.category.toLowerCase() : ''
@@ -889,7 +888,6 @@ export default function VetWorkspaceBeatrizV26() {
             </button>
           </div>
 
-          {/* Copiloto IA Vet com Histórico */}
           <div className="pt-1">
             <div className="flex items-center justify-between">
               <button onClick={() => setActiveTab('ia')} className={`flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'ia' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
@@ -1143,7 +1141,7 @@ export default function VetWorkspaceBeatrizV26() {
             </div>
           )}
 
-          {/* CALCULADORA BSA & ONCOLÓGICOS (COM COMPRIMIDOS E DIAS MÁXIMOS) */}
+          {/* CALCULADORA BSA & ONCOLÓGICOS (COM DICAS EXPLICATIVAS CLARAS) */}
           {activeTab === 'bsa' && (
             <div className="max-w-4xl mx-auto space-y-6">
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
@@ -1207,6 +1205,16 @@ export default function VetWorkspaceBeatrizV26() {
                         <label className="text-[11px] font-bold text-stone-600 block mb-1">Comp. (mg)</label>
                         <input type="number" step="0.1" placeholder="Ex: 2" value={oncoPillMg} onChange={(e) => setOncoPillMg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                       </div>
+                    </div>
+
+                    {/* DICA / LEGENDA EXPLICATIVA FIXA */}
+                    <div className="bg-pink-50/70 border border-pink-200/80 p-3 rounded-xl text-[11px] text-pink-900 space-y-1">
+                      <div className="font-extrabold flex items-center gap-1 text-pink-950">
+                        <HelpCircle className="w-3.5 h-3.5 text-pink-500 shrink-0" />
+                        Guia rápido dos campos:
+                      </div>
+                      <p>• <strong>Conc. (mg/ml):</strong> Quantos mg de remédio existem em cada 1 ml do líquido (xarope/injeção).</p>
+                      <p>• <strong>Comp. (mg):</strong> Quantos mg tem cada comprimido disponível na farmácia.</p>
                     </div>
 
                     <button onClick={() => {
@@ -1514,6 +1522,17 @@ export default function VetWorkspaceBeatrizV26() {
                           <input type="number" step="0.1" placeholder="Ex: 20" value={calcPillMg} onChange={(e) => setCalcPillMg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                       </div>
+
+                      {/* DICA / LEGENDA EXPLICATIVA FIXA */}
+                      <div className="bg-pink-50/70 border border-pink-200/80 p-3 rounded-xl text-[11px] text-pink-900 space-y-1">
+                        <div className="font-extrabold flex items-center gap-1 text-pink-950">
+                          <HelpCircle className="w-3.5 h-3.5 text-pink-500 shrink-0" />
+                          Guia rápido dos campos:
+                        </div>
+                        <p>• <strong>Conc. (mg/ml):</strong> Quantos mg de remédio existem em cada 1 ml do líquido (xarope/injeção).</p>
+                        <p>• <strong>Comp. (mg):</strong> Quantos mg tem cada comprimido disponível na farmácia.</p>
+                      </div>
+
                       <button onClick={() => {
                         const w = parseFloat(calcWeight) || 0
                         const d = parseFloat(calcDosage) || 0
