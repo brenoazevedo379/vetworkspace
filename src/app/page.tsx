@@ -89,7 +89,7 @@ interface VetDrug {
   defaultConcentration: number // mg/ml
 }
 
-const COMMON_DRUGS: VetDrug[] = [
+const INITIAL_DRUGS: VetDrug[] = [
   { name: 'Meloxicam (Cão)', category: 'Anti-inflamatório', defaultDosage: 0.1, defaultConcentration: 2 },
   { name: 'Meloxicam (Gato)', category: 'Anti-inflamatório', defaultDosage: 0.05, defaultConcentration: 0.5 },
   { name: 'Dipirona', category: 'Analgésico / Antitérmico', defaultDosage: 25, defaultConcentration: 500 },
@@ -102,7 +102,7 @@ const COMMON_DRUGS: VetDrug[] = [
   { name: 'Furosemida', category: 'Diurético', defaultDosage: 2, defaultConcentration: 10 }
 ]
 
-export default function VetWorkspaceBeatrizV3() {
+export default function VetWorkspaceBeatrizV4() {
   const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'tarefas' | 'calendario' | 'financas'>('painel')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Salvo automaticamente')
@@ -112,7 +112,7 @@ export default function VetWorkspaceBeatrizV3() {
   // 1. Estudos & Pós
   const [items, setItems] = useState<DocumentItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_items_v8')
+      const saved = localStorage.getItem('vet_items_v9')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return [
@@ -125,7 +125,7 @@ export default function VetWorkspaceBeatrizV3() {
   // 2. Pacientes & Casos Clínicos
   const [patients, setPatients] = useState<PatientRecord[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_patients_v8')
+      const saved = localStorage.getItem('vet_patients_v9')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return []
@@ -140,25 +140,38 @@ export default function VetWorkspaceBeatrizV3() {
   const [newEvolution, setNewEvolution] = useState('')
   const [newStatus, setNewStatus] = useState<'Em Atendimento' | 'Internado' | 'Alta' | 'Observação'>('Em Atendimento')
 
-  // 3. Calculadora Veterinária com Busca e Personalizados
+  // 3. Calculadora Veterinária com Remédios Salvos
+  const [customDrugs, setCustomDrugs] = useState<VetDrug[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_custom_drugs_v9')
+      if (saved) { try { return JSON.parse(saved) } catch (e) {} }
+    }
+    return INITIAL_DRUGS
+  })
   const [calcWeight, setCalcWeight] = useState<string>('')
   const [drugSearchQuery, setDrugSearchQuery] = useState<string>('')
-  const [selectedDrugName, setSelectedDrugName] = useState<string>('Outro / Personalizado')
+  const [selectedDrugName, setSelectedDrugName] = useState<string>('Selecione ou adicione...')
   const [calcDosage, setCalcDosage] = useState<string>('')
   const [calcConcentration, setCalcConcentration] = useState<string>('')
   const [calcResult, setCalcResult] = useState<number | null>(null)
 
+  // Campos para cadastrar novo remédio na lista
+  const [newDrugName, setNewDrugName] = useState('')
+  const [newDrugCat, setNewDrugCat] = useState('Personalizado')
+  const [newDrugDosage, setNewDrugDosage] = useState('')
+  const [newDrugConc, setNewDrugConc] = useState('')
+
   // 4. Finanças
   const [monthlyIncome, setMonthlyIncome] = useState<number>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_income_v8')
+      const saved = localStorage.getItem('vet_income_v9')
       if (saved) return parseFloat(saved)
     }
     return 0.00
   })
   const [finances, setFinances] = useState<FinancialItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_finances_v8')
+      const saved = localStorage.getItem('vet_finances_v9')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return []
@@ -173,7 +186,7 @@ export default function VetWorkspaceBeatrizV3() {
   // 5. Tarefas
   const [tasks, setTasks] = useState<TaskItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_tasks_v8')
+      const saved = localStorage.getItem('vet_tasks_v9')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return []
@@ -186,7 +199,7 @@ export default function VetWorkspaceBeatrizV3() {
   // 6. Calendário
   const [events, setEvents] = useState<CalendarEvent[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_events_v8')
+      const saved = localStorage.getItem('vet_events_v9')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return []
@@ -196,16 +209,17 @@ export default function VetWorkspaceBeatrizV3() {
   const [eventDesc, setEventDesc] = useState('')
 
   useEffect(() => {
-    localStorage.setItem('vet_items_v8', JSON.stringify(items))
-    localStorage.setItem('vet_patients_v8', JSON.stringify(patients))
-    localStorage.setItem('vet_income_v8', monthlyIncome.toString())
-    localStorage.setItem('vet_finances_v8', JSON.stringify(finances))
-    localStorage.setItem('vet_tasks_v8', JSON.stringify(tasks))
-    localStorage.setItem('vet_events_v8', JSON.stringify(events))
+    localStorage.setItem('vet_items_v9', JSON.stringify(items))
+    localStorage.setItem('vet_patients_v9', JSON.stringify(patients))
+    localStorage.setItem('vet_custom_drugs_v9', JSON.stringify(customDrugs))
+    localStorage.setItem('vet_income_v9', monthlyIncome.toString())
+    localStorage.setItem('vet_finances_v9', JSON.stringify(finances))
+    localStorage.setItem('vet_tasks_v9', JSON.stringify(tasks))
+    localStorage.setItem('vet_events_v9', JSON.stringify(events))
     setSaveStatus('Salvo com sucesso!')
     const timer = setTimeout(() => setSaveStatus('Salvo automaticamente'), 2000)
     return () => clearTimeout(timer)
-  }, [items, patients, monthlyIncome, finances, tasks, events])
+  }, [items, patients, customDrugs, monthlyIncome, finances, tasks, events])
 
   const selectedItem = items.find(i => i.id === selectedItemId && i.type === 'page') || items.find(i => i.type === 'page')
 
@@ -280,7 +294,25 @@ export default function VetWorkspaceBeatrizV3() {
     setNewEvolution('')
   }
 
-  const filteredDrugs = COMMON_DRUGS.filter(d => d.name.toLowerCase().includes(drugSearchQuery.toLowerCase()) || d.category.toLowerCase().includes(drugSearchQuery.toLowerCase()))
+  const handleSaveNewDrug = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newDrugName.trim() || !newDrugDosage || !newDrugConc) return
+    const newD: VetDrug = {
+      name: newDrugName.trim(),
+      category: newDrugCat.trim() || 'Personalizado',
+      defaultDosage: parseFloat(newDrugDosage) || 0,
+      defaultConcentration: parseFloat(newDrugConc) || 1
+    }
+    setCustomDrugs([newD, ...customDrugs])
+    setSelectedDrugName(newD.name)
+    setCalcDosage(newD.defaultDosage.toString())
+    setCalcConcentration(newD.defaultConcentration.toString())
+    setNewDrugName('')
+    setNewDrugDosage('')
+    setNewDrugConc('')
+  }
+
+  const filteredDrugs = customDrugs.filter(d => d.name.toLowerCase().includes(drugSearchQuery.toLowerCase()) || d.category.toLowerCase().includes(drugSearchQuery.toLowerCase()))
 
   const calendarDays = Array.from({ length: 31 }, (_, i) => {
     const dayNum = i + 1
@@ -552,12 +584,14 @@ export default function VetWorkspaceBeatrizV3() {
             </div>
           )}
 
-          {/* CALCULADORA VETERINÁRIA COM LUPA E LISTA INTELIGENTE */}
+          {/* CALCULADORA VETERINÁRIA COM CADASTRO E SALVAMENTO DE REMÉDIOS */}
           {activeTab === 'calculadora' && (
             <div className="max-w-4xl mx-auto space-y-6">
-              <h2 className="text-xl font-extrabold text-pink-950">Calculadora Veterinária de Bolso (Com Busca de Fármacos)</h2>
+              <h2 className="text-xl font-extrabold text-pink-950">Calculadora Veterinária de Bolso & Fármacos Salvos</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* COLUNA 1: BUSCA E CÁLCULO */}
                 <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
                   <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">1. Selecionar ou Pesquisar Fármaco</h3>
                   
@@ -566,7 +600,7 @@ export default function VetWorkspaceBeatrizV3() {
                     <Search className="absolute left-3.5 top-3 w-4 h-4 text-pink-400" />
                     <input 
                       type="text" 
-                      placeholder="Pesquisar remédio (ex: Meloxicam, Dipirona...)" 
+                      placeholder="Pesquisar remédio salvo..." 
                       value={drugSearchQuery}
                       onChange={(e) => setDrugSearchQuery(e.target.value)}
                       className="w-full bg-pink-50/50 border border-pink-200 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
@@ -574,48 +608,41 @@ export default function VetWorkspaceBeatrizV3() {
                   </div>
 
                   {/* LISTA DE SUGESTÕES FILTRADAS */}
-                  <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1 border border-pink-100 p-2 rounded-xl bg-pink-50/20">
-                    <div 
-                      onClick={() => {
-                        setSelectedDrugName('Outro / Personalizado')
-                        setCalcDosage('')
-                        setCalcConcentration('')
-                      }} 
-                      className={`p-2 rounded-lg text-xs font-bold cursor-pointer transition ${selectedDrugName === 'Outro / Personalizado' ? 'bg-pink-500 text-white' : 'bg-white text-pink-950 hover:bg-pink-100'}`}
-                    >
-                      ✨ Outro / Remédio Personalizado (Digitação Manual)
-                    </div>
-
-                    {filteredDrugs.map((drug, idx) => (
-                      <div 
-                        key={idx}
-                        onClick={() => {
-                          setSelectedDrugName(drug.name)
-                          setCalcDosage(drug.defaultDosage.toString())
-                          setCalcConcentration(drug.defaultConcentration.toString())
-                        }}
-                        className={`p-2 rounded-lg text-xs cursor-pointer transition flex justify-between items-center ${selectedDrugName === drug.name ? 'bg-pink-500 text-white font-bold' : 'bg-white text-stone-700 hover:bg-pink-100'}`}
-                      >
-                        <div>
-                          <span className="font-bold">{drug.name}</span>
-                          <span className="text-[10px] ml-1 opacity-80">({drug.category})</span>
+                  <div className="max-h-36 overflow-y-auto space-y-1 pr-1 border border-pink-100 p-2 rounded-xl bg-pink-50/20">
+                    {filteredDrugs.length === 0 ? (
+                      <p className="text-[11px] text-stone-400 text-center py-4">Nenhum remédio encontrado. Cadastre abaixo!</p>
+                    ) : (
+                      filteredDrugs.map((drug, idx) => (
+                        <div 
+                          key={idx}
+                          onClick={() => {
+                            setSelectedDrugName(drug.name)
+                            setCalcDosage(drug.defaultDosage.toString())
+                            setCalcConcentration(drug.defaultConcentration.toString())
+                          }}
+                          className={`p-2 rounded-lg text-xs cursor-pointer transition flex justify-between items-center ${selectedDrugName === drug.name ? 'bg-pink-500 text-white font-bold' : 'bg-white text-stone-700 hover:bg-pink-100'}`}
+                        >
+                          <div>
+                            <span className="font-bold">{drug.name}</span>
+                            <span className="text-[10px] ml-1 opacity-80">({drug.category})</span>
+                          </div>
+                          <span className="text-[10px] opacity-90">{drug.defaultDosage} mg/kg</span>
                         </div>
-                        <span className="text-[10px] opacity-90">{drug.defaultDosage} mg/kg</span>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
 
-                  <div className="space-y-3 pt-2">
+                  <div className="space-y-3 pt-1">
                     <div>
                       <label className="text-[11px] font-bold text-stone-600 block mb-1">Peso do Animal (kg)</label>
                       <input type="number" step="0.1" placeholder="Ex: 15" value={calcWeight} onChange={(e) => setCalcWeight(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
                     </div>
                     <div>
-                      <label className="text-[11px] font-bold text-stone-600 block mb-1">Dose Recomendada (mg/kg)</label>
+                      <label className="text-[11px] font-bold text-stone-600 block mb-1">Dose (mg/kg)</label>
                       <input type="number" step="0.01" placeholder="Ex: 0.1" value={calcDosage} onChange={(e) => setCalcDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
                     </div>
                     <div>
-                      <label className="text-[11px] font-bold text-stone-600 block mb-1">Concentração do Fármaco (mg/ml)</label>
+                      <label className="text-[11px] font-bold text-stone-600 block mb-1">Concentração (mg/ml)</label>
                       <input type="number" step="0.01" placeholder="Ex: 2" value={calcConcentration} onChange={(e) => setCalcConcentration(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
                     </div>
                     <button onClick={() => {
@@ -631,23 +658,36 @@ export default function VetWorkspaceBeatrizV3() {
                   </div>
                 </div>
 
-                <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs flex flex-col justify-between">
-                  <div>
-                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider mb-4">Resultado do Cálculo ({selectedDrugName})</h3>
+                {/* COLUNA 2: RESULTADO E CADASTRAR NOVO REMÉDIO */}
+                <div className="space-y-6">
+                  <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
+                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Resultado ({selectedDrugName})</h3>
                     {calcResult !== null ? (
-                      <div className="bg-pink-50 border border-pink-200 p-6 rounded-2xl text-center space-y-2">
-                        <span className="text-xs font-bold text-pink-600 uppercase">Volume Total Necessário</span>
+                      <div className="bg-pink-50 border border-pink-200 p-5 rounded-2xl text-center space-y-1">
+                        <span className="text-[11px] font-bold text-pink-600 uppercase">Volume Total Necessário</span>
                         <div className="text-3xl font-extrabold text-pink-950">{calcResult.toFixed(2)} ml</div>
-                        <p className="text-[11px] text-stone-500">Baseado no peso, dose e concentração informados.</p>
                       </div>
                     ) : (
-                      <p className="text-xs text-stone-400 text-center py-12">Selecione um remédio ou digite os dados e clique em calcular.</p>
+                      <p className="text-xs text-stone-400 text-center py-6">Selecione um remédio, preencha o peso e calcule.</p>
                     )}
                   </div>
-                  <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 text-[11px] text-stone-600">
-                    💡 <strong>Dica Vet:</strong> Você pode usar os remédios pré-carregados da lista ou digitar qualquer fármaco personalizado e ajustar a dose livremente.
+
+                  {/* FORMULÁRIO PARA CADASTRAR NOVO REMÉDIO NA LISTA FIXA */}
+                  <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-3">
+                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">2. Salvar Novo Remédio na Lista</h3>
+                    <form onSubmit={handleSaveNewDrug} className="space-y-2.5">
+                      <input type="text" placeholder="Nome do Remédio" value={newDrugName} onChange={(e) => setNewDrugName(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input type="number" step="0.01" placeholder="Dose padrão (mg/kg)" value={newDrugDosage} onChange={(e) => setNewDrugDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
+                        <input type="number" step="0.01" placeholder="Concentração (mg/ml)" value={newDrugConc} onChange={(e) => setNewDrugConc(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
+                      </div>
+                      <button type="submit" className="w-full bg-pink-600 hover:bg-pink-700 text-white py-2.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center gap-1.5">
+                        <Plus className="w-3.5 h-3.5" /> Salvar Fármaco Permanentemente
+                      </button>
+                    </form>
                   </div>
                 </div>
+
               </div>
             </div>
           )}
