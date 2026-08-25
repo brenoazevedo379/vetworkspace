@@ -9,6 +9,7 @@ import {
   DollarSign, 
   Settings, 
   ChevronRight, 
+  ChevronDown,
   Plus, 
   Trash2, 
   Sparkles, 
@@ -26,7 +27,9 @@ import {
   Calculator,
   Search,
   Clock,
-  AlertCircle
+  Folder,
+  FolderPlus,
+  FileText
 } from 'lucide-react'
 
 interface AttachedFile {
@@ -112,30 +115,30 @@ const INITIAL_DRUGS: VetDrug[] = [
   { name: 'Furosemida', category: 'Diurético', defaultDosage: 2, defaultConcentration: 10 }
 ]
 
-export default function VetWorkspaceBeatrizV5() {
+export default function VetWorkspaceBeatrizV7() {
   const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'tarefas' | 'calendario' | 'financas'>('painel')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Salvo automaticamente')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // 1. Estudos & Pós
+  // 1. Estudos & Pós (Exclusivo para Pós-graduação e Residência)
   const [items, setItems] = useState<DocumentItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_items_v10')
+      const saved = localStorage.getItem('vet_items_v12')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return [
       { id: 'f-pos', title: 'Pós-graduação & Residência', parentId: null, type: 'folder', isOpen: true },
-      { id: 'p-1', title: 'Resumos e Casos Clínicos', parentId: 'f-pos', type: 'page', content: '', severity: 'Caso Padrão', attachments: [] }
+      { id: 'p-1', title: 'Módulos e Aulas Teóricas', parentId: 'f-pos', type: 'page', content: '', severity: 'Caso Padrão', attachments: [] }
     ]
   })
   const [selectedItemId, setSelectedItemId] = useState<string>('p-1')
 
-  // 2. Pacientes & Timeline de Retornos
+  // 2. Pacientes & Timeline (Exclusivo para Casos Clínicos Reais)
   const [patients, setPatients] = useState<PatientRecord[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_patients_v10')
+      const saved = localStorage.getItem('vet_patients_v12')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return []
@@ -149,17 +152,16 @@ export default function VetWorkspaceBeatrizV5() {
   const [newComplaint, setNewComplaint] = useState('')
   const [newStatus, setNewStatus] = useState<'Em Atendimento' | 'Internado' | 'Alta' | 'Observação'>('Em Atendimento')
 
-  // Estados para adicionar retorno na Timeline do paciente
   const [activePatientForEvolution, setActivePatientForEvolution] = useState<string | null>(null)
   const [evoWeight, setEvoWeight] = useState('')
   const [evoTemp, setEvoTemp] = useState('')
   const [evoNotes, setEvoNotes] = useState('')
 
-  // 3. Calculadora Veterinária (Remédios e Fluidoterapia)
+  // 3. Calculadora
   const [calcMode, setCalcMode] = useState<'dose' | 'fluido'>('dose')
   const [customDrugs, setCustomDrugs] = useState<VetDrug[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_custom_drugs_v10')
+      const saved = localStorage.getItem('vet_custom_drugs_v12')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return INITIAL_DRUGS
@@ -171,12 +173,10 @@ export default function VetWorkspaceBeatrizV5() {
   const [calcConcentration, setCalcConcentration] = useState<string>('')
   const [calcResult, setCalcResult] = useState<number | null>(null)
 
-  // Fluidoterapia
   const [fluidWeight, setFluidWeight] = useState<string>('')
-  const [fluidRateType, setFluidRateType] = useState<string>('manutencao') // 50 ml/kg/dia
+  const [fluidRateType, setFluidRateType] = useState<string>('manutencao')
   const [fluidResultMlHour, setFluidResultMlHour] = useState<number | null>(null)
 
-  // Novo remédio
   const [newDrugName, setNewDrugName] = useState('')
   const [newDrugCat, setNewDrugCat] = useState('Personalizado')
   const [newDrugDosage, setNewDrugDosage] = useState('')
@@ -185,14 +185,14 @@ export default function VetWorkspaceBeatrizV5() {
   // 4. Finanças
   const [monthlyIncome, setMonthlyIncome] = useState<number>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_income_v10')
+      const saved = localStorage.getItem('vet_income_v12')
       if (saved) return parseFloat(saved)
     }
     return 0.00
   })
   const [finances, setFinances] = useState<FinancialItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_finances_v10')
+      const saved = localStorage.getItem('vet_finances_v12')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return []
@@ -207,7 +207,7 @@ export default function VetWorkspaceBeatrizV5() {
   // 5. Tarefas
   const [tasks, setTasks] = useState<TaskItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_tasks_v10')
+      const saved = localStorage.getItem('vet_tasks_v12')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return []
@@ -220,7 +220,7 @@ export default function VetWorkspaceBeatrizV5() {
   // 6. Calendário
   const [events, setEvents] = useState<CalendarEvent[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_events_v10')
+      const saved = localStorage.getItem('vet_events_v12')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return []
@@ -230,13 +230,13 @@ export default function VetWorkspaceBeatrizV5() {
   const [eventDesc, setEventDesc] = useState('')
 
   useEffect(() => {
-    localStorage.setItem('vet_items_v10', JSON.stringify(items))
-    localStorage.setItem('vet_patients_v10', JSON.stringify(patients))
-    localStorage.setItem('vet_custom_drugs_v10', JSON.stringify(customDrugs))
-    localStorage.setItem('vet_income_v10', monthlyIncome.toString())
-    localStorage.setItem('vet_finances_v10', JSON.stringify(finances))
-    localStorage.setItem('vet_tasks_v10', JSON.stringify(tasks))
-    localStorage.setItem('vet_events_v10', JSON.stringify(events))
+    localStorage.setItem('vet_items_v12', JSON.stringify(items))
+    localStorage.setItem('vet_patients_v12', JSON.stringify(patients))
+    localStorage.setItem('vet_custom_drugs_v12', JSON.stringify(customDrugs))
+    localStorage.setItem('vet_income_v12', monthlyIncome.toString())
+    localStorage.setItem('vet_finances_v12', JSON.stringify(finances))
+    localStorage.setItem('vet_tasks_v12', JSON.stringify(tasks))
+    localStorage.setItem('vet_events_v12', JSON.stringify(events))
     setSaveStatus('Salvo com sucesso!')
     const timer = setTimeout(() => setSaveStatus('Salvo automaticamente'), 2000)
     return () => clearTimeout(timer)
@@ -355,6 +355,98 @@ export default function VetWorkspaceBeatrizV5() {
     setNewDrugConc('')
   }
 
+  const handleAddFolder = (parentId: string | null) => {
+    const title = prompt('Nome da nova pasta:')
+    if (!title) return
+    const newFolder: DocumentItem = {
+      id: 'folder-' + Date.now(),
+      title,
+      parentId,
+      type: 'folder',
+      isOpen: true
+    }
+    setItems([...items, newFolder])
+  }
+
+  const handleAddPage = (parentId: string | null) => {
+    const title = prompt('Nome da nova página de estudo:')
+    if (!title) return
+    const newPage: DocumentItem = {
+      id: 'page-' + Date.now(),
+      title,
+      parentId,
+      type: 'page',
+      content: '',
+      severity: 'Caso Padrão',
+      attachments: []
+    }
+    setItems([...items, newPage])
+    setSelectedItemId(newPage.id)
+    setActiveTab('estudos')
+  }
+
+  const toggleFolder = (id: string) => {
+    setItems(items.map(i => i.id === id ? { ...i, isOpen: !i.isOpen } : i))
+  }
+
+  const deleteItem = (id: string) => {
+    const idsToDelete = [id]
+    const getChildrenIds = (parentId: string) => {
+      items.filter(i => i.parentId === parentId).forEach(child => {
+        idsToDelete.push(child.id)
+        if (child.type === 'folder') getChildrenIds(child.id)
+      })
+    }
+    getChildrenIds(id)
+    setItems(items.filter(i => !idsToDelete.includes(i.id)))
+  }
+
+  const renderTree = (parentId: string | null) => {
+    const children = items.filter(i => i.parentId === parentId)
+    if (children.length === 0) return null
+
+    return (
+      <div className="space-y-1 pl-2.5">
+        {children.map(item => {
+          if (item.type === 'folder') {
+            return (
+              <div key={item.id} className="space-y-1">
+                <div className="flex items-center justify-between group px-2 py-1 rounded-lg hover:bg-pink-100/50 text-pink-900 cursor-pointer">
+                  <div className="flex items-center gap-1.5 truncate" onClick={() => toggleFolder(item.id)}>
+                    <button className="text-pink-400">
+                      {item.isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                    </button>
+                    <Folder className="w-3.5 h-3.5 text-pink-500 fill-pink-200" />
+                    <span className="font-bold text-xs truncate">{item.title}</span>
+                  </div>
+                  <div className="hidden group-hover:flex items-center gap-1">
+                    <button title="Adicionar Subpasta" onClick={() => handleAddFolder(item.id)} className="p-0.5 text-pink-600 hover:text-pink-900"><FolderPlus className="w-3.5 h-3.5" /></button>
+                    <button title="Adicionar Página" onClick={() => handleAddPage(item.id)} className="p-0.5 text-pink-600 hover:text-pink-900"><Plus className="w-3.5 h-3.5" /></button>
+                    <button title="Excluir Pasta" onClick={() => deleteItem(item.id)} className="p-0.5 text-stone-400 hover:text-red-500"><Trash2 className="w-3 h-3" /></button>
+                  </div>
+                </div>
+                {item.isOpen && renderTree(item.id)}
+              </div>
+            )
+          } else {
+            const isSelected = selectedItemId === item.id
+            return (
+              <div key={item.id} className={`flex items-center justify-between group px-2 py-1.5 rounded-lg cursor-pointer transition ${isSelected ? 'bg-pink-500 text-white font-bold shadow-xs' : 'text-pink-900/80 hover:bg-pink-50'}`} onClick={() => { setSelectedItemId(item.id); setActiveTab('estudos'); }}>
+                <div className="flex items-center gap-2 truncate">
+                  <FileText className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-pink-400'}`} />
+                  <span className="text-xs truncate">{item.title}</span>
+                </div>
+                <button title="Excluir Página" onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className={`opacity-0 group-hover:opacity-100 p-0.5 ${isSelected ? 'text-white/80 hover:text-white' : 'text-stone-400 hover:text-red-500'}`}>
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            )
+          }
+        })}
+      </div>
+    )
+  }
+
   const filteredDrugs = customDrugs.filter(d => d.name.toLowerCase().includes(drugSearchQuery.toLowerCase()) || d.category.toLowerCase().includes(drugSearchQuery.toLowerCase()))
 
   const calendarDays = Array.from({ length: 31 }, (_, i) => {
@@ -379,12 +471,14 @@ export default function VetWorkspaceBeatrizV5() {
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".docx,.doc,.xlsx,.xls,.png,.jpg,.jpeg,.pdf" />
 
       {/* BARRA LATERAL */}
-      <div className={`${isSidebarOpen ? 'w-64' : 'w-0'} transition-all duration-200 bg-white/90 backdrop-blur-md border-r border-pink-100 flex flex-col z-10 overflow-hidden shadow-xs`}>
-        <div className="p-4 border-b border-pink-100 flex items-center gap-2.5 bg-pink-50/30">
-          <div className="w-8 h-8 rounded-xl bg-pink-500 flex items-center justify-center text-white font-bold text-xs shadow-sm">V</div>
-          <div>
-            <div className="font-extrabold text-sm text-pink-950 tracking-tight">VetWorkspace</div>
-            <div className="text-[10px] font-semibold text-pink-500 uppercase tracking-wide">Dra. Beatriz Contreiras</div>
+      <div className={`${isSidebarOpen ? 'w-72' : 'w-0'} transition-all duration-200 bg-white/90 backdrop-blur-md border-r border-pink-100 flex flex-col z-10 overflow-hidden shadow-xs`}>
+        <div className="p-4 border-b border-pink-100 flex items-center justify-between bg-pink-50/30">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-pink-500 flex items-center justify-center text-white font-bold text-xs shadow-sm">V</div>
+            <div>
+              <div className="font-extrabold text-sm text-pink-950 tracking-tight">VetWorkspace</div>
+              <div className="text-[10px] font-semibold text-pink-500 uppercase tracking-wide">Dra. Beatriz Contreiras</div>
+            </div>
           </div>
         </div>
 
@@ -392,12 +486,28 @@ export default function VetWorkspaceBeatrizV5() {
           <button onClick={() => setActiveTab('painel')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'painel' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
             <LayoutDashboard className="w-4 h-4" /> Painel
           </button>
-          <button onClick={() => setActiveTab('estudos')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'estudos' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
-            <BookOpen className="w-4 h-4" /> Estudos & Pós
-          </button>
-          <button onClick={() => setActiveTab('pacientes')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'pacientes' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
-            <Stethoscope className="w-4 h-4" /> Pacientes & Timeline ({patients.length})
-          </button>
+          
+          {/* SEÇÃO 1: ESTUDOS & PÓS (ISOLADO) */}
+          <div className="pt-2 pb-1 border-t border-pink-100/60 mt-2">
+            <div className="flex items-center justify-between px-3 pt-2 text-[11px] font-bold text-pink-900 uppercase tracking-wider">
+              <span>📚 Estudos & Pós</span>
+              <div className="flex items-center gap-1">
+                <button title="Nova Pasta" onClick={() => handleAddFolder(null)} className="p-1 rounded hover:bg-pink-100 text-pink-600"><FolderPlus className="w-3.5 h-3.5" /></button>
+                <button title="Nova Página" onClick={() => handleAddPage(null)} className="p-1 rounded hover:bg-pink-100 text-pink-600"><Plus className="w-3.5 h-3.5" /></button>
+              </div>
+            </div>
+            <div className="mt-1">
+              {renderTree(null)}
+            </div>
+          </div>
+
+          {/* SEÇÃO 2: CASOS CLÍNICOS E PACIENTES (ISOLADO E SEPARADO) */}
+          <div className="pt-2 border-t border-pink-100/60 mt-2">
+            <button onClick={() => setActiveTab('pacientes')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'pacientes' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+              <Stethoscope className="w-4 h-4" /> Casos Clínicos & Pacientes ({patients.length})
+            </button>
+          </div>
+
           <button onClick={() => setActiveTab('calculadora')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'calculadora' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
             <Calculator className="w-4 h-4" /> Calculadora & Soro
           </button>
@@ -470,7 +580,7 @@ export default function VetWorkspaceBeatrizV5() {
                 </div>
                 <div onClick={() => setActiveTab('pacientes')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
                   <div>
-                    <span className="text-xs font-semibold text-pink-400">Pacientes Registrados</span>
+                    <span className="text-xs font-semibold text-pink-400">Casos Clínicos / Pacientes</span>
                     <div className="text-2xl font-extrabold text-pink-950 mt-1">{patients.length}</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-pink-500"><Stethoscope className="w-5 h-5" /></div>
@@ -486,12 +596,12 @@ export default function VetWorkspaceBeatrizV5() {
             </div>
           )}
 
-          {/* ESTUDOS & PÓS COM MARCADOR DE SEVERIDADE */}
+          {/* ESTUDOS & PÓS (ISOLADO) */}
           {activeTab === 'estudos' && selectedItem && (
             <div className="max-w-4xl mx-auto bg-white/95 backdrop-blur-md border border-pink-100 p-10 rounded-2xl shadow-xs space-y-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-pink-100 pb-4 gap-3">
                 <div className="flex-1 mr-4">
-                  <span className="text-[10px] font-bold text-pink-500 uppercase tracking-wider">Estudos & Pós-Graduação</span>
+                  <span className="text-[10px] font-bold text-pink-500 uppercase tracking-wider">Estudos & Pós-Graduação (Acadêmico)</span>
                   <input 
                     type="text" 
                     value={selectedItem.title}
@@ -560,18 +670,18 @@ export default function VetWorkspaceBeatrizV5() {
                 onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, content: e.target.value } : i))}
                 rows={12}
                 className="w-full bg-transparent text-stone-700 text-sm leading-relaxed focus:outline-none resize-none font-normal placeholder-stone-300"
-                placeholder="Insira suas anotações, diagnósticos diferenciais e casos clínicos aqui..."
+                placeholder="Insira suas anotações teóricas, diretrizes e resumos de pós aqui..."
               />
             </div>
           )}
 
-          {/* PACIENTES & TIMELINE DE RETORNOS */}
+          {/* PACIENTES & CASOS CLÍNICOS REAIS (SEPARADO) */}
           {activeTab === 'pacientes' && (
             <div className="max-w-4xl mx-auto space-y-6">
-              <h2 className="text-xl font-extrabold text-pink-950">Módulo de Pacientes & Linha do Tempo (Retornos)</h2>
+              <h2 className="text-xl font-extrabold text-pink-950">Módulo de Casos Clínicos & Prontuário de Pacientes</h2>
               
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
-                <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Nova Ficha de Atendimento</h3>
+                <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Novo Paciente / Caso Clínico Real</h3>
                 <form onSubmit={handleAddPatient} className="space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <input type="text" placeholder="Nome do Pet" value={newPetName} onChange={(e) => setNewPetName(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
@@ -598,14 +708,14 @@ export default function VetWorkspaceBeatrizV5() {
                     </select>
                   </div>
                   <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
-                    <Plus className="w-4 h-4" /> Cadastrar Ficha de Paciente
+                    <Plus className="w-4 h-4" /> Cadastrar Caso Clínico
                   </button>
                 </form>
               </div>
 
               <div className="space-y-4">
                 {patients.length === 0 ? (
-                  <p className="text-xs text-stone-400 py-6 text-center bg-white/50 rounded-2xl border border-pink-100">Nenhum paciente cadastrado ainda.</p>
+                  <p className="text-xs text-stone-400 py-6 text-center bg-white/50 rounded-2xl border border-pink-100">Nenhum caso clínico cadastrado ainda.</p>
                 ) : (
                   patients.map(p => (
                     <div key={p.id} className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
@@ -627,7 +737,6 @@ export default function VetWorkspaceBeatrizV5() {
                         </div>
                       </div>
 
-                      {/* LINHA DO TEMPO (EVOLUÇÕES) */}
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold text-pink-900 flex items-center gap-1.5">
@@ -668,7 +777,7 @@ export default function VetWorkspaceBeatrizV5() {
             </div>
           )}
 
-          {/* CALCULADORA VETERINÁRIA COM FÁRMACOS E FLUIDOTERAPIA */}
+          {/* CALCULADORA */}
           {activeTab === 'calculadora' && (
             <div className="max-w-4xl mx-auto space-y-6">
               <div className="flex items-center justify-between">
@@ -778,7 +887,6 @@ export default function VetWorkspaceBeatrizV5() {
                   </div>
                 </div>
               ) : (
-                /* CALCULADORA DE FLUIDOTERAPIA */
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
                     <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Cálculo de Taxa de Infusão Contínua (Soro)</h3>
@@ -816,14 +924,13 @@ export default function VetWorkspaceBeatrizV5() {
                         <div className="bg-pink-50 border border-pink-200 p-6 rounded-2xl text-center space-y-2">
                           <span className="text-xs font-bold text-pink-600 uppercase">Taxa de Infusão Recomendada</span>
                           <div className="text-3xl font-extrabold text-pink-950">{fluidResultMlHour.toFixed(1)} ml / hora</div>
-                          <p className="text-[11px] text-stone-500">Ideal para regulagem em bomba de infusão ou equipo de soro.</p>
                         </div>
                       ) : (
                         <p className="text-xs text-stone-400 text-center py-12">Insira o peso e clique em calcular.</p>
                       )}
                     </div>
                     <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 text-[11px] text-stone-600">
-                      💡 <strong>Dica Vet:</strong> Monitore sempre a frequência cardíaca, respiratória e sinais de sobrecarga hídrica durante a fluidoterapia.
+                      💡 <strong>Dica Vet:</strong> Monitore sempre a frequência cardíaca e respiratória durante a fluidoterapia.
                     </div>
                   </div>
                 </div>
