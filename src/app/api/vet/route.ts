@@ -20,8 +20,9 @@ export async function POST(req: Request) {
     4. Conduta Terapêutica de Suporte / Fármacos (com indicação de cautela e avaliação de parâmetros).
     Responda de forma direta, limpa, organizada com bullet points (•) e sem poluição visual.`
 
-    // SEM o parâmetro 'model:', a SDK usa o padrão nativo da sua chave automaticamente
+    // Passando o modelo correto exigido pela SDK atual do Google GenAI
     const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         systemInstruction: systemInstruction,
