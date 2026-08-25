@@ -1141,7 +1141,6 @@ export default function VetWorkspaceBeatrizV26() {
             </div>
           )}
 
-          {/* CALCULADORA BSA & ONCOLÓGICOS (COM DICAS EXPLICATIVAS CLARAS) */}
           {activeTab === 'bsa' && (
             <div className="max-w-4xl mx-auto space-y-6">
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
@@ -1154,7 +1153,6 @@ export default function VetWorkspaceBeatrizV26() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Coluna 1: Dados do Animal & Seleção do Oncológico */}
                   <div className="space-y-4">
                     <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">1. Dados do Paciente & Quimioterápico</h3>
                     
@@ -1207,7 +1205,6 @@ export default function VetWorkspaceBeatrizV26() {
                       </div>
                     </div>
 
-                    {/* DICA / LEGENDA EXPLICATIVA FIXA */}
                     <div className="bg-pink-50/70 border border-pink-200/80 p-3 rounded-xl text-[11px] text-pink-900 space-y-1">
                       <div className="font-extrabold flex items-center gap-1 text-pink-950">
                         <HelpCircle className="w-3.5 h-3.5 text-pink-500 shrink-0" />
@@ -1245,7 +1242,6 @@ export default function VetWorkspaceBeatrizV26() {
                     </button>
                   </div>
 
-                  {/* Coluna 2: Resultados e Alertas Clínicos Críticos */}
                   <div className="space-y-4 flex flex-col justify-between">
                     <div>
                       <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider mb-2">2. Resultados & Segurança Farmacológica</h3>
@@ -1269,8 +1265,8 @@ export default function VetWorkspaceBeatrizV26() {
                               <div className="text-base font-extrabold text-rose-600">{oncoResultMl?.toFixed(2)} ml</div>
                             </div>
                             <div>
-                              <span className="text-[10px] font-bold text-stone-500 uppercase">Comprimidos</span>
-                              <div className="text-base font-extrabold text-emerald-600">{oncoResultPills ? oncoResultPills.toFixed(1) : '0'} comp.</div>
+                              <span className="text-[10px] font-bold text-stone-500 uppercase">Comprimidos / Uso</span>
+                              <div className="text-base font-extrabold text-emerald-600">{oncoResultPills ? oncoResultPills.toFixed(2) : '0'} comp. / dia</div>
                             </div>
                           </div>
                         </div>
@@ -1281,7 +1277,6 @@ export default function VetWorkspaceBeatrizV26() {
                       )}
                     </div>
 
-                    {/* Alerta Clínico Específico do Oncológico Selecionado */}
                     {(() => {
                       const drugObj = ONCO_DRUGS.find(d => d.name === selectedOncoDrugName)
                       if (!drugObj) return null
@@ -1523,7 +1518,6 @@ export default function VetWorkspaceBeatrizV26() {
                         </div>
                       </div>
 
-                      {/* DICA / LEGENDA EXPLICATIVA FIXA */}
                       <div className="bg-pink-50/70 border border-pink-200/80 p-3 rounded-xl text-[11px] text-pink-900 space-y-1">
                         <div className="font-extrabold flex items-center gap-1 text-pink-950">
                           <HelpCircle className="w-3.5 h-3.5 text-pink-500 shrink-0" />
@@ -1557,12 +1551,12 @@ export default function VetWorkspaceBeatrizV26() {
                         <div className="bg-pink-50 border border-pink-200 p-5 rounded-2xl text-center space-y-3">
                           <div>
                             <span className="text-[10px] font-bold text-pink-600 uppercase">Volume Líquido</span>
-                            <div className="text-2xl font-extrabold text-pink-950">{calcResultMl.toFixed(2)} ml</div>
+                            <div className="text-2xl font-extrabold text-pink-950">{calcResultMl.toFixed(2)} ml / dia</div>
                           </div>
                           {calcPillMg !== '' && parseFloat(calcPillMg) > 0 && (
                             <div className="pt-2 border-t border-pink-200/60">
                               <span className="text-[10px] font-bold text-stone-500 uppercase">Quantidade de Comprimidos</span>
-                              <div className="text-xl font-extrabold text-emerald-600">{calcResultPills?.toFixed(1)} comp.</div>
+                              <div className="text-xl font-extrabold text-emerald-600">{calcResultPills?.toFixed(2)} comp. / dia</div>
                             </div>
                           )}
                         </div>
