@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { GoogleGenAI } from '@google/genai'
 
 export async function POST(req: Request) {
   try {
@@ -8,8 +7,6 @@ export async function POST(req: Request) {
     const parte1 = "AQ.Ab8RN6KKr1UWy-PSd_"
     const parte2 = "C9g7TJRFSM2tdjI3nfgcUoF-S5yGvAxA"
     const apiKey = parte1 + parte2
-
-    const ai = new GoogleGenAI({ apiKey })
 
     const systemInstruction = `Você é o Copiloto Clínico Veterinário da Dra. Beatriz Contreiras. 
     Seu papel é atuar com rigor técnico, base científica, clareza e precisão profissional. 
@@ -20,16 +17,36 @@ export async function POST(req: Request) {
     4. Conduta Terapêutica de Suporte / Fármacos (com indicação de cautela e avaliação de parâmetros).
     Responda de forma direta, limpa, organizada com bullet points (•) e sem poluição visual.`
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        systemInstruction: systemInstruction,
-        temperature: 0.3,
-      }
+    // Requisição HTTP pura sem SDK, usando o endpoint universal de conteúdos
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`
+
+    const apiResponse = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: `Instrução do Sistema:\n${systemInstruction}\n\nCaso Clínico:\n${prompt}` }
+            ]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.3
+        }
+      })
     })
 
-    const reply = response.text || 'Não foi possível gerar a resposta clínica.'
+    const data = await apiResponse.json()
+
+    if (!apiResponse.ok) {
+      throw new Error(data.error?.message || 'Erro na comunicação com a API do Google')
+    }
+
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Não foi possível gerar a resposta clínica.'
 
     return NextResponse.json({ reply })
   } catch (error: any) {
