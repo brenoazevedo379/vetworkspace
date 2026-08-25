@@ -434,7 +434,7 @@ export default function VetWorkspaceBeatrizV26() {
       }
       return {
         title: '⚠️ ALERTA DE SEGURANÇA: FÁRMACO ONCOLÓGICO',
-        desc: 'Quimioterápicos possuem margem de segurança estreita. Induzem frequentemente toxicidade medular (leucocitopenia) e distúrbios gastrintestinais (náusea e vômito). Requer cálculo preciso por superfície corporal (m2) e exames hematológicos prévios.'
+        desc: 'Quimioterápicos possuem margem de segurança estreita. Induzem frequentemente toxicidade medular (leucocitopenia) e distúrbios gastrintestinais (náusea e vômito). Requer cálculo preciso por superfície corporal (m²) e exames hematológicos prévios.'
       }
     }
 
@@ -1089,7 +1089,7 @@ export default function VetWorkspaceBeatrizV26() {
             </div>
           )}
 
-          {/* CALCULADORA BSA COM VISUAL LIMPO E PROFISSIONAL (SEM CÓDIGOS LAATEX EXPOSTOS) */}
+          {/* CALCULADORA BSA COM VISUAL LIMPO E PROFISSIONAL (SEM CÓDIGOS LATEX EXPOSTOS) */}
           {activeTab === 'bsa' && (
             <div className="max-w-3xl mx-auto space-y-6">
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
