@@ -111,6 +111,7 @@ interface VetDrug {
   category: string
   defaultDosage: number
   defaultConcentration: number
+  maxDays: number // Limite máximo de dias de uso contínuo seguro
 }
 
 interface OncolocicalDrug {
@@ -118,6 +119,7 @@ interface OncolocicalDrug {
   category: string
   dosagePerM2: number // mg/m²
   concentration: number // mg/ml
+  maxDays: number
   alertTitle: string
   alertDesc: string
 }
@@ -134,58 +136,63 @@ interface ChatSession {
 }
 
 const INITIAL_DRUGS: VetDrug[] = [
-  { name: 'Meloxicam (Cão)', category: 'Anti-inflamatório (AINE)', defaultDosage: 0.1, defaultConcentration: 2 },
-  { name: 'Meloxicam (Gato)', category: 'Anti-inflamatório (AINE)', defaultDosage: 0.05, defaultConcentration: 0.5 },
-  { name: 'Dipirona', category: 'Analgésico / Antitérmico', defaultDosage: 25, defaultConcentration: 500 },
-  { name: 'Tramadol', category: 'Analgésico Opióide', defaultDosage: 2, defaultConcentration: 50 },
-  { name: 'Omeprazol', category: 'Protetor Gástrico', defaultDosage: 1, defaultConcentration: 20 },
-  { name: 'Maropitant (Cerenia)', category: 'Antiemético', defaultDosage: 1, defaultConcentration: 10 },
-  { name: 'Cloridrato de Doxiciclina', category: 'Antibiótico', defaultDosage: 10, defaultConcentration: 50 },
-  { name: 'Amoxicilina + Ácido Clavulânico', category: 'Antibiótico', defaultDosage: 20, defaultConcentration: 50 },
-  { name: 'Prednisolona', category: 'Corticoide', defaultDosage: 1, defaultConcentration: 3 },
-  { name: 'Fluoxetina', category: 'Antidepressivo / Inibidor da Serotonina', defaultDosage: 1, defaultConcentration: 20 }
+  { name: 'Meloxicam (Cão)', category: 'Anti-inflamatório (AINE)', defaultDosage: 0.1, defaultConcentration: 2, maxDays: 5 },
+  { name: 'Meloxicam (Gato)', category: 'Anti-inflamatório (AINE)', defaultDosage: 0.05, defaultConcentration: 0.5, maxDays: 3 },
+  { name: 'Dipirona', category: 'Analgésico / Antitérmico', defaultDosage: 25, defaultConcentration: 500, maxDays: 7 },
+  { name: 'Tramadol', category: 'Analgésico Opióide', defaultDosage: 2, defaultConcentration: 50, maxDays: 5 },
+  { name: 'Omeprazol', category: 'Protetor Gástrico', defaultDosage: 1, defaultConcentration: 20, maxDays: 14 },
+  { name: 'Maropitant (Cerenia)', category: 'Antiemético', defaultDosage: 1, defaultConcentration: 10, maxDays: 5 },
+  { name: 'Cloridrato de Doxiciclina', category: 'Antibiótico', defaultDosage: 10, defaultConcentration: 50, maxDays: 28 },
+  { name: 'Amoxicilina + Ácido Clavulânico', category: 'Antibiótico', defaultDosage: 20, defaultConcentration: 50, maxDays: 14 },
+  { name: 'Prednisolona', category: 'Corticoide', defaultDosage: 1, defaultConcentration: 3, maxDays: 7 },
+  { name: 'Fluoxetina', category: 'Antidepressivo / Inibidor da Serotonina', defaultDosage: 1, defaultConcentration: 20, maxDays: 90 }
 ]
 
 const ONCO_DRUGS: OncolocicalDrug[] = [
   {
     name: 'Doxorrubicina',
     category: 'Antraciclina / Quimioterápico',
-    dosagePerM2: 30, // mg/m² padrão cão
+    dosagePerM2: 30,
     concentration: 2,
+    maxDays: 1, // Dose única em bolus/infusão a cada 21 dias
     alertTitle: '⚠️ ALERTA ONCOLÓGICO CRÍTICO: DOXORRUBICINA',
-    alertDesc: '• Reações Adversas: Cardiotoxicidade cumulativa grave, náusea intensa, vômito, alopecia e mielossupressão (nadir em 7-14 dias).\n• Restrições/Associações: Estritamente contraindicado uso concomitante com agentes cardiotóxicos. Risco severo de necrose tecidual em caso de extravasamento (vesicante potente).'
+    alertDesc: '• Frequência/Duração: Administrado em dose única a cada 21 dias (máximo 1 dia por ciclo).\n• Reações Adversas: Cardiotoxicidade cumulativa grave, náusea intensa, vômito e mielossupressão (nadir em 7-14 dias).\n• Restrições: Estritamente contraindicado uso com agentes cardiotóxicos. Vesicante potente (necrose tecidual).'
   },
   {
     name: 'Ciclofosfamida',
     category: 'Alquilante / Quimioterápico',
-    dosagePerM2: 250, // mg/m² (ou fracionado)
+    dosagePerM2: 250,
     concentration: 50,
+    maxDays: 4, // Geralmente ciclos curtos em dias alternados
     alertTitle: '⚠️ ALERTA ONCOLÓGICO: CICLOFOSFAMIDA',
-    alertDesc: '• Reações Adversas: Cistite hemorrágica estéril (causada pelo metabólito acroleína), mielossupressão, alopecia e distúrbios gastrintestinais (vômito/anorexia).\n• Restrições/Associações: Administrar preferencialmente pela manhã com ampla hidratação para evitar contato prolongado da acroleína com a mucosa vesical.'
+    alertDesc: '• Frequência/Duração: Protocolos intermitentes (ex: 4 dias consecutivos ou 1x por semana).\n• Reações Adversas: Cistite hemorrágica estéril (metabólito acroleína), mielossupressão e alopecia.\n• Restrições: Administrar pela manhã com ampla hidratação.'
   },
   {
     name: 'Vincristina',
     category: 'Alcalóide da Vinca / Quimioterápico',
-    dosagePerM2: 0.7, // mg/m²
+    dosagePerM2: 0.7,
     concentration: 1,
+    maxDays: 1, // Aplicação semanal única
     alertTitle: '⚠️ ALERTA ONCOLÓGICO: VINCRISTINA',
-    alertDesc: '• Reações Adversas: Neurotoxicidade periférica (íleo paralítico, fraqueza), mielossupressão branda a moderada.\n• Restrições/Associações: Agente vesicante severo. Via exclusiva intravenosa rigorosa; o extravasamento causa necrose local grave.'
+    alertDesc: '• Frequência/Duração: Aplicação intravenosa semanal.\n• Reações Adversas: Neurotoxicidade periférica (íleo paralítico), mielossupressão branda.\n• Restrições: Vesicante severo. Uso exclusivo intravenoso rigoroso.'
   },
   {
     name: 'Clorambucil',
     category: 'Alquilante / Quimioterápico (Uso Oral)',
-    dosagePerM2: 20, // mg/m²
+    dosagePerM2: 20,
     concentration: 2,
+    maxDays: 30, // Uso contínuo ou em pulsos conforme protocolo felino
     alertTitle: '⚠️ ALERTA ONCOLÓGICO: CLORAMBUCIL',
-    alertDesc: '• Reações Adversas: Mielossupressão branda a moderada, distúrbios gastrintestinais leves.\n• Restrições/Associações: Muito utilizado em protocolos felinos (linfoma, enteropatia inflamatória). Monitorar hemograma regularmente.'
+    alertDesc: '• Frequência/Duração: Uso diário contínuo ou em dias alternados sob rigoroso controle hematológico.\n• Reações Adversas: Mielossupressão branda a moderada, distúrbios gastrintestinais leves.\n• Restrições: Muito utilizado em protocolos felinos (linfoma, IBD).'
   },
   {
     name: 'Lomustina (CCNU)',
     category: 'Nitrosureia / Quimioterápico',
-    dosagePerM2: 60, // mg/m²
+    dosagePerM2: 60,
     concentration: 40,
+    maxDays: 1, // Dose única oral a cada 6 semanas
     alertTitle: '⚠️ ALERTA ONCOLÓGICO: LOMUSTINA',
-    alertDesc: '• Reações Adversas: Hepatotoxicidade cumulativa significativa e mielossupressão tardia biphasica.\n• Restrições/Associações: Avaliar enzimas hepáticas (ALT, FA) e bilirrubina antes de cada administração. Uso de protetores hepáticos recomendado.'
+    alertDesc: '• Frequência/Duração: Dose única oral a cada 6 semanas (mínimo de intervalo obrigatório).\n• Reações Adversas: Hepatotoxicidade cumulativa significativa e mielossupressão tardia biphasica.\n• Restrições: Avaliar enzimas hepáticas (ALT, FA) antes de cada administração.'
   }
 ]
 
@@ -223,8 +230,10 @@ export default function VetWorkspaceBeatrizV26() {
   const [selectedOncoDrugName, setSelectedOncoDrugName] = useState<string>('Doxorrubicina')
   const [oncoCustomDosage, setOncoCustomDosage] = useState<string>('30')
   const [oncoCustomConc, setOncoCustomConc] = useState<string>('2')
+  const [oncoPillMg, setOncoPillMg] = useState<string>('2') // mg do comprimido oncológico
   const [oncoResultMg, setOncoResultMg] = useState<number | null>(null)
   const [oncoResultMl, setOncoResultMl] = useState<number | null>(null)
+  const [oncoResultPills, setOncoResultPills] = useState<number | null>(null)
   const [calculatedBsaValue, setCalculatedBsaValue] = useState<number | null>(null)
 
   const [condolenceTutor, setCondolenceTutor] = useState('')
@@ -457,33 +466,48 @@ export default function VetWorkspaceBeatrizV26() {
   const [selectedDrugName, setSelectedDrugName] = useState<string>('Selecione ou adicione...')
   const [calcDosage, setCalcDosage] = useState<string>('')
   const [calcConcentration, setCalcConcentration] = useState<string>('')
-  const [calcResult, setCalcResult] = useState<number | null>(null)
+  const [calcPillMg, setCalcPillMg] = useState<string>('') // mg do comprimido para fármacos normais
+  const [calcResultMl, setCalcResultMl] = useState<number | null>(null)
+  const [calcResultPills, setCalcResultPills] = useState<number | null>(null)
 
-  // ALERTA AVANÇADO DE CLASSE PARA FÁRMACOS NORMAIS
+  // Obter o fármaco selecionado nas rotinas normais
+  const currentSelectedDrugObj = customDrugs.find(d => d.name.toLowerCase() === selectedDrugName.toLowerCase())
+
+  // ALERTA AVANÇADO DE CLASSE E TEMPO MÁXIMO DE USO PARA FÁRMACOS NORMAIS
   const getAdvancedDrugAlert = (drugName: string) => {
-    const foundDrug = customDrugs.find(d => d.name.toLowerCase() === drugName.toLowerCase())
+    const foundDrug = currentSelectedDrugObj
     const cat = foundDrug ? foundDrug.category.toLowerCase() : ''
     const nameLower = drugName.toLowerCase()
+    const maxD = foundDrug ? foundDrug.maxDays : 7
 
     if (cat.includes('aine') || cat.includes('anti-inflamatório') || nameLower.includes('meloxicam') || nameLower.includes('carprofeno') || nameLower.includes('cetoprofeno')) {
       return {
-        title: '⚠️ ALERTA DE CLASSE (AINE): RISCO GÁSTRICO',
-        desc: 'Fármacos anti-inflamatórios não esteroidais inibem as enzimas COX. Nunca associe com corticoides ou outro AINE pelo risco severo de úlceras, perfuração gastrintestinal e insuficiência renal aguda.'
+        title: `⚠️ ALERTA DE CLASSE (AINE): USO MÁXIMO DE ${maxD} DIAS`,
+        desc: `Fármacos anti-inflamatórios inibem as COX. Uso recomendado por no máximo ${maxD} dias consecutivos para prevenir úlceras gástricas, perfuração intestinal e lesão renal aguda. Nunca associe com corticoides.`
       }
     }
     if (cat.includes('corticoide') || cat.includes('esteroidal') || nameLower.includes('prednisona') || nameLower.includes('prednisolona') || nameLower.includes('dexametasona')) {
       return {
-        title: '⚠️ ALERTA DE CLASSE (CORTICOIDE): RESTRIÇÃO DE ASSOCIAÇÃO',
-        desc: 'Corticoides possuem alto potencial ulcerogênico e imunossupressor. A coadministração com AINEs é vetada. Requer intervalo de segurança (Washout) rigoroso.'
+        title: `⚠️ ALERTA DE CLASSE (CORTICOIDE): RESTRIÇÃO E DESMAME`,
+        desc: `Corticoides exigem desmame gradual se o uso ultrapassar ${maxD} dias para evitar insuficiência adrenal secundária. Proibida a coadministração com AINEs.`
+      }
+    }
+    if (cat.includes('antibiótico') || nameLower.includes('amoxicilina') || nameLower.includes('doxiciclina')) {
+      return {
+        title: `⚠️ ALERTA DE ANTIBIOTICOTERAPIA (${maxD} DIAS)`,
+        desc: `Respeite o ciclo completo de ${maxD} dias prescrito para evitar resistência bacteriana precoce. Recomenda-se acompanhamento clínico ao término.`
       }
     }
     if (cat.includes('antidepressivo') || cat.includes('serotonina') || nameLower.includes('fluoxetina') || nameLower.includes('tramadol')) {
       return {
         title: '⚠️ ALERTA NEUROLOGICO / PSIQUIÁTRICO',
-        desc: 'Agentes que elevam a serotonina combinados com opioides (ex: tramadol) ou inibidores podem desencadear Síndrome Serotoninérgica (vocalização, tremores, hipertermia).'
+        desc: 'Agentes que elevam a serotonina combinados com opioides podem desencadear Síndrome Serotoninérgica (tremores, hipertermia, vocalização).'
       }
     }
-    return null
+    return {
+      title: `ℹ️ ORIENTAÇÃO DE USO CONTÍNUO`,
+      desc: `Limite máximo de segurança recomendado para esta prescrição: ${maxD} dias. Avalie reavaliação clínica após este período.`
+    }
   }
 
   const [fluidWeight, setFluidWeight] = useState<string>('')
@@ -494,6 +518,7 @@ export default function VetWorkspaceBeatrizV26() {
   const [newDrugCat, setNewDrugCat] = useState('Anti-inflamatório (AINE)')
   const [newDrugDosage, setNewDrugDosage] = useState('')
   const [newDrugConc, setNewDrugConc] = useState('')
+  const [newDrugMaxDays, setNewDrugMaxDays] = useState('5')
 
   const [monthlyIncome, setMonthlyIncome] = useState<number>(() => {
     if (typeof window !== 'undefined') {
@@ -654,7 +679,8 @@ export default function VetWorkspaceBeatrizV26() {
       name: newDrugName.trim(),
       category: newDrugCat.trim() || 'Personalizado',
       defaultDosage: parseFloat(newDrugDosage) || 0,
-      defaultConcentration: parseFloat(newDrugConc) || 1
+      defaultConcentration: parseFloat(newDrugConc) || 1,
+      maxDays: parseInt(newDrugMaxDays) || 7
     }
     setCustomDrugs([newD, ...customDrugs])
     setSelectedDrugName(newD.name)
@@ -663,6 +689,7 @@ export default function VetWorkspaceBeatrizV26() {
     setNewDrugName('')
     setNewDrugDosage('')
     setNewDrugConc('')
+    setNewDrugMaxDays('5')
   }
 
   const handleAddFolder = (parentId: string | null) => {
@@ -1116,7 +1143,7 @@ export default function VetWorkspaceBeatrizV26() {
             </div>
           )}
 
-          {/* CALCULADORA BSA & ONCOLÓGICOS DEDICADA (SEPARADA DE FÁRMACOS NORMAIS) */}
+          {/* CALCULADORA BSA & ONCOLÓGICOS (COM COMPRIMIDOS E DIAS MÁXIMOS) */}
           {activeTab === 'bsa' && (
             <div className="max-w-4xl mx-auto space-y-6">
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
@@ -1124,7 +1151,7 @@ export default function VetWorkspaceBeatrizV26() {
                   <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Scale className="w-6 h-6" /></div>
                   <div>
                     <h2 className="text-base font-extrabold text-pink-950">Calculadora BSA (m²) & Fármacos Oncológicos</h2>
-                    <p className="text-xs text-pink-500 font-medium">Cálculo preciso de superfície corporal e quimioterápicos veterinários</p>
+                    <p className="text-xs text-pink-500 font-medium">Superfície corporal, dose em mg/m², volume em ml, comprimidos e dias máximos de uso</p>
                   </div>
                 </div>
 
@@ -1167,14 +1194,18 @@ export default function VetWorkspaceBeatrizV26() {
                       </select>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-3 gap-2">
                       <div>
                         <label className="text-[11px] font-bold text-stone-600 block mb-1">Dose (mg/m²)</label>
-                        <input type="number" step="0.1" value={oncoCustomDosage} onChange={(e) => setOncoCustomDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                        <input type="number" step="0.1" value={oncoCustomDosage} onChange={(e) => setOncoCustomDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                       </div>
                       <div>
-                        <label className="text-[11px] font-bold text-stone-600 block mb-1">Concentração (mg/ml)</label>
-                        <input type="number" step="0.1" value={oncoCustomConc} onChange={(e) => setOncoCustomConc(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                        <label className="text-[11px] font-bold text-stone-600 block mb-1">Conc. (mg/ml)</label>
+                        <input type="number" step="0.1" value={oncoCustomConc} onChange={(e) => setOncoCustomConc(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-stone-600 block mb-1">Comp. (mg)</label>
+                        <input type="number" step="0.1" placeholder="Ex: 2" value={oncoPillMg} onChange={(e) => setOncoPillMg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                       </div>
                     </div>
 
@@ -1182,10 +1213,12 @@ export default function VetWorkspaceBeatrizV26() {
                       const w = parseFloat(bsaWeightKg) || 0
                       const dM2 = parseFloat(oncoCustomDosage) || 0
                       const conc = parseFloat(oncoCustomConc) || 1
+                      const pillM = parseFloat(oncoPillMg) || 0
                       if (w <= 0) {
                         setCalculatedBsaValue(null)
                         setOncoResultMg(null)
                         setOncoResultMl(null)
+                        setOncoResultPills(null)
                         return
                       }
                       const k = bsaSpecies === 'cao' ? 10.1 : 10.0
@@ -1194,38 +1227,48 @@ export default function VetWorkspaceBeatrizV26() {
 
                       const totalMg = bsa * dM2
                       const totalMl = totalMg / conc
+                      const totalPills = pillM > 0 ? totalMg / pillM : 0
+
                       setOncoResultMg(totalMg)
                       setOncoResultMl(totalMl)
+                      setOncoResultPills(totalPills)
                     }} className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
-                      <Calculator className="w-4 h-4" /> Calcular Dose Oncológica por m²
+                      <Calculator className="w-4 h-4" /> Calcular Dose por m² & Comprimidos
                     </button>
                   </div>
 
                   {/* Coluna 2: Resultados e Alertas Clínicos Críticos */}
                   <div className="space-y-4 flex flex-col justify-between">
                     <div>
-                      <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider mb-2">2. Resultados & Alertas Clínicos</h3>
+                      <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider mb-2">2. Resultados & Segurança Farmacológica</h3>
                       
                       {calculatedBsaValue !== null ? (
-                        <div className="bg-pink-50 border border-pink-200 p-4 rounded-2xl space-y-2 text-center">
-                          <div>
-                            <span className="text-[10px] font-bold text-pink-600 uppercase">Superfície Corporal (BSA)</span>
-                            <div className="text-xl font-extrabold text-pink-950">{calculatedBsaValue.toFixed(3)} m²</div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-pink-200/60">
+                        <div className="bg-pink-50 border border-pink-200 p-4 rounded-2xl space-y-3 text-center">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <span className="text-[10px] font-bold text-pink-600 uppercase">Superfície (BSA)</span>
+                              <div className="text-lg font-extrabold text-pink-950">{calculatedBsaValue.toFixed(3)} m²</div>
+                            </div>
                             <div>
                               <span className="text-[10px] font-bold text-stone-500 uppercase">Dose Total (mg)</span>
                               <div className="text-lg font-extrabold text-pink-950">{oncoResultMg?.toFixed(2)} mg</div>
                             </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-pink-200/60">
                             <div>
                               <span className="text-[10px] font-bold text-stone-500 uppercase">Volume (ml)</span>
-                              <div className="text-lg font-extrabold text-rose-600">{oncoResultMl?.toFixed(2)} ml</div>
+                              <div className="text-base font-extrabold text-rose-600">{oncoResultMl?.toFixed(2)} ml</div>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold text-stone-500 uppercase">Comprimidos</span>
+                              <div className="text-base font-extrabold text-emerald-600">{oncoResultPills ? oncoResultPills.toFixed(1) : '0'} comp.</div>
                             </div>
                           </div>
                         </div>
                       ) : (
                         <div className="bg-pink-50/50 border border-pink-100 p-8 rounded-2xl text-center text-xs text-stone-400">
-                          Preencha o peso do animal e clique em calcular para ver a dose exata do quimioterápico.
+                          Preencha o peso e clique em calcular para ver a dose exata.
                         </div>
                       )}
                     </div>
@@ -1238,7 +1281,7 @@ export default function VetWorkspaceBeatrizV26() {
                         <div className="bg-amber-50 border border-amber-300 p-4 rounded-xl text-amber-900 text-xs space-y-1.5 shadow-xs">
                           <div className="font-extrabold flex items-center gap-1.5 text-amber-950">
                             <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                            {drugObj.alertTitle}
+                            {drugObj.alertTitle} (Uso máx: {drugObj.maxDays} {drugObj.maxDays === 1 ? 'dia por ciclo' : 'dias'})
                           </div>
                           <p className="text-[11px] text-amber-900/95 leading-relaxed pl-5 whitespace-pre-line">
                             {drugObj.alertDesc}
@@ -1407,7 +1450,7 @@ export default function VetWorkspaceBeatrizV26() {
           {activeTab === 'calculadora' && (
             <div className="max-w-4xl mx-auto space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-extrabold text-pink-950">Calculadora Veterinária & Alerta Inteligente por Categoria</h2>
+                <h2 className="text-xl font-extrabold text-pink-950">Calculadora Veterinária & Alerta de Dias Máximos</h2>
                 <div className="flex gap-2">
                   <button onClick={() => setCalcMode('dose')} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${calcMode === 'dose' ? 'bg-pink-500 text-white shadow-sm' : 'bg-white text-pink-900 border border-pink-200'}`}>💊 Dose de Fármacos (mg/kg)</button>
                   <button onClick={() => setCalcMode('fluido')} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${calcMode === 'fluido' ? 'bg-pink-500 text-white shadow-sm' : 'bg-white text-pink-900 border border-pink-200'}`}>💧 Taxa de Soro (Fluidoterapia)</button>
@@ -1457,23 +1500,33 @@ export default function VetWorkspaceBeatrizV26() {
                         <label className="text-[11px] font-bold text-stone-600 block mb-1">Peso do Animal (kg)</label>
                         <input type="number" step="0.1" placeholder="Ex: 15" value={calcWeight} onChange={(e) => setCalcWeight(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
                       </div>
-                      <div>
-                        <label className="text-[11px] font-bold text-stone-600 block mb-1">Dose (mg/kg)</label>
-                        <input type="number" step="0.01" placeholder="Ex: 0.1" value={calcDosage} onChange={(e) => setCalcDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-bold text-stone-600 block mb-1">Concentração (mg/ml)</label>
-                        <input type="number" step="0.01" placeholder="Ex: 2" value={calcConcentration} onChange={(e) => setCalcConcentration(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-stone-600 block mb-1">Dose (mg/kg)</label>
+                          <input type="number" step="0.01" value={calcDosage} onChange={(e) => setCalcDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-stone-600 block mb-1">Conc. (mg/ml)</label>
+                          <input type="number" step="0.01" value={calcConcentration} onChange={(e) => setCalcConcentration(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-stone-600 block mb-1">Comp. (mg)</label>
+                          <input type="number" step="0.1" placeholder="Ex: 20" value={calcPillMg} onChange={(e) => setCalcPillMg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                        </div>
                       </div>
                       <button onClick={() => {
                         const w = parseFloat(calcWeight) || 0
                         const d = parseFloat(calcDosage) || 0
                         const c = parseFloat(calcConcentration) || 1
+                        const pillM = parseFloat(calcPillMg) || 0
                         const totalMg = w * d
                         const totalMl = totalMg / c
-                        setCalcResult(totalMl)
+                        const totalPills = pillM > 0 ? totalMg / pillM : 0
+
+                        setCalcResultMl(totalMl)
+                        setCalcResultPills(totalPills)
                       }} className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md">
-                        Calcular Volume (ml)
+                        Calcular Volume (ml) & Comprimidos
                       </button>
                     </div>
                   </div>
@@ -1481,10 +1534,18 @@ export default function VetWorkspaceBeatrizV26() {
                   <div className="space-y-6">
                     <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
                       <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Resultado ({selectedDrugName})</h3>
-                      {calcResult !== null ? (
-                        <div className="bg-pink-50 border border-pink-200 p-5 rounded-2xl text-center space-y-1">
-                          <span className="text-[11px] font-bold text-pink-600 uppercase">Volume Total Necessário</span>
-                          <div className="text-3xl font-extrabold text-pink-950">{calcResult.toFixed(2)} ml</div>
+                      {calcResultMl !== null ? (
+                        <div className="bg-pink-50 border border-pink-200 p-5 rounded-2xl text-center space-y-3">
+                          <div>
+                            <span className="text-[10px] font-bold text-pink-600 uppercase">Volume Líquido</span>
+                            <div className="text-2xl font-extrabold text-pink-950">{calcResultMl.toFixed(2)} ml</div>
+                          </div>
+                          {calcPillMg !== '' && parseFloat(calcPillMg) > 0 && (
+                            <div className="pt-2 border-t border-pink-200/60">
+                              <span className="text-[10px] font-bold text-stone-500 uppercase">Quantidade de Comprimidos</span>
+                              <div className="text-xl font-extrabold text-emerald-600">{calcResultPills?.toFixed(1)} comp.</div>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <p className="text-xs text-stone-400 text-center py-6">Selecione um remédio, preencha o peso e calcule.</p>
@@ -1506,9 +1567,10 @@ export default function VetWorkspaceBeatrizV26() {
                             <option value="Outro / Geral">Outro / Geral</option>
                           </select>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-3 gap-2">
                           <input type="number" step="0.01" placeholder="Dose (mg/kg)" value={newDrugDosage} onChange={(e) => setNewDrugDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
                           <input type="number" step="0.01" placeholder="Conc. (mg/ml)" value={newDrugConc} onChange={(e) => setNewDrugConc(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
+                          <input type="number" placeholder="Máx dias" value={newDrugMaxDays} onChange={(e) => setNewDrugMaxDays(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
                         </div>
                         <button type="submit" className="w-full bg-pink-600 hover:bg-pink-700 text-white py-2.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center gap-1.5">
                           <Plus className="w-3.5 h-3.5" /> Salvar Fármaco na Lista
