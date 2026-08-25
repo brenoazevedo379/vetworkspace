@@ -29,7 +29,10 @@ import {
   Clock,
   Folder,
   FolderPlus,
-  FileText
+  FileText,
+  Bookmark,
+  Layers,
+  Printer
 } from 'lucide-react'
 
 interface AttachedFile {
@@ -46,7 +49,8 @@ interface DocumentItem {
   parentId: string | null 
   type: 'folder' | 'page'
   content?: string
-  severity?: 'Caso Padrão' | 'Caso Grave' | 'Cirúrgico' | 'Duvioso'
+  differential?: string
+  notes?: string
   isOpen?: boolean 
   attachments?: AttachedFile[]
 }
@@ -115,30 +119,31 @@ const INITIAL_DRUGS: VetDrug[] = [
   { name: 'Furosemida', category: 'Diurético', defaultDosage: 2, defaultConcentration: 10 }
 ]
 
-export default function VetWorkspaceBeatrizV8() {
+export default function VetWorkspaceBeatrizV10() {
   const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'tarefas' | 'calendario' | 'financas'>('painel')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Salvo automaticamente')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [studySubTab, setStudySubTab] = useState<'resumo' | 'diferenciais' | 'pontos'>('resumo')
 
-  // 1. Estudos & Pós (Árvore infinita de pastas e subpastas)
+  // 1. Estudos & Pós
   const [items, setItems] = useState<DocumentItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_items_v13')
+      const saved = localStorage.getItem('vet_items_v15')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return [
       { id: 'f-pos', title: 'Pós-graduação & Residência', parentId: null, type: 'folder', isOpen: true },
-      { id: 'p-1', title: 'Módulos e Aulas Teóricas', parentId: 'f-pos', type: 'page', content: '', severity: 'Caso Padrão', attachments: [] }
+      { id: 'p-1', title: 'Módulos e Aulas Teóricas', parentId: 'f-pos', type: 'page', content: '', differential: '', notes: '', attachments: [] }
     ]
   })
   const [selectedItemId, setSelectedItemId] = useState<string>('p-1')
 
-  // 2. Pacientes & Timeline (Isolado)
+  // 2. Pacientes & Timeline
   const [patients, setPatients] = useState<PatientRecord[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_patients_v13')
+      const saved = localStorage.getItem('vet_patients_v15')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return []
@@ -157,11 +162,82 @@ export default function VetWorkspaceBeatrizV8() {
   const [evoTemp, setEvoTemp] = useState('')
   const [evoNotes, setEvoNotes] = useState('')
 
+  // Função para imprimir / baixar ficha do paciente
+  const handlePrintPatient = (p: PatientRecord) => {
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Prontuário - ${p.petName}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 30px; color: #333; }
+          h1 { color: #db2777; margin-bottom: 5px; }
+          .subtitle { font-size: 14px; color: #666; margin-bottom: 20px; }
+          .box { border: 1px solid #fbcfe8; background: #fdf2f8; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+          .box h3 { margin-top: 0; color: #9d174d; }
+          table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+          th, td { border: 1px solid #f3e8ff; padding: 10px; text-align: left; font-size: 13px; }
+          th { background: #fce7f3; color: #831843; }
+          .footer { margin-top: 40px; font-size: 12px; text-align: center; color: #888; border-top: 1px solid #ddd; padding-top: 10px; }
+        </style>
+      </head>
+      <body>
+        <h1>Prontuário Clínico Veterinário</h1>
+        <div class="subtitle">Dra. Beatriz Contreiras • VetWorkspace</div>
+        
+        <div class="box">
+          <h3>Informações do Paciente</h3>
+          <p><strong>Nome do Pet:</strong> ${p.petName}</p>
+          <p><strong>Espécie / Raça:</strong> ${p.species} - ${p.breed}</p>
+          <p><strong>Idade:</strong> ${p.age} | <strong>Tutor:</strong> ${p.tutor}</p>
+          <p><strong>Status Atual:</strong> ${p.status}</p>
+          <p><strong>Queixa Principal:</strong> ${p.complaint}</p>
+        </div>
+
+        <h3>Linha do Tempo (Evoluções & Retornos)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Data / Horário</th>
+              <th>Peso</th>
+              <th>Temperatura</th>
+              <th>Evolução Clínica / Conduta</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${p.evolutions.map(e => `
+              <tr>
+                <td>${e.date}</td>
+                <td>${e.weight}</td>
+                <td>${e.temperature}</td>
+                <td>${e.notes}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          Gerado por VetWorkspace em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
+        </div>
+        <script>
+          window.onload = function() { window.print(); }
+        </script>
+      </body>
+      </html>
+    `
+    printWindow.document.write(htmlContent)
+    printWindow.document.close()
+  }
+
   // 3. Calculadora
   const [calcMode, setCalcMode] = useState<'dose' | 'fluido'>('dose')
   const [customDrugs, setCustomDrugs] = useState<VetDrug[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_custom_drugs_v13')
+      const saved = localStorage.getItem('vet_custom_drugs_v15')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return INITIAL_DRUGS
@@ -185,14 +261,14 @@ export default function VetWorkspaceBeatrizV8() {
   // 4. Finanças
   const [monthlyIncome, setMonthlyIncome] = useState<number>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_income_v13')
+      const saved = localStorage.getItem('vet_income_v15')
       if (saved) return parseFloat(saved)
     }
     return 0.00
   })
   const [finances, setFinances] = useState<FinancialItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_finances_v13')
+      const saved = localStorage.getItem('vet_finances_v15')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return []
@@ -207,7 +283,7 @@ export default function VetWorkspaceBeatrizV8() {
   // 5. Tarefas
   const [tasks, setTasks] = useState<TaskItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_tasks_v13')
+      const saved = localStorage.getItem('vet_tasks_v15')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return []
@@ -220,7 +296,7 @@ export default function VetWorkspaceBeatrizV8() {
   // 6. Calendário
   const [events, setEvents] = useState<CalendarEvent[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_events_v13')
+      const saved = localStorage.getItem('vet_events_v15')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return []
@@ -230,13 +306,13 @@ export default function VetWorkspaceBeatrizV8() {
   const [eventDesc, setEventDesc] = useState('')
 
   useEffect(() => {
-    localStorage.setItem('vet_items_v13', JSON.stringify(items))
-    localStorage.setItem('vet_patients_v13', JSON.stringify(patients))
-    localStorage.setItem('vet_custom_drugs_v13', JSON.stringify(customDrugs))
-    localStorage.setItem('vet_income_v13', monthlyIncome.toString())
-    localStorage.setItem('vet_finances_v13', JSON.stringify(finances))
-    localStorage.setItem('vet_tasks_v13', JSON.stringify(tasks))
-    localStorage.setItem('vet_events_v13', JSON.stringify(events))
+    localStorage.setItem('vet_items_v15', JSON.stringify(items))
+    localStorage.setItem('vet_patients_v15', JSON.stringify(patients))
+    localStorage.setItem('vet_custom_drugs_v15', JSON.stringify(customDrugs))
+    localStorage.setItem('vet_income_v15', monthlyIncome.toString())
+    localStorage.setItem('vet_finances_v15', JSON.stringify(finances))
+    localStorage.setItem('vet_tasks_v15', JSON.stringify(tasks))
+    localStorage.setItem('vet_events_v15', JSON.stringify(events))
     setSaveStatus('Salvo com sucesso!')
     const timer = setTimeout(() => setSaveStatus('Salvo automaticamente'), 2000)
     return () => clearTimeout(timer)
@@ -377,7 +453,8 @@ export default function VetWorkspaceBeatrizV8() {
       parentId,
       type: 'page',
       content: '',
-      severity: 'Caso Padrão',
+      differential: '',
+      notes: '',
       attachments: []
     }
     setItems([...items, newPage])
@@ -401,7 +478,6 @@ export default function VetWorkspaceBeatrizV8() {
     setItems(items.filter(i => !idsToDelete.includes(i.id)))
   }
 
-  // Função recursiva robusta para suportar subpastas infinitas (pastas dentro de pastas)
   const renderTree = (parentId: string | null) => {
     const children = items.filter(i => i.parentId === parentId)
     if (children.length === 0) return null
@@ -488,7 +564,6 @@ export default function VetWorkspaceBeatrizV8() {
             <LayoutDashboard className="w-4 h-4" /> Painel
           </button>
           
-          {/* SEÇÃO 1: ESTUDOS & PÓS COM SUBPASTAS INFINITAS */}
           <div className="pt-2 pb-1 border-t border-pink-100/60 mt-2">
             <div className="flex items-center justify-between px-3 pt-2 text-[11px] font-bold text-pink-900 uppercase tracking-wider">
               <span>📚 Estudos & Pós</span>
@@ -502,7 +577,6 @@ export default function VetWorkspaceBeatrizV8() {
             </div>
           </div>
 
-          {/* SEÇÃO 2: CASOS CLÍNICOS E PACIENTES (ISOLADO) */}
           <div className="pt-2 border-t border-pink-100/60 mt-2">
             <button onClick={() => setActiveTab('pacientes')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'pacientes' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
               <Stethoscope className="w-4 h-4" /> Casos Clínicos & Pacientes ({patients.length})
@@ -599,49 +673,105 @@ export default function VetWorkspaceBeatrizV8() {
 
           {/* ESTUDOS & PÓS */}
           {activeTab === 'estudos' && selectedItem && (
-            <div className="max-w-4xl mx-auto bg-white/95 backdrop-blur-md border border-pink-100 p-10 rounded-2xl shadow-xs space-y-6">
-              <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-pink-100 pb-4 gap-3">
-                <div className="flex-1 mr-4">
-                  <span className="text-[10px] font-bold text-pink-500 uppercase tracking-wider">Estudos & Pós-Graduação (Acadêmico)</span>
+            <div className="max-w-5xl mx-auto bg-white/95 backdrop-blur-md border border-pink-100 p-8 lg:p-10 rounded-3xl shadow-sm space-y-6">
+              
+              <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-pink-100 pb-5 gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 text-[11px] font-extrabold text-pink-500 uppercase tracking-wider mb-1">
+                    <BookOpen className="w-3.5 h-3.5" /> Módulo Acadêmico / Pós-Graduação
+                  </div>
                   <input 
                     type="text" 
                     value={selectedItem.title}
                     onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, title: e.target.value } : i))}
-                    className="w-full bg-transparent text-2xl font-extrabold text-pink-950 focus:outline-none mt-1"
+                    className="w-full bg-transparent text-2xl lg:text-3xl font-extrabold text-pink-950 focus:outline-none placeholder-pink-200"
+                    placeholder="Título do Estudo ou Matéria..."
                   />
                 </div>
-                <div className="flex items-center gap-2">
-                  <select 
-                    value={selectedItem.severity || 'Caso Padrão'}
-                    onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, severity: e.target.value as any } : i))}
-                    className={`text-xs font-bold px-3 py-2 rounded-xl border focus:outline-none ${
-                      selectedItem.severity === 'Caso Grave' ? 'bg-rose-100 text-rose-800 border-rose-200' :
-                      selectedItem.severity === 'Cirúrgico' ? 'bg-amber-100 text-amber-800 border-amber-200' :
-                      selectedItem.severity === 'Duvioso' ? 'bg-purple-100 text-purple-800 border-purple-200' :
-                      'bg-pink-50 text-pink-800 border-pink-200'
-                    }`}
-                  >
-                    <option value="Caso Padrão">📌 Caso Padrão</option>
-                    <option value="Caso Grave">🚨 Caso Grave</option>
-                    <option value="Cirúrgico">🔪 Cirúrgico</option>
-                    <option value="Duvioso">❓ Duvioso</option>
-                  </select>
-                  <button onClick={() => { setActiveTaskForAttach(null); fileInputRef.current?.click(); }} className="bg-pink-100 hover:bg-pink-200 text-pink-800 px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer">
-                    <Paperclip className="w-4 h-4" /> Anexar
+                
+                <div className="flex items-center gap-2.5">
+                  <button onClick={() => { setActiveTaskForAttach(null); fileInputRef.current?.click(); }} className="bg-pink-100 hover:bg-pink-200 text-pink-800 px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-2xs flex items-center gap-1.5 cursor-pointer">
+                    <Paperclip className="w-4 h-4" /> Anexar Material
                   </button>
                 </div>
               </div>
 
+              <div className="flex items-center gap-2 border-b border-pink-100 pb-3">
+                <button 
+                  onClick={() => setStudySubTab('resumo')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${studySubTab === 'resumo' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}
+                >
+                  <FileText className="w-3.5 h-3.5" /> Resumo Teórico & Aulas
+                </button>
+                <button 
+                  onClick={() => setStudySubTab('diferenciais')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${studySubTab === 'diferenciais' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}
+                >
+                  <Layers className="w-3.5 h-3.5" /> Diagnósticos Diferenciais
+                </button>
+                <button 
+                  onClick={() => setStudySubTab('pontos')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${studySubTab === 'pontos' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}
+                >
+                  <Bookmark className="w-3.5 h-3.5" /> Pontos de Atenção / Prova
+                </button>
+              </div>
+
+              {studySubTab === 'resumo' && (
+                <div className="space-y-3">
+                  <label className="text-xs font-bold text-pink-900 flex items-center gap-1">
+                    <FileText className="w-3.5 h-3.5 text-pink-500" /> Resumo e Anotações da Matéria
+                  </label>
+                  <textarea 
+                    value={selectedItem.content || ''}
+                    onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, content: e.target.value } : i))}
+                    rows={12}
+                    className="w-full bg-pink-50/20 border border-pink-100 p-4 rounded-2xl text-stone-700 text-sm leading-relaxed focus:outline-none focus:border-pink-300 resize-none font-normal placeholder-stone-300"
+                    placeholder="Digite aqui as explicações, fisiopatologia, posologias e conceitos abordados na pós..."
+                  />
+                </div>
+              )}
+
+              {studySubTab === 'diferenciais' && (
+                <div className="space-y-3">
+                  <label className="text-xs font-bold text-pink-900 flex items-center gap-1">
+                    <Layers className="w-3.5 h-3.5 text-pink-500" /> Diagnósticos Diferenciais por Sistema
+                  </label>
+                  <textarea 
+                    value={selectedItem.differential || ''}
+                    onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, differential: e.target.value } : i))}
+                    rows={12}
+                    className="w-full bg-pink-50/20 border border-pink-100 p-4 rounded-2xl text-stone-700 text-sm leading-relaxed focus:outline-none focus:border-pink-300 resize-none font-normal placeholder-stone-300"
+                    placeholder="Liste aqui os diferenciais clínicos, exames necessários para exclusão e achados laboratoriais..."
+                  />
+                </div>
+              )}
+
+              {studySubTab === 'pontos' && (
+                <div className="space-y-3">
+                  <label className="text-xs font-bold text-pink-900 flex items-center gap-1">
+                    <Bookmark className="w-3.5 h-3.5 text-pink-500" /> Alertas Críticos & Pegadinhas de Prova / Residência
+                  </label>
+                  <textarea 
+                    value={selectedItem.notes || ''}
+                    onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, notes: e.target.value } : i))}
+                    rows={12}
+                    className="w-full bg-pink-50/20 border border-pink-100 p-4 rounded-2xl text-stone-700 text-sm leading-relaxed focus:outline-none focus:border-pink-300 resize-none font-normal placeholder-stone-300"
+                    placeholder="Anotações importantes que costumam cair em provas, contraindicações severas ou detalhes que não podem ser esquecidos..."
+                  />
+                </div>
+              )}
+
               {selectedItem.attachments && selectedItem.attachments.length > 0 && (
-                <div className="space-y-2 bg-pink-50/40 p-4 rounded-xl border border-pink-100">
-                  <span className="text-xs font-bold text-pink-900 flex items-center gap-1.5 mb-2">
-                    <Paperclip className="w-3.5 h-3.5 text-pink-500" /> Arquivos Anexados ({selectedItem.attachments.length})
+                <div className="space-y-3 pt-2 border-t border-pink-100">
+                  <span className="text-xs font-bold text-pink-900 flex items-center gap-1.5">
+                    <Paperclip className="w-3.5 h-3.5 text-pink-500" /> Materiais de Estudo Anexados ({selectedItem.attachments.length})
                   </span>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {selectedItem.attachments.map(att => (
-                      <div key={att.id} className="flex items-center justify-between bg-white border border-pink-200/60 p-3 rounded-xl shadow-xs">
+                      <div key={att.id} className="flex items-center justify-between bg-pink-50/30 border border-pink-200/60 p-3 rounded-xl shadow-2xs">
                         <div className="flex items-center gap-2.5 truncate">
-                          <div className="w-8 h-8 rounded-lg bg-pink-50 text-pink-600 flex items-center justify-center">
+                          <div className="w-8 h-8 rounded-lg bg-pink-100 text-pink-600 flex items-center justify-center">
                             <DocIcon className="w-4 h-4" />
                           </div>
                           <div className="truncate">
@@ -650,7 +780,7 @@ export default function VetWorkspaceBeatrizV8() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
-                          <a href={att.url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg text-pink-600 bg-pink-50 hover:bg-pink-100 text-[11px] font-bold flex items-center gap-1">
+                          <a href={att.url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg text-pink-600 bg-white hover:bg-pink-100 text-[11px] font-bold flex items-center gap-1 border border-pink-200">
                             <Eye className="w-3.5 h-3.5" /> Abrir
                           </a>
                           <a href={att.url} download={att.name} className="p-1.5 rounded-lg text-white bg-pink-500 hover:bg-pink-600 text-[11px] font-bold flex items-center gap-1 shadow-xs">
@@ -666,17 +796,10 @@ export default function VetWorkspaceBeatrizV8() {
                 </div>
               )}
 
-              <textarea 
-                value={selectedItem.content || ''}
-                onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, content: e.target.value } : i))}
-                rows={12}
-                className="w-full bg-transparent text-stone-700 text-sm leading-relaxed focus:outline-none resize-none font-normal placeholder-stone-300"
-                placeholder="Insira suas anotações teóricas, diretrizes e resumos de pós aqui..."
-              />
             </div>
           )}
 
-          {/* PACIENTES & CASOS CLÍNICOS REAIS */}
+          {/* PACIENTES & CASOS CLÍNICOS REAIS (COM BOTÃO DE IMPRESSÃO / PDF) */}
           {activeTab === 'pacientes' && (
             <div className="max-w-4xl mx-auto space-y-6">
               <h2 className="text-xl font-extrabold text-pink-950">Módulo de Casos Clínicos & Prontuário de Pacientes</h2>
@@ -728,7 +851,14 @@ export default function VetWorkspaceBeatrizV8() {
                             <p className="text-[11px] text-stone-400">Tutor: {p.tutor} • Idade: {p.age}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <button 
+                            onClick={() => handlePrintPatient(p)} 
+                            className="bg-pink-100 hover:bg-pink-200 text-pink-800 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                            title="Imprimir ou Salvar Ficha em PDF"
+                          >
+                            <Printer className="w-3.5 h-3.5" /> Imprimir / PDF
+                          </button>
                           <span className={`text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-wider ${p.status === 'Internado' ? 'bg-amber-100 text-amber-800' : p.status === 'Alta' ? 'bg-emerald-100 text-emerald-800' : 'bg-pink-100 text-pink-800'}`}>
                             {p.status}
                           </span>
@@ -1152,7 +1282,7 @@ export default function VetWorkspaceBeatrizV8() {
                     <p className="text-xs text-stone-400 py-6 text-center">Nenhuma despesa registrada ainda.</p>
                   ) : (
                     finances.map(f => (
-                      <div key={f.id} className="px-6 py.5 flex items-center justify-between text-xs">
+                      <div key={f.id} className="px-6 py-3.5 flex items-center justify-between text-xs">
                         <div>
                           <div className="font-bold text-pink-950">{f.description}</div>
                           <div className="text-[10px] text-stone-400">
