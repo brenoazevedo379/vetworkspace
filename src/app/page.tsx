@@ -36,7 +36,9 @@ import {
   Bot,
   Send,
   Mic,
-  MicOff
+  MicOff,
+  HeartHandshake,
+  AlertTriangle
 } from 'lucide-react'
 
 interface AttachedFile {
@@ -134,8 +136,8 @@ const INITIAL_DRUGS: VetDrug[] = [
   { name: 'Furosemida', category: 'Diurético', defaultDosage: 2, defaultConcentration: 10 }
 ]
 
-export default function VetWorkspaceBeatrizV13() {
-  const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'ia' | 'tarefas' | 'calendario' | 'financas'>('painel')
+export default function VetWorkspaceBeatrizV23() {
+  const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'ia' | 'condolencias' | 'tarefas' | 'calendario' | 'financas'>('painel')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Salvo automaticamente')
 
@@ -145,7 +147,7 @@ export default function VetWorkspaceBeatrizV13() {
   // Estado de Sessões do Copiloto IA Salvas
   const [chatSessions, setChatSessions] = useState<ChatSession[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_chat_sessions_v22')
+      const saved = localStorage.getItem('vet_chat_sessions_v23')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return [
@@ -153,7 +155,7 @@ export default function VetWorkspaceBeatrizV13() {
         id: 'default-session',
         title: 'Caso Clínico Inicial',
         messages: [
-          { sender: 'ai', text: 'Olá, Dra. Beatriz! Sou seu copiloto clínico. Pode digitar o caso, os sintomas ou usar o microfone para ditar.' }
+          { sender: 'ai', text: 'Olá, Dra. Beatriz! Sou seu copiloto clínico. Digite o caso ou use os templates rápidos abaixo.' }
         ]
       }
     ]
@@ -163,9 +165,14 @@ export default function VetWorkspaceBeatrizV13() {
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [isListening, setIsListening] = useState(false)
 
-  // Sincronizar salvamento automático das sessões de IA
+  // Estado para Ferramenta de Condolências Humanizadas
+  const [condolenceTutor, setCondolenceTutor] = useState('')
+  const [condolencePet, setCondolencePet] = useState('')
+  const [condolenceTone, setCondolenceTone] = useState<'acolhedor' | 'curto' | 'luta_longa'>('acolhedor')
+  const [generatedCondolence, setGeneratedCondolence] = useState('')
+
   useEffect(() => {
-    localStorage.setItem('vet_chat_sessions_v22', JSON.stringify(chatSessions))
+    localStorage.setItem('vet_chat_sessions_v23', JSON.stringify(chatSessions))
   }, [chatSessions])
 
   const currentChatSession = chatSessions.find(s => s.id === currentChatId) || chatSessions[0]
@@ -176,7 +183,7 @@ export default function VetWorkspaceBeatrizV13() {
       id: newId,
       title: 'Novo Caso Clínico',
       messages: [
-        { sender: 'ai', text: 'Olá, Dra. Beatriz! Novo caso clínico iniciado. Pode descrever os sintomas ou o histórico.' }
+        { sender: 'ai', text: 'Olá, Dra. Beatriz! Novo caso clínico iniciado. Descreva os sintomas ou escolha um template.' }
       ]
     }
     setChatSessions([newSession, ...chatSessions])
@@ -204,7 +211,7 @@ export default function VetWorkspaceBeatrizV13() {
   // Função de Reconhecimento de Voz (Ditado)
   const toggleListening = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      alert('Seu navegador não suporta reconhecimento de voz. Tente usar o Google Chrome.')
+      alert('Seu navegador não suporta reconhecimento de voz. Use o Google Chrome.')
       return
     }
 
@@ -229,6 +236,35 @@ export default function VetWorkspaceBeatrizV13() {
     recognition.onend = () => setIsListening(false)
 
     recognition.start()
+  }
+
+  // Injetar Template Rápido de Anamnese
+  const applyAnamnesisTemplate = (templateType: 'cao_ gastro' | 'gato_flutd' | 'dermato') => {
+    let templateText = ''
+    if (templateType === 'cao_ gastro') {
+      templateText = 'Anamnese Canina - Suspeita Gastrointestinal:\n- Espécie/Raça/Idade/Peso:\n- Duração dos sintomas (vômito/diarreia):\n- Aspecto do vômito e fezes (presença de sangue, muco):\n- Estado vacinal e vermifugação:\n- Ingestão de corpo estranho ou alimentos inadequados:\n- Exame físico (hidratação, dor abdominal, TP):'
+    } else if (templateType === 'gato_flutd') {
+      templateText = 'Anamnese Felina - Trato Urinário (FLUTD / Obstrução):\n- Espécie/Raça/Idade/Peso:\n- Consegue urinar? Estrangúria / Disúria / Hematúria:\n- Há quanto tempo está sem produzir urina (se obstruído):\n- Mudanças recentes de ambiente ou estresse:\n- Exame físico (plenitude vesical, dor à palpação abdominal):'
+    } else if (templateType === 'dermato') {
+      templateText = 'Anamnese Dermatológica:\n- Espécie/Raça/Idade/Peso:\n- Prurido (coceira) de 0 a 10:\n- Localização das lesões:\n- Sazonalidade ou início súbito:\n- Histórico de ectoparasitas (pulgas/carrapatos):\n- Lesões primárias observadas (pápulas, crostas, pústulas):'
+    }
+    setChatInput(templateText)
+  }
+
+  // Gerador de Mensagens de Condolências Humanizadas
+  const handleGenerateCondolence = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!condolenceTutor.trim() || !condolencePet.trim()) return
+
+    let text = ''
+    if (condolenceTone === 'curto') {
+      text = `Oi, ${condolenceTutor}, aqui é a Dra. Beatriz. Sei que nenhuma palavra tira a dor da perda do ${condolencePet}, mas queria te dizer que ele foi muito amado até o último segundo. Fica com Deus, e se precisar de qualquer coisa, tô por aqui.`
+    } else if (condolenceTone === 'luta_longa') {
+      text = `Oi, ${condolenceTutor}, aqui é a Dra. Beatriz. Eu relutei em te mandar mensagem porque a dor é imensa, mas o ${condolencePet} lutou bravamente e agora descansou em paz. Ele foi um verdadeiro guerreiro e teve a melhor tutora que podia ter. Um abraço bem forte.`
+    } else {
+      text = `Oi, ${condolenceTutor}, aqui é a Dra. Beatriz. Queria te mandar um abraço bem apertado pela partida do ${condolencePet}. Ele foi tão especial e alegrou tantos dias nossos na clínica. Que você encontre conforto nas lembranças felizes que deixou. Tô por aqui para o que precisar.`
+    }
+    setGeneratedCondolence(text)
   }
 
   // 1. Estudos & Pós
@@ -336,7 +372,7 @@ export default function VetWorkspaceBeatrizV13() {
     printWindow.document.close()
   }
 
-  // 3. Calculadora
+  // 3. Calculadora & Alerta de Interações
   const [calcMode, setCalcMode] = useState<'dose' | 'fluido'>('dose')
   const [customDrugs, setCustomDrugs] = useState<VetDrug[]>(() => {
     if (typeof window !== 'undefined') {
@@ -351,6 +387,18 @@ export default function VetWorkspaceBeatrizV13() {
   const [calcDosage, setCalcDosage] = useState<string>('')
   const [calcConcentration, setCalcConcentration] = useState<string>('')
   const [calcResult, setCalcResult] = useState<number | null>(null)
+
+  // Detector automático de Alerta de Interação Medicamentosa
+  const getDrugInteractionAlert = (drugName: string) => {
+    const lower = drugName.toLowerCase()
+    if (lower.includes('meloxicam') || lower.includes('prednisolona') || lower.includes('dexametasona')) {
+      return '⚠️ ALERTA DE INTERAÇÃO: Associação de AINEs com Corticoides é estritamente contraindicada pelo risco severo de ulceração gástrica e perfuração!'
+    }
+    if (lower.includes('tramadol') && lower.includes('fluoxetina')) {
+      return '⚠️ ALERTA DE INTERAÇÃO: Opióides associados a inibidores da recaptação de serotonina aumentam o risco de Síndrome Serotoninérgica.'
+    }
+    return null
+  }
 
   const [fluidWeight, setFluidWeight] = useState<string>('')
   const [fluidRateType, setFluidRateType] = useState<string>('manutencao')
@@ -627,7 +675,7 @@ export default function VetWorkspaceBeatrizV13() {
     )
   }
 
-  // Enviar mensagem para a IA e atualizar/salvar histórico de sessões
+  // Enviar mensagem para a IA e atualizar histórico
   const handleSendAiMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!chatInput.trim() || isAiLoading) return
@@ -732,7 +780,7 @@ export default function VetWorkspaceBeatrizV13() {
             </button>
           </div>
 
-          {/* Seção Copiloto IA Vet com Histórico de Casos Salvos */}
+          {/* Copiloto IA Vet com Histórico */}
           <div className="pt-1">
             <div className="flex items-center justify-between">
               <button onClick={() => setActiveTab('ia')} className={`flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'ia' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
@@ -743,8 +791,7 @@ export default function VetWorkspaceBeatrizV13() {
               </button>
             </div>
 
-            {/* LISTA DE HISTÓRICO DE CONVERSAS SALVAS */}
-            <div className="pl-3 pr-1 space-y-1 my-1 max-h-40 overflow-y-auto border-l border-pink-200 ml-2">
+            <div className="pl-3 pr-1 space-y-1 my-1 max-h-32 overflow-y-auto border-l border-pink-200 ml-2">
               {chatSessions.map(session => (
                 <div 
                   key={session.id}
@@ -759,6 +806,11 @@ export default function VetWorkspaceBeatrizV13() {
               ))}
             </div>
           </div>
+
+          {/* Nova Aba de Condolências Humanizadas */}
+          <button onClick={() => setActiveTab('condolencias')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'condolencias' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+            <HeartHandshake className="w-4 h-4 text-pink-500" /> Mensagem de Apoio 🕊️
+          </button>
 
           <button onClick={() => setActiveTab('calculadora')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'calculadora' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
             <Calculator className="w-4 h-4" /> Calculadora & Soro
@@ -837,12 +889,12 @@ export default function VetWorkspaceBeatrizV13() {
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-pink-500"><Stethoscope className="w-5 h-5" /></div>
                 </div>
-                <div onClick={() => setActiveTab('ia')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
+                <div onClick={() => setActiveTab('condolencias')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
                   <div>
-                    <span className="text-xs font-semibold text-pink-400">Copiloto IA Vet</span>
-                    <div className="text-xs font-bold text-pink-600 mt-1 flex items-center gap-1">Pronto para uso <Sparkles className="w-3 h-3" /></div>
+                    <span className="text-xs font-semibold text-pink-400">Mensagens de Apoio</span>
+                    <div className="text-xs font-bold text-pink-600 mt-1 flex items-center gap-1">Gerador Humanizado <HeartHandshake className="w-3 h-3" /></div>
                   </div>
-                  <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-pink-500"><Bot className="w-5 h-5" /></div>
+                  <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-pink-500"><HeartHandshake className="w-5 h-5" /></div>
                 </div>
               </div>
             </div>
@@ -939,61 +991,43 @@ export default function VetWorkspaceBeatrizV13() {
                 </div>
               )}
 
-              {selectedItem.attachments && selectedItem.attachments.length > 0 && (
-                <div className="space-y-3 pt-2 border-t border-pink-100">
-                  <span className="text-xs font-bold text-pink-900 flex items-center gap-1.5">
-                    <Paperclip className="w-3.5 h-3.5 text-pink-500" /> Materiais de Estudo Anexados ({selectedItem.attachments.length})
-                  </span>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {selectedItem.attachments.map(att => (
-                      <div key={att.id} className="flex items-center justify-between bg-pink-50/30 border border-pink-200/60 p-3 rounded-xl shadow-2xs">
-                        <div className="flex items-center gap-2.5 truncate">
-                          <div className="w-8 h-8 rounded-lg bg-pink-100 text-pink-600 flex items-center justify-center">
-                            <DocIcon className="w-4 h-4" />
-                          </div>
-                          <div className="truncate">
-                            <div className="text-xs font-bold text-stone-800 truncate">{att.name}</div>
-                            <div className="text-[10px] text-stone-400">{att.size}</div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <a href={att.url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg text-pink-600 bg-white hover:bg-pink-100 text-[11px] font-bold flex items-center gap-1 border border-pink-200">
-                            <Eye className="w-3.5 h-3.5" /> Abrir
-                          </a>
-                          <a href={att.url} download={att.name} className="p-1.5 rounded-lg text-white bg-pink-500 hover:bg-pink-600 text-[11px] font-bold flex items-center gap-1 shadow-xs">
-                            <Download className="w-3.5 h-3.5" /> Baixar
-                          </a>
-                          <button onClick={() => setItems(items.map(i => i.id === selectedItem.id ? { ...i, attachments: i.attachments?.filter(a => a.id !== att.id) } : i))} className="p-1.5 rounded-lg text-stone-400 hover:text-red-500">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
             </div>
           )}
 
-          {/* COPILOTO IA VETERINÁRIA (COM HISTÓRICO DE CASOS SALVOS + BOTÃO DE VOZ) */}
+          {/* COPILOTO IA VET COM TEMPLATES RÁPIDOS DE ANAMNESE */}
           {activeTab === 'ia' && (
             <div className="max-w-4xl mx-auto h-[calc(100vh-140px)] flex flex-col bg-white/95 backdrop-blur-md border border-pink-100 rounded-3xl shadow-sm overflow-hidden">
-              <div className="p-5 border-b border-pink-100 bg-pink-50/50 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm">
-                    <Bot className="w-5 h-5" />
+              <div className="p-4 border-b border-pink-100 bg-pink-50/50 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm">
+                      <Bot className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-extrabold text-pink-950">Copiloto IA Veterinária - {currentChatSession.title}</h2>
+                      <p className="text-[11px] text-pink-500 font-medium">Raciocínio clínico com templates rápidos e IA avançada</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-sm font-extrabold text-pink-950">Copiloto IA Veterinária - {currentChatSession.title}</h2>
-                    <p className="text-[11px] text-pink-500 font-medium">Assistente de raciocínio clínico com inteligência artificial avançada</p>
+                  <div className="flex items-center gap-2">
+                    <button onClick={handleNewChatSession} className="bg-pink-600 hover:bg-pink-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition">
+                      + Novo Caso
+                    </button>
+                    <span className="text-[10px] bg-pink-100 text-pink-700 px-3 py-1 rounded-full font-bold">API Conectada</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={handleNewChatSession} className="bg-pink-600 hover:bg-pink-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition">
-                    + Novo Caso
+
+                {/* BOTÕES DE TEMPLATES RÁPIDOS DE ANAMNESE */}
+                <div className="flex items-center gap-2 pt-1 border-t border-pink-100/60 overflow-x-auto pb-1">
+                  <span className="text-[11px] font-bold text-stone-500 whitespace-nowrap">Templates Rápidos:</span>
+                  <button onClick={() => applyAnamnesisTemplate('cao_ gastro')} className="bg-white hover:bg-pink-100 text-pink-800 border border-pink-200 px-3 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap shadow-2xs">
+                    🐕 Cão: Vômito/Gastro
                   </button>
-                  <span className="text-[10px] bg-pink-100 text-pink-700 px-3 py-1 rounded-full font-bold">API Conectada</span>
+                  <button onClick={() => applyAnamnesisTemplate('gato_flutd')} className="bg-white hover:bg-pink-100 text-pink-800 border border-pink-200 px-3 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap shadow-2xs">
+                    🐈 Gato: Urinário (FLUTD)
+                  </button>
+                  <button onClick={() => applyAnamnesisTemplate('dermato')} className="bg-white hover:bg-pink-100 text-pink-800 border border-pink-200 px-3 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap shadow-2xs">
+                    🩺 Dermatologia Geral
+                  </button>
                 </div>
               </div>
 
@@ -1008,7 +1042,7 @@ export default function VetWorkspaceBeatrizV13() {
                 {isAiLoading && (
                   <div className="flex justify-start">
                     <div className="bg-pink-50/70 border border-pink-100 p-4 rounded-2xl text-xs text-pink-600 flex items-center gap-2 animate-pulse">
-                      <Sparkles className="w-4 h-4 animate-spin" /> A IA está analisando o caso clínico e a literatura veterinária...
+                      <Sparkles className="w-4 h-4 animate-spin" /> A IA está analisando o caso clínico...
                     </div>
                   </div>
                 )}
@@ -1025,7 +1059,7 @@ export default function VetWorkspaceBeatrizV13() {
                 </button>
                 <input 
                   type="text" 
-                  placeholder={isListening ? "Ouvindo sua fala..." : "Ex: Cão 12kg, vômito com sangue... (ou clique no microfone para falar)"} 
+                  placeholder={isListening ? "Ouvindo sua fala..." : "Digite o caso ou escolha um template acima..."} 
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   className="flex-1 bg-pink-50/50 border border-pink-200 rounded-xl px-4 py-3 text-xs text-pink-950 focus:outline-none font-medium"
@@ -1034,6 +1068,61 @@ export default function VetWorkspaceBeatrizV13() {
                   <Send className="w-4 h-4" /> Perguntar
                 </button>
               </form>
+            </div>
+          )}
+
+          {/* NOVA ABA: GERADOR DE MENSAGENS DE CONDOLÊNCIAS HUMANIZADAS */}
+          {activeTab === 'condolencias' && (
+            <div className="max-w-3xl mx-auto space-y-6">
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
+                <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm">
+                    <HeartHandshake className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-extrabold text-pink-950">Gerador de Mensagem de Apoio (Condolências)</h2>
+                    <p className="text-xs text-pink-500 font-medium">Crie textos humanizados, acolhedores e naturais para enviar aos tutores em momentos de perda</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleGenerateCondolence} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-stone-700 block mb-1">Nome do Tutor(a)</label>
+                      <input type="text" placeholder="Ex: Maria" value={condolenceTutor} onChange={(e) => setCondolenceTutor(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-stone-700 block mb-1">Nome do Pet</label>
+                      <input type="text" placeholder="Ex: Mel" value={condolencePet} onChange={(e) => setCondolencePet(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-stone-700 block mb-1">Tom da Mensagem</label>
+                    <select value={condolenceTone} onChange={(e) => setCondolenceTone(e.target.value as any)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                      <option value="acolhedor">Acolhedor e Carinhoso (Padrão)</option>
+                      <option value="curto">Mais Curto e Direto ao Ponto</option>
+                      <option value="luta_longa">Após Longa Batalha / Doença</option>
+                    </select>
+                  </div>
+
+                  <button type="submit" className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
+                    <Sparkles className="w-4 h-4" /> Gerar Mensagem Humanizada
+                  </button>
+                </form>
+
+                {generatedCondolence && (
+                  <div className="space-y-3 pt-4 border-t border-pink-100">
+                    <label className="text-xs font-bold text-pink-900 block">Mensagem Pronta para Copiar e Enviar no WhatsApp:</label>
+                    <div className="bg-pink-50/80 border border-pink-200 p-5 rounded-2xl text-xs leading-relaxed text-stone-800 whitespace-pre-line font-normal shadow-2xs">
+                      {generatedCondolence}
+                    </div>
+                    <button onClick={() => { navigator.clipboard.writeText(generatedCondolence); alert('Mensagem copiada para a área de transferência!'); }} className="bg-stone-800 hover:bg-stone-900 text-white px-4 py-2 rounded-xl text-xs font-bold transition">
+                      📋 Copiar Mensagem
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1146,11 +1235,11 @@ export default function VetWorkspaceBeatrizV13() {
             </div>
           )}
 
-          {/* CALCULADORA */}
+          {/* CALCULADORA & ALERTA DE INTERAÇÕES MEDICAMENTOSAS */}
           {activeTab === 'calculadora' && (
             <div className="max-w-4xl mx-auto space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-extrabold text-pink-950">Calculadora Veterinária & Fluidoterapia</h2>
+                <h2 className="text-xl font-extrabold text-pink-950">Calculadora Veterinária & Alerta de Interações</h2>
                 <div className="flex gap-2">
                   <button onClick={() => setCalcMode('dose')} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${calcMode === 'dose' ? 'bg-pink-500 text-white shadow-sm' : 'bg-white text-pink-900 border border-pink-200'}`}>
                     💊 Dose de Fármacos
@@ -1200,6 +1289,14 @@ export default function VetWorkspaceBeatrizV13() {
                         ))
                       )}
                     </div>
+
+                    {/* ALERTA AUTOMÁTICO DE INTERAÇÃO MEDICAMENTOSA */}
+                    {getDrugInteractionAlert(selectedDrugName) && (
+                      <div className="bg-amber-50 border border-amber-300 p-3.5 rounded-xl text-amber-900 text-xs flex items-start gap-2 animate-pulse">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <span>{getDrugInteractionAlert(selectedDrugName)}</span>
+                      </div>
+                    )}
 
                     <div className="space-y-3 pt-1">
                       <div>
