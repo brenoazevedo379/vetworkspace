@@ -16,18 +16,12 @@ import {
   Trash2, 
   Sparkles, 
   LogOut,
-  TrendingUp,
-  TrendingDown,
-  Clock,
   Paperclip,
-  Image as ImageIcon,
-  FileSpreadsheet,
   FileText as DocIcon,
   Download,
   Eye,
   Save,
   CreditCard,
-  Baby,
   Wallet,
   AlertCircle
 } from 'lucide-react'
@@ -53,7 +47,7 @@ interface DocumentItem {
 interface FinancialItem {
   id: string
   description: string
-  category: 'cartao' | 'filha' | 'outro'
+  category: string
   amount: number
   date: string
 }
@@ -73,89 +67,80 @@ interface CalendarEvent {
   description: string
 }
 
-export default function VetWorkspaceBeatrizMaster() {
+export default function VetWorkspaceBeatrizClean() {
   const [activeTab, setActiveTab] = useState<'painel' | 'documentos' | 'estudos' | 'tarefas' | 'calendario' | 'financas'>('painel')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Salvo automaticamente')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // 1. Moleskine / Estudos & Pós
+  // 1. Estudos & Pós (Zerado/Inicial limpo)
   const [items, setItems] = useState<DocumentItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_items_v3')
+      const saved = localStorage.getItem('vet_items_v4')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return [
       { id: 'f-pos', title: 'Pós-graduação & Residência', parentId: null, type: 'folder', isOpen: true },
-      { id: 'p-1', title: 'Cirurgia de Pequenos Animais', parentId: 'f-pos', type: 'page', content: 'Anotações sobre técnicas cirúrgicas...', attachments: [] },
-      { id: 'f-estudos', title: 'Artigos & Casos Clínicos', parentId: null, type: 'folder', isOpen: true },
-      { id: 'p-3', title: 'Caso: Insuficiência Renal Felina', parentId: 'f-estudos', type: 'page', content: 'Acompanhamento clínico...', attachments: [] }
+      { id: 'p-1', title: 'Resumos e Casos Clínicos', parentId: 'f-pos', type: 'page', content: '', attachments: [] }
     ]
   })
   const [selectedItemId, setSelectedItemId] = useState<string>('p-1')
 
-  // 2. Finanças Inteligentes (Renda + Despesas Cartão/Filha)
+  // 2. Finanças (Zeradas por padrão)
   const [monthlyIncome, setMonthlyIncome] = useState<number>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_income_v3')
+      const saved = localStorage.getItem('vet_income_v4')
       if (saved) return parseFloat(saved)
     }
-    return 4500.00
+    return 0.00
   })
 
   const [finances, setFinances] = useState<FinancialItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_finances_v3')
+      const saved = localStorage.getItem('vet_finances_v4')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
-    return [
-      { id: '1', description: 'Fatura Cartão de Crédito', category: 'cartao', amount: 3000.00, date: '25/08/2026' },
-      { id: '2', description: 'Escola / Material Filha', category: 'filha', amount: 450.00, date: '22/08/2026' }
-    ]
+    return []
   })
   const [finDesc, setFinDesc] = useState('')
-  const [finCategory, setFinCategory] = useState<'cartao' | 'filha' | 'outro'>('cartao')
+  const [finCategory, setFinCategory] = useState('Cartão de Crédito')
+  const [finCustomCategory, setFinCustomCategory] = useState('')
   const [finAmount, setFinAmount] = useState('')
   const [editingIncome, setEditingIncome] = useState(false)
-  const [tempIncome, setTempIncome] = useState(monthlyIncome.toString())
+  const [tempIncome, setTempIncome] = useState('0')
 
   // 3. Tarefas
   const [tasks, setTasks] = useState<TaskItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_tasks_v3')
+      const saved = localStorage.getItem('vet_tasks_v4')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
-    return [
-      { id: 't-1', text: 'Revisar exames de sangue do felino', completed: false, category: 'Clínica', notes: 'Verificar taxas renais.', attachments: [] }
-    ]
+    return []
   })
   const [newTaskText, setNewTaskText] = useState('')
   const [newTaskCategory, setNewTaskCategory] = useState('Geral')
   const [newTaskNotes, setNewTaskNotes] = useState('')
   const [activeTaskForAttach, setActiveTaskForAttach] = useState<string | null>(null)
 
-  // 4. Calendário Interativo por Dia (Metas, Vendas, Atendimentos)
+  // 4. Calendário
   const [events, setEvents] = useState<CalendarEvent[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_events_v3')
+      const saved = localStorage.getItem('vet_events_v4')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
-    return [
-      { dateKey: '2026-08-25', title: 'Meta do Dia', description: 'Realizar 10 atendimentos / vendas na clínica.' }
-    ]
+    return []
   })
   const [selectedDate, setSelectedDate] = useState<string>('2026-08-25')
   const [eventTitle, setEventTitle] = useState('')
   const [eventDesc, setEventDesc] = useState('')
 
-  // Sincronização automática
   useEffect(() => {
-    localStorage.setItem('vet_items_v3', JSON.stringify(items))
-    localStorage.setItem('vet_income_v3', monthlyIncome.toString())
-    localStorage.setItem('vet_finances_v3', JSON.stringify(finances))
-    localStorage.setItem('vet_tasks_v3', JSON.stringify(tasks))
-    localStorage.setItem('vet_events_v3', JSON.stringify(events))
+    localStorage.setItem('vet_items_v4', JSON.stringify(items))
+    localStorage.setItem('vet_income_v4', monthlyIncome.toString())
+    localStorage.setItem('vet_finances_v4', JSON.stringify(finances))
+    localStorage.setItem('vet_tasks_v4', JSON.stringify(tasks))
+    localStorage.setItem('vet_events_v4', JSON.stringify(events))
     setSaveStatus('Salvo com sucesso!')
     const timer = setTimeout(() => setSaveStatus('Salvo automaticamente'), 2000)
     return () => clearTimeout(timer)
@@ -163,7 +148,6 @@ export default function VetWorkspaceBeatrizMaster() {
 
   const selectedItem = items.find(i => i.id === selectedItemId && i.type === 'page') || items.find(i => i.type === 'page')
 
-  // Manipulação de Arquivos
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
@@ -188,29 +172,26 @@ export default function VetWorkspaceBeatrizMaster() {
     e.target.value = ''
   }
 
-  // Cálculos Financeiros
-  const totalCartao = finances.filter(f => f.category === 'cartao').reduce((acc, f) => acc + f.amount, 0)
-  const totalFilha = finances.filter(f => f.category === 'filha').reduce((acc, f) => acc + f.amount, 0)
-  const totalOutros = finances.filter(f => f.category === 'outro').reduce((acc, f) => acc + f.amount, 0)
-  const totalGastos = totalCartao + totalFilha + totalOutros
+  const totalGastos = finances.reduce((acc, f) => acc + f.amount, 0)
   const saldoRestante = monthlyIncome - totalGastos
 
   const handleAddFinancial = (e: React.FormEvent) => {
     e.preventDefault()
     if (!finDesc || !finAmount) return
+    const catFinal = finCategory === 'Outro' && finCustomCategory.trim() ? finCustomCategory.trim() : finCategory
     const newF: FinancialItem = {
       id: Date.now().toString(),
       description: finDesc,
-      category: finCategory,
+      category: catFinal,
       amount: parseFloat(finAmount),
       date: new Date().toLocaleDateString('pt-BR')
     }
     setFinances([newF, ...finances])
     setFinDesc('')
     setFinAmount('')
+    setFinCustomCategory('')
   }
 
-  // Calendário Dias de Agosto/2026
   const calendarDays = Array.from({ length: 31 }, (_, i) => {
     const dayNum = i + 1
     const formattedDay = dayNum < 10 ? `0${dayNum}` : `${dayNum}`
@@ -237,7 +218,7 @@ export default function VetWorkspaceBeatrizMaster() {
             <LayoutDashboard className="w-4 h-4" /> Painel
           </button>
           <button onClick={() => setActiveTab('estudos')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'estudos' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
-            <BookOpen className="w-4 h-4" /> Moleskine & Pós
+            <BookOpen className="w-4 h-4" /> Estudos & Pós
           </button>
           <button onClick={() => setActiveTab('tarefas')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'tarefas' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
             <CheckSquare className="w-4 h-4" /> Tarefas ({tasks.filter(t => !t.completed).length})
@@ -291,7 +272,7 @@ export default function VetWorkspaceBeatrizMaster() {
           {/* PAINEL */}
           {activeTab === 'painel' && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div onClick={() => setActiveTab('financas')} className="bg-white border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
                   <div>
                     <span className="text-xs font-semibold text-pink-400">Renda do Mês</span>
@@ -301,17 +282,10 @@ export default function VetWorkspaceBeatrizMaster() {
                 </div>
                 <div onClick={() => setActiveTab('financas')} className="bg-white border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
                   <div>
-                    <span className="text-xs font-semibold text-pink-400">Cartão de Crédito</span>
-                    <div className="text-2xl font-extrabold text-rose-500 mt-1">R$ {totalCartao.toFixed(2)}</div>
+                    <span className="text-xs font-semibold text-pink-400">Total de Despesas</span>
+                    <div className="text-2xl font-extrabold text-rose-500 mt-1">R$ {totalGastos.toFixed(2)}</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500"><CreditCard className="w-5 h-5" /></div>
-                </div>
-                <div onClick={() => setActiveTab('financas')} className="bg-white border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
-                  <div>
-                    <span className="text-xs font-semibold text-pink-400">Gastos com a Filha</span>
-                    <div className="text-2xl font-extrabold text-pink-600 mt-1">R$ {totalFilha.toFixed(2)}</div>
-                  </div>
-                  <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-pink-500"><Baby className="w-5 h-5" /></div>
                 </div>
                 <div onClick={() => setActiveTab('tarefas')} className="bg-white border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
                   <div>
@@ -324,12 +298,12 @@ export default function VetWorkspaceBeatrizMaster() {
             </div>
           )}
 
-          {/* MOLESKINE / ESTUDOS & PÓS */}
+          {/* ESTUDOS & PÓS */}
           {activeTab === 'estudos' && selectedItem && (
             <div className="max-w-4xl mx-auto bg-white border border-pink-100 p-10 rounded-2xl shadow-xs space-y-6">
               <div className="flex items-center justify-between border-b border-pink-100 pb-4">
                 <div className="flex-1 mr-4">
-                  <span className="text-[10px] font-bold text-pink-500 uppercase tracking-wider">Moleskine / Estudos & Pós</span>
+                  <span className="text-[10px] font-bold text-pink-500 uppercase tracking-wider">Estudos & Pós</span>
                   <input 
                     type="text" 
                     value={selectedItem.title}
@@ -383,7 +357,7 @@ export default function VetWorkspaceBeatrizMaster() {
                 onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, content: e.target.value } : i))}
                 rows={12}
                 className="w-full bg-transparent text-stone-700 text-sm leading-relaxed focus:outline-none resize-none font-normal placeholder-stone-300"
-                placeholder="Insira suas anotações do Moleskine, resumos e casos clínicos aqui..."
+                placeholder="Insira suas anotações, resumos e casos clínicos aqui..."
               />
             </div>
           )}
@@ -450,7 +424,7 @@ export default function VetWorkspaceBeatrizMaster() {
             </div>
           )}
 
-          {/* CALENDÁRIO INTERATIVO */}
+          {/* CALENDÁRIO */}
           {activeTab === 'calendario' && (
             <div className="max-w-4xl mx-auto space-y-6">
               <h2 className="text-xl font-extrabold text-pink-950">Calendário Diário & Metas de Vendas</h2>
@@ -520,12 +494,11 @@ export default function VetWorkspaceBeatrizMaster() {
             </div>
           )}
 
-          {/* FINANÇAS INTELIGENTES (Com cálculo de sobra e balanço) */}
+          {/* FINANÇAS LIMPAS E FLEXÍVEIS */}
           {activeTab === 'financas' && (
             <div className="max-w-4xl mx-auto space-y-6">
-              <h2 className="text-xl font-extrabold text-pink-950">Controle Financeiro Inteligente</h2>
+              <h2 className="text-xl font-extrabold text-pink-950">Controle Financeiro</h2>
               
-              {/* Bloco de Renda & Balanço */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white border border-pink-100 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
                   <span className="text-xs font-bold text-stone-400">Renda / Entrada do Mês</span>
@@ -545,9 +518,8 @@ export default function VetWorkspaceBeatrizMaster() {
                 </div>
 
                 <div className="bg-white border border-pink-100 p-5 rounded-2xl shadow-xs">
-                  <span className="text-xs font-bold text-stone-400">Total de Gastos (Cartão + Filha)</span>
+                  <span className="text-xs font-bold text-stone-400">Total de Despesas</span>
                   <div className="text-2xl font-extrabold text-rose-500 mt-2">R$ {totalGastos.toFixed(2)}</div>
-                  <span className="text-[10px] text-stone-400 mt-1 block">Cartão: R$ {totalCartao.toFixed(2)} | Filha: R$ {totalFilha.toFixed(2)}</span>
                 </div>
 
                 <div className={`border p-5 rounded-2xl shadow-xs flex flex-col justify-between ${saldoRestante >= 0 ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50/40 border-rose-200'}`}>
@@ -555,59 +527,59 @@ export default function VetWorkspaceBeatrizMaster() {
                   <div className={`text-2xl font-extrabold mt-2 ${saldoRestante >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
                     R$ {saldoRestante.toFixed(2)}
                   </div>
-                  <span className="text-[10px] font-semibold text-stone-500 mt-1">
-                    {saldoRestante >= 0 ? 'Orçamento sob controle' : 'Atenção: Gastos acima da renda!'}
-                  </span>
                 </div>
               </div>
 
-              {/* Alerta inteligente se o cartão pesou muito */}
-              {totalCartao > monthlyIncome * 0.5 && (
-                <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                  <div className="text-xs text-amber-900">
-                    <span className="font-bold">Aviso financeiro:</span> O seu cartão de crédito (R$ {totalCartao.toFixed(2)}) está consumindo mais de 50% da sua entrada mensal. Vale a pena revisar os lançamentos!
-                  </div>
-                </div>
-              )}
-
-              {/* Novo Lançamento */}
               <div className="bg-white border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
-                <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Adicionar Novo Gasto</h3>
+                <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Adicionar Despesa</h3>
                 <form onSubmit={handleAddFinancial} className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                  <input type="text" placeholder="Descrição (Ex: Fatura Nubank, Escola)" value={finDesc} onChange={(e) => setFinDesc(e.target.value)} className="md:col-span-2 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
-                  <select value={finCategory} onChange={(e) => setFinCategory(e.target.value as 'cartao' | 'filha' | 'outro')} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
-                    <option value="cartao">Cartão de Crédito</option>
-                    <option value="filha">Gastos com a Filha</option>
-                    <option value="outro">Outros Gastos</option>
+                  <input type="text" placeholder="Descrição (Ex: Fatura, Supermercado)" value={finDesc} onChange={(e) => setFinDesc(e.target.value)} className="md:col-span-2 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                  <select value={finCategory} onChange={(e) => setFinCategory(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                    <option value="Cartão de Crédito">Cartão de Crédito</option>
+                    <option value="Filha">Filha</option>
+                    <option value="Filho">Filho</option>
+                    <option value="Outro">Outro (Personalizado)</option>
                   </select>
-                  <input type="number" step="0.01" placeholder="Valor (R$)" value={finAmount} onChange={(e) => setFinAmount(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
-                  <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-xs font-bold transition shadow-md">Adicionar Gasto</button>
+                  {finCategory === 'Outro' ? (
+                    <input type="text" placeholder="Nome da categoria" value={finCustomCategory} onChange={(e) => setFinCustomCategory(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                  ) : (
+                    <input type="number" step="0.01" placeholder="Valor (R$)" value={finAmount} onChange={(e) => setFinAmount(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                  )}
+                  {finCategory === 'Outro' ? null : (
+                    <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-xs font-bold transition shadow-md">Adicionar</button>
+                  )}
                 </form>
+                {finCategory === 'Outro' && (
+                  <form onSubmit={handleAddFinancial} className="flex gap-3">
+                    <input type="number" step="0.01" placeholder="Valor (R$)" value={finAmount} onChange={(e) => setFinAmount(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                    <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-6 rounded-xl text-xs font-bold transition shadow-md">Adicionar</button>
+                  </form>
+                )}
               </div>
 
-              {/* Histórico */}
               <div className="bg-white border border-pink-100 rounded-2xl overflow-hidden shadow-xs">
-                <div className="px-6 py-4 border-b border-pink-100 text-xs font-bold text-pink-900">Histórico de Gastos</div>
+                <div className="px-6 py-4 border-b border-pink-100 text-xs font-bold text-pink-900">Histórico de Despesas</div>
                 <div className="divide-y divide-pink-50">
-                  {finances.map(f => (
-                    <div key={f.id} className="px-6 py-3.5 flex items-center justify-between text-xs">
-                      <div>
-                        <div className="font-bold text-pink-950">{f.description}</div>
-                        <div className="text-[10px] text-stone-400">
-                          {f.date} • <span className="uppercase font-semibold text-pink-600">
-                            {f.category === 'cartao' ? 'Cartão de Crédito' : f.category === 'filha' ? 'Gastos Filha' : 'Outros'}
-                          </span>
+                  {finances.length === 0 ? (
+                    <p className="text-xs text-stone-400 py-6 text-center">Nenhuma despesa registrada ainda.</p>
+                  ) : (
+                    finances.map(f => (
+                      <div key={f.id} className="px-6 py-3.5 flex items-center justify-between text-xs">
+                        <div>
+                          <div className="font-bold text-pink-950">{f.description}</div>
+                          <div className="text-[10px] text-stone-400">
+                            {f.date} • <span className="uppercase font-semibold text-pink-600">{f.category}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <span className="font-extrabold text-rose-500">- R$ {f.amount.toFixed(2)}</span>
+                          <button onClick={() => setFinances(finances.filter(item => item.id !== f.id))} className="text-stone-400 hover:text-red-500">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <span className="font-extrabold text-rose-500">- R$ {f.amount.toFixed(2)}</span>
-                        <button onClick={() => setFinances(finances.filter(item => item.id !== f.id))} className="text-stone-400 hover:text-red-500">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </div>
