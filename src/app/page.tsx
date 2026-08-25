@@ -145,7 +145,7 @@ export default function VetWorkspaceBeatrizV13() {
   // Estado de Sessões do Copiloto IA Salvas
   const [chatSessions, setChatSessions] = useState<ChatSession[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_chat_sessions_v20')
+      const saved = localStorage.getItem('vet_chat_sessions_v22')
       if (saved) { try { return JSON.parse(saved) } catch (e) {} }
     }
     return [
@@ -153,7 +153,7 @@ export default function VetWorkspaceBeatrizV13() {
         id: 'default-session',
         title: 'Caso Clínico Inicial',
         messages: [
-          { sender: 'ai', text: 'Olá, Dra. Beatriz! Sou seu copiloto clínico. Pode digitar o caso, os sintomas ou dúvidas de pós que eu organizo a análise passo a passo para te ajudar.' }
+          { sender: 'ai', text: 'Olá, Dra. Beatriz! Sou seu copiloto clínico. Pode digitar o caso, os sintomas ou usar o microfone para ditar.' }
         ]
       }
     ]
@@ -165,7 +165,7 @@ export default function VetWorkspaceBeatrizV13() {
 
   // Sincronizar salvamento automático das sessões de IA
   useEffect(() => {
-    localStorage.setItem('vet_chat_sessions_v20', JSON.stringify(chatSessions))
+    localStorage.setItem('vet_chat_sessions_v22', JSON.stringify(chatSessions))
   }, [chatSessions])
 
   const currentChatSession = chatSessions.find(s => s.id === currentChatId) || chatSessions[0]
@@ -219,23 +219,14 @@ export default function VetWorkspaceBeatrizV13() {
     recognition.interimResults = false
     recognition.maxAlternatives = 1
 
-    recognition.onstart = () => {
-      setIsListening(true)
-    }
-
+    recognition.onstart = () => setIsListening(true)
     recognition.onresult = (event: any) => {
       const speechText = event.results[0][0].transcript
       setChatInput(prev => prev ? prev + ' ' + speechText : speechText)
       setIsListening(false)
     }
-
-    recognition.onerror = () => {
-      setIsListening(false)
-    }
-
-    recognition.onend = () => {
-      setIsListening(false)
-    }
+    recognition.onerror = () => setIsListening(false)
+    recognition.onend = () => setIsListening(false)
 
     recognition.start()
   }
@@ -637,8 +628,8 @@ export default function VetWorkspaceBeatrizV13() {
   }
 
   // Enviar mensagem para a IA e atualizar/salvar histórico de sessões
-  const handleSendAiMessage = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault()
+  const handleSendAiMessage = async (e: React.FormEvent) => {
+    e.preventDefault()
     if (!chatInput.trim() || isAiLoading) return
 
     const userText = chatInput.trim()
@@ -1027,7 +1018,7 @@ export default function VetWorkspaceBeatrizV13() {
                 <button
                   type="button"
                   onClick={toggleListening}
-                  title={isListeningtur ? "Ouvindo..." : "Falar por voz"}
+                  title={isListening ? "Ouvindo..." : "Falar por voz"}
                   className={`p-3 rounded-xl transition flex items-center justify-center ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-pink-100 hover:bg-pink-200 text-pink-700'}`}
                 >
                   {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
