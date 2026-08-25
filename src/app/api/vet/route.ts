@@ -20,9 +20,9 @@ export async function POST(req: Request) {
     4. Conduta Terapêutica de Suporte / Fármacos (com indicação de cautela e avaliação de parâmetros).
     Responda de forma direta, limpa, organizada com bullet points (•) e sem poluição visual.`
 
-    // Chamada direta e limpa com o modelo estável padrão
+    // Chamada exata utilizando o modelo aceito pelo SDK oficial
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-pro',
+      model: 'gemini-2.0-flash',
       contents: prompt,
       config: {
         systemInstruction: systemInstruction,
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ reply })
   } catch (error: any) {
-    console.error('Erro na API Vet:', error)
+    console.error('Erro detalhado na API Vet:', error)
     return NextResponse.json({ 
       reply: 'Erro ao processar a solicitação com a IA: ' + (error.message || JSON.stringify(error)) 
     }, { status: 500 })
