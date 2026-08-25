@@ -6,8 +6,7 @@ export async function POST(req: Request) {
     const { prompt } = await req.json()
 
     
-const apiKey = process.env.GEMINI_API_KEY    
-    if (!apiKey) {
+const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY    if (!apiKey) {
       return NextResponse.json({ reply: 'Chave de API do Gemini não configurada.' }, { status: 500 })
     }
 
