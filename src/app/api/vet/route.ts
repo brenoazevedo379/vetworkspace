@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     Responda de forma direta, limpa, organizada com bullet points (•) e sem poluição visual.`
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-3.6-flash',
       contents: prompt,
       config: {
         systemInstruction: systemInstruction,
