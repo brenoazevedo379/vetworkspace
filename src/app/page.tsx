@@ -550,7 +550,7 @@ export default function VetWorkspaceBeatrizV13() {
     setIsAiLoading(true)
 
     try {
-      const response = await fetch('/api/vet-ai', {
+      const response = await fetch('/api/vet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: userText })
