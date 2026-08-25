@@ -34,7 +34,9 @@ import {
   Layers,
   Printer,
   Bot,
-  Send
+  Send,
+  Mic,
+  MicOff
 } from 'lucide-react'
 
 interface AttachedFile {
@@ -113,6 +115,12 @@ interface ChatMessage {
   text: string
 }
 
+interface ChatSession {
+  id: string
+  title: string
+  messages: ChatMessage[]
+}
+
 const INITIAL_DRUGS: VetDrug[] = [
   { name: 'Meloxicam (Cão)', category: 'Anti-inflamatório', defaultDosage: 0.1, defaultConcentration: 2 },
   { name: 'Meloxicam (Gato)', category: 'Anti-inflamatório', defaultDosage: 0.05, defaultConcentration: 0.5 },
@@ -134,12 +142,103 @@ export default function VetWorkspaceBeatrizV13() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [studySubTab, setStudySubTab] = useState<'resumo' | 'diferenciais' | 'pontos'>('resumo')
 
-  // Estado da IA Copiloto Veterinário
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { sender: 'ai', text: 'Olá, Dra. Beatriz! Sou seu copiloto clínico. Pode digitar o caso, os sintomas ou dúvidas de pós que eu organizo a análise passo a passo para te ajudar.' }
-  ])
+  // Estado de Sessões do Copiloto IA Salvas
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_chat_sessions_v20')
+      if (saved) { try { return JSON.parse(saved) } catch (e) {} }
+    }
+    return [
+      {
+        id: 'default-session',
+        title: 'Caso Clínico Inicial',
+        messages: [
+          { sender: 'ai', text: 'Olá, Dra. Beatriz! Sou seu copiloto clínico. Pode digitar o caso, os sintomas ou dúvidas de pós que eu organizo a análise passo a passo para te ajudar.' }
+        ]
+      }
+    ]
+  })
+  const [currentChatId, setCurrentChatId] = useState<string>('default-session')
   const [chatInput, setChatInput] = useState('')
   const [isAiLoading, setIsAiLoading] = useState(false)
+  const [isListening, setIsListening] = useState(false)
+
+  // Sincronizar salvamento automático das sessões de IA
+  useEffect(() => {
+    localStorage.setItem('vet_chat_sessions_v20', JSON.stringify(chatSessions))
+  }, [chatSessions])
+
+  const currentChatSession = chatSessions.find(s => s.id === currentChatId) || chatSessions[0]
+
+  const handleNewChatSession = () => {
+    const newId = Date.now().toString()
+    const newSession: ChatSession = {
+      id: newId,
+      title: 'Novo Caso Clínico',
+      messages: [
+        { sender: 'ai', text: 'Olá, Dra. Beatriz! Novo caso clínico iniciado. Pode descrever os sintomas ou o histórico.' }
+      ]
+    }
+    setChatSessions([newSession, ...chatSessions])
+    setCurrentChatId(newId)
+    setActiveTab('ia')
+  }
+
+  const deleteChatSession = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    const filtered = chatSessions.filter(s => s.id !== id)
+    if (filtered.length === 0) {
+      const freshId = Date.now().toString()
+      setChatSessions([{
+        id: freshId,
+        title: 'Caso Clínico Inicial',
+        messages: [{ sender: 'ai', text: 'Olá, Dra. Beatriz! Sou seu copiloto clínico.' }]
+      }])
+      setCurrentChatId(freshId)
+    } else {
+      setChatSessions(filtered)
+      if (currentChatId === id) setCurrentChatId(filtered[0].id)
+    }
+  }
+
+  // Função de Reconhecimento de Voz (Ditado)
+  const toggleListening = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert('Seu navegador não suporta reconhecimento de voz. Tente usar o Google Chrome.')
+      return
+    }
+
+    if (isListening) {
+      setIsListening(false)
+      return
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    const recognition = new SpeechRecognition()
+    recognition.lang = 'pt-BR'
+    recognition.interimResults = false
+    recognition.maxAlternatives = 1
+
+    recognition.onstart = () => {
+      setIsListening(true)
+    }
+
+    recognition.onresult = (event: any) => {
+      const speechText = event.results[0][0].transcript
+      setChatInput(prev => prev ? prev + ' ' + speechText : speechText)
+      setIsListening(false)
+    }
+
+    recognition.onerror = () => {
+      setIsListening(false)
+    }
+
+    recognition.onend = () => {
+      setIsListening(false)
+    }
+
+    recognition.start()
+  }
 
   // 1. Estudos & Pós
   const [items, setItems] = useState<DocumentItem[]>(() => {
@@ -176,7 +275,6 @@ export default function VetWorkspaceBeatrizV13() {
   const [evoTemp, setEvoTemp] = useState('')
   const [evoNotes, setEvoNotes] = useState('')
 
-  // Função para imprimir / baixar ficha do paciente
   const handlePrintPatient = (p: PatientRecord) => {
     const printWindow = window.open('', '_blank')
     if (!printWindow) return
@@ -538,16 +636,25 @@ export default function VetWorkspaceBeatrizV13() {
     )
   }
 
-  // Enviar mensagem conectada à nossa API (IA de verdade rodando no backend)
-  const handleSendAiMessage = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // Enviar mensagem para a IA e atualizar/salvar histórico de sessões
+  const handleSendAiMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
     if (!chatInput.trim() || isAiLoading) return
 
     const userText = chatInput.trim()
-    const newMsgs: ChatMessage[] = [...chatMessages, { sender: 'user', text: userText }]
-    setChatMessages(newMsgs)
     setChatInput('')
     setIsAiLoading(true)
+
+    const updatedMessages: ChatMessage[] = [
+      ...currentChatSession.messages,
+      { sender: 'user', text: userText }
+    ]
+
+    const autoTitle = currentChatSession.title === 'Novo Caso Clínico' || currentChatSession.title === 'Caso Clínico Inicial'
+      ? (userText.length > 28 ? userText.substring(0, 28) + '...' : userText)
+      : currentChatSession.title
+
+    setChatSessions(chatSessions.map(s => s.id === currentChatId ? { ...s, title: autoTitle, messages: updatedMessages } : s))
 
     try {
       const response = await fetch('/api/vet', {
@@ -557,9 +664,19 @@ export default function VetWorkspaceBeatrizV13() {
       })
       const data = await response.json()
       const reply = data.reply || 'Não foi possível processar a resposta no momento.'
-      setChatMessages([...newMsgs, { sender: 'ai', text: reply }])
+
+      const finalMessages: ChatMessage[] = [
+        ...updatedMessages,
+        { sender: 'ai', text: reply }
+      ]
+
+      setChatSessions(prev => prev.map(s => s.id === currentChatId ? { ...s, messages: finalMessages } : s))
     } catch (err) {
-      setChatMessages([...newMsgs, { sender: 'ai', text: 'Erro de conexão com o servidor de IA. Verifique sua chave de API.' }])
+      const errorMessages: ChatMessage[] = [
+        ...updatedMessages,
+        { sender: 'ai', text: 'Erro de conexão com o servidor de IA. Verifique sua chave de API.' }
+      ]
+      setChatSessions(prev => prev.map(s => s.id === currentChatId ? { ...s, messages: errorMessages } : s))
     } finally {
       setIsAiLoading(false)
     }
@@ -624,9 +741,34 @@ export default function VetWorkspaceBeatrizV13() {
             </button>
           </div>
 
-          <button onClick={() => setActiveTab('ia')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'ia' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
-            <Bot className="w-4 h-4" /> Copiloto IA Vet 🐾
-          </button>
+          {/* Seção Copiloto IA Vet com Histórico de Casos Salvos */}
+          <div className="pt-1">
+            <div className="flex items-center justify-between">
+              <button onClick={() => setActiveTab('ia')} className={`flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'ia' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+                <Bot className="w-4 h-4" /> Copiloto IA Vet 🐾 ({chatSessions.length})
+              </button>
+              <button title="Novo Caso de IA" onClick={handleNewChatSession} className="p-2 text-pink-600 hover:bg-pink-100 rounded-xl ml-1">
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* LISTA DE HISTÓRICO DE CONVERSAS SALVAS */}
+            <div className="pl-3 pr-1 space-y-1 my-1 max-h-40 overflow-y-auto border-l border-pink-200 ml-2">
+              {chatSessions.map(session => (
+                <div 
+                  key={session.id}
+                  onClick={() => { setCurrentChatId(session.id); setActiveTab('ia'); }}
+                  className={`group flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer text-[11px] transition ${session.id === currentChatId && activeTab === 'ia' ? 'bg-pink-200/80 font-bold text-pink-950' : 'text-stone-600 hover:bg-pink-50'}`}
+                >
+                  <span className="truncate flex-1">{session.title}</span>
+                  <button onClick={(e) => deleteChatSession(e, session.id)} className="opacity-0 group-hover:opacity-100 text-stone-400 hover:text-red-500 p-0.5">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <button onClick={() => setActiveTab('calculadora')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'calculadora' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
             <Calculator className="w-4 h-4" /> Calculadora & Soro
           </button>
@@ -843,7 +985,7 @@ export default function VetWorkspaceBeatrizV13() {
             </div>
           )}
 
-          {/* COPILOTO IA VETERINÁRIA (CONECTADO À API REAL) */}
+          {/* COPILOTO IA VETERINÁRIA (COM HISTÓRICO DE CASOS SALVOS + BOTÃO DE VOZ) */}
           {activeTab === 'ia' && (
             <div className="max-w-4xl mx-auto h-[calc(100vh-140px)] flex flex-col bg-white/95 backdrop-blur-md border border-pink-100 rounded-3xl shadow-sm overflow-hidden">
               <div className="p-5 border-b border-pink-100 bg-pink-50/50 flex items-center justify-between">
@@ -852,15 +994,20 @@ export default function VetWorkspaceBeatrizV13() {
                     <Bot className="w-5 h-5" />
                   </div>
                   <div>
-                    <h2 className="text-sm font-extrabold text-pink-950">Copiloto IA Veterinária (Modo Real)</h2>
+                    <h2 className="text-sm font-extrabold text-pink-950">Copiloto IA Veterinária - {currentChatSession.title}</h2>
                     <p className="text-[11px] text-pink-500 font-medium">Assistente de raciocínio clínico com inteligência artificial avançada</p>
                   </div>
                 </div>
-                <span className="text-[10px] bg-pink-100 text-pink-700 px-3 py-1 rounded-full font-bold">API Conectada</span>
+                <div className="flex items-center gap-2">
+                  <button onClick={handleNewChatSession} className="bg-pink-600 hover:bg-pink-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition">
+                    + Novo Caso
+                  </button>
+                  <span className="text-[10px] bg-pink-100 text-pink-700 px-3 py-1 rounded-full font-bold">API Conectada</span>
+                </div>
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                {chatMessages.map((msg, idx) => (
+                {currentChatSession.messages.map((msg, idx) => (
                   <div key={idx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-2xl p-4 rounded-2xl text-xs leading-relaxed whitespace-pre-line shadow-xs ${msg.sender === 'user' ? 'bg-pink-500 text-white rounded-br-xs' : 'bg-pink-50/70 border border-pink-100 text-stone-800 rounded-bl-xs'}`}>
                       {msg.text}
@@ -876,10 +1023,18 @@ export default function VetWorkspaceBeatrizV13() {
                 )}
               </div>
 
-              <form onSubmit={handleSendAiMessage} className="p-4 border-t border-pink-100 bg-white flex gap-2">
+              <form onSubmit={handleSendAiMessage} className="p-4 border-t border-pink-100 bg-white flex gap-2 items-center">
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  title={isListeningtur ? "Ouvindo..." : "Falar por voz"}
+                  className={`p-3 rounded-xl transition flex items-center justify-center ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-pink-100 hover:bg-pink-200 text-pink-700'}`}
+                >
+                  {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </button>
                 <input 
                   type="text" 
-                  placeholder="Ex: Cão 12kg, vômito com sangue e febre de 40°C. O que pode ser?" 
+                  placeholder={isListening ? "Ouvindo sua fala..." : "Ex: Cão 12kg, vômito com sangue... (ou clique no microfone para falar)"} 
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   className="flex-1 bg-pink-50/50 border border-pink-200 rounded-xl px-4 py-3 text-xs text-pink-950 focus:outline-none font-medium"
