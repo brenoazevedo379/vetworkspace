@@ -17,8 +17,9 @@ export async function POST(req: Request) {
     4. Conduta Terapêutica de Suporte / Fármacos (com indicação de cautela e avaliação de parâmetros).
     Responda de forma direta, limpa, organizada com bullet points (•) e sem poluição visual.`
 
-    // Usando explicitamente a rota REST com o modelo oficial gemini-1.5-flash
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`
+    // URL usando exclusivamente o modelo "gemini-pro" original. 
+    // Funciona em qualquer chave de API e não dá erro 404.
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`
 
     const apiResponse = await fetch(url, {
       method: 'POST',
@@ -30,7 +31,8 @@ export async function POST(req: Request) {
           {
             role: 'user',
             parts: [
-              { text: `${systemInstruction}\n\nCaso clínico: ${prompt}` }
+              // No Gemini 1.0 Pro, a instrução de sistema vai embutida com segurança no próprio prompt
+              { text: `Instruções do Sistema:\n${systemInstruction}\n\nCaso clínico a ser analisado:\n${prompt}` }
             ]
           }
         ],
@@ -43,7 +45,7 @@ export async function POST(req: Request) {
     const data = await apiResponse.json()
 
     if (!apiResponse.ok) {
-      throw new Error(data.error?.message || 'Erro na API do Google')
+      throw new Error(data.error?.message || 'Falha ao processar requisição no servidor do Google.')
     }
 
     const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Não foi possível gerar a resposta clínica.'
