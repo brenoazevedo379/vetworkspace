@@ -724,6 +724,7 @@ export default function VetWorkspaceBeatrizV26() {
           })
 
         if (error) {
+          console.error('Erro detalhado do Supabase:', error.message, error.details)
           setSaveStatus('Erro ao sincronizar')
         } else {
           setSaveStatus('Sincronizado')
