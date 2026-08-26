@@ -38,61 +38,7 @@ import {
   Stethoscope,
   Gift
 } from 'lucide-react'
-
-// Componente interno para a Wishlist para evitar erro de importação ausente
-function WishlistTabInternal() {
-  const [wishes, setWishes] = useState<string[]>([
-    'Livro de Clínica Médica de Pequenos Animais - Ettinger',
-    'Otoscópio Veterinário Profissional',
-    'Jaleco Personalizado Dra. Beatriz'
-  ])
-  const [newWish, setNewWish] = useState('')
-
-  return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
-        <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
-          <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm">
-            <Gift className="w-6 h-6" />
-          </div>
-          <div>
-            <h2 className="text-base font-extrabold text-pink-950">🎁 Lista de Desejos & Metas de Conquistas</h2>
-            <p className="text-xs text-pink-500 font-medium">Seus desejos profissionais e pessoais salvos</p>
-          </div>
-        </div>
-
-        <form onSubmit={(e) => {
-          e.preventDefault()
-          if (!newWish.trim()) return
-          setWishes([newWish, ...wishes])
-          setNewWish('')
-        }} className="flex gap-2">
-          <input 
-            type="text" 
-            placeholder="Adicionar novo item à lista de desejos..." 
-            value={newWish} 
-            onChange={(e) => setNewWish(e.target.value)} 
-            className="flex-1 bg-pink-50/50 border border-pink-200 rounded-xl px-4 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" 
-          />
-          <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-md">
-            Adicionar
-          </button>
-        </form>
-
-        <div className="space-y-2">
-          {wishes.map((wish, idx) => (
-            <div key={idx} className="flex items-center justify-between bg-pink-50/40 border border-pink-100 p-3.5 rounded-xl text-xs font-medium text-pink-950">
-              <span>✨ {wish}</span>
-              <button onClick={() => setWishes(wishes.filter((_, i) => i !== idx))} className="text-stone-400 hover:text-red-500">
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
+import { dbService } from '@/lib/supabase'
 
 interface AttachedFile {
   id: string
@@ -223,11 +169,10 @@ const ONCO_DRUGS: OncolocicalDrug[] = [
   }
 ]
 
-// COMPONENTE PRINCIPAL EXPORTADO CORRETAMENTE COM EXPORT DEFAULT
 export default function VetWorkspaceBeatrizV26() {
   const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'bsa' | 'ia' | 'condolencias' | 'tarefas' | 'calendario' | 'financas' | 'wishlist'>('painel')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-  const [saveStatus, setSaveStatus] = useState('Modo Local Ativo')
+  const [saveStatus, setSaveStatus] = useState('Sincronizando...')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [studySubTab, setStudySubTab] = useState<'resumo' | 'diferenciais' | 'pontos'>('resumo')
@@ -331,6 +276,65 @@ export default function VetWorkspaceBeatrizV26() {
   const [eventDesc, setEventDesc] = useState('')
   const [eventTime, setEventTime] = useState('08:00')
 
+  const [wishes, setWishes] = useState<string[]>([
+    'Livro de Clínica Médica de Pequenos Animais - Ettinger',
+    'Otoscópio Veterinário Profissional',
+    'Jaleco Personalizado Dra. Beatriz'
+  ])
+  const [newWish, setNewWish] = useState('')
+
+  // CARREGAR TUDO DO SUPABASE
+  useEffect(() => {
+    async function loadFromSupabase() {
+      try {
+        const loadedStudies = await dbService.getAppData('studies')
+        if (loadedStudies && Array.isArray(loadedStudies) && loadedStudies.length > 0) setItems(loadedStudies)
+
+        const loadedPatients = await dbService.getPatients()
+        if (loadedPatients && loadedPatients.length > 0) setPatients(loadedPatients)
+
+        const loadedTasks = await dbService.getAppData('tasks')
+        if (loadedTasks) setTasks(loadedTasks)
+
+        const loadedFinances = await dbService.getAppData('finances')
+        if (loadedFinances) setFinances(loadedFinances)
+
+        const loadedIncome = await dbService.getAppData('income')
+        if (loadedIncome !== null && loadedIncome !== undefined) setMonthlyIncome(loadedIncome)
+
+        const loadedEvents = await dbService.getAppData('events')
+        if (loadedEvents) setEvents(loadedEvents)
+
+        const loadedWishes = await dbService.getAppData('wishes')
+        if (loadedWishes) setWishes(loadedWishes)
+
+        setSaveStatus('Sincronizado na Nuvem')
+      } catch (e) {
+        console.error('Erro ao carregar:', e)
+        setSaveStatus('Modo Local')
+      }
+    }
+    loadFromSupabase()
+  }, [])
+
+  // SALVAR TUDO AUTOMATICAMENTE NO SUPABASE
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      try {
+        await dbService.saveAppData('studies', items)
+        await dbService.saveAppData('tasks', tasks)
+        await dbService.saveAppData('finances', finances)
+        await dbService.saveAppData('income', monthlyIncome)
+        await dbService.saveAppData('events', events)
+        await dbService.saveAppData('wishes', wishes)
+        setSaveStatus('Sincronizado na Nuvem')
+      } catch (e) {
+        setSaveStatus('Erro ao sincronizar')
+      }
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [items, tasks, finances, monthlyIncome, events, wishes])
+
   const currentChatSession = chatSessions.find(s => s.id === currentChatId) || chatSessions[0]
 
   const handleNewChatSession = () => {
@@ -338,9 +342,7 @@ export default function VetWorkspaceBeatrizV26() {
     const newSession: ChatSession = {
       id: newId,
       title: 'Novo Caso Clínico',
-      messages: [
-        { sender: 'ai', text: 'Olá, Dra. Beatriz! Novo caso clínico iniciado. Descreva os sintomas ou escolha um template.' }
-      ]
+      messages: [{ sender: 'ai', text: 'Olá, Dra. Beatriz! Novo caso clínico iniciado.' }]
     }
     setChatSessions([newSession, ...chatSessions])
     setCurrentChatId(newId)
@@ -352,72 +354,12 @@ export default function VetWorkspaceBeatrizV26() {
     const filtered = chatSessions.filter(s => s.id !== id)
     if (filtered.length === 0) {
       const freshId = Date.now().toString()
-      setChatSessions([{
-        id: freshId,
-        title: 'Caso Clínico Inicial',
-        messages: [{ sender: 'ai', text: 'Olá, Dra. Beatriz! Sou seu copiloto clínico.' }]
-      }])
+      setChatSessions([{ id: freshId, title: 'Caso Inicial', messages: [{ sender: 'ai', text: 'Olá, Dra. Beatriz!' }] }])
       setCurrentChatId(freshId)
     } else {
       setChatSessions(filtered)
       if (currentChatId === id) setCurrentChatId(filtered[0].id)
     }
-  }
-
-  const toggleListening = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      alert('Seu navegador não suporta reconhecimento de voz. Use o Google Chrome.')
-      return
-    }
-
-    if (isListening) {
-      setIsListening(false)
-      return
-    }
-
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    const recognition = new SpeechRecognition()
-    recognition.lang = 'pt-BR'
-    recognition.interimResults = false
-    recognition.maxAlternatives = 1
-
-    recognition.onstart = () => setIsListening(true)
-    recognition.onresult = (event: any) => {
-      const speechText = event.results[0][0].transcript
-      setChatInput(prev => prev ? prev + ' ' + speechText : speechText)
-      setIsListening(false)
-    }
-    recognition.onerror = () => setIsListening(false)
-    recognition.onend = () => setIsListening(false)
-
-    recognition.start()
-  }
-
-  const applyAnamnesisTemplate = (templateType: 'cao_ gastro' | 'gato_flutd' | 'dermato') => {
-    let templateText = ''
-    if (templateType === 'cao_ gastro') {
-      templateText = 'Anamnese Canina - Suspeita Gastrointestinal:\n- Espécie/Raça/Idade/Peso:\n- Duração dos sintomas (vômito/diarreia):\n- Aspecto do vômito e fezes (presença de sangue, muco):\n- Estado vacinal e vermifugação:\n- Ingestão de corpo estranho ou alimentos inadequados:\n- Exame físico (hidratação, dor abdominal, TP):'
-    } else if (templateType === 'gato_flutd') {
-      templateText = 'Anamnese Felina - Trato Urinário (FLUTD / Obstrução):\n- Espécie/Raça/Idade/Peso:\n- Consegue urinar? Estrangúria / Disúria / Hematúria:\n- Há quanto tempo está sem produzir urina (se obstruído):\n- Mudanças recentes de ambiente ou estresse:\n- Exame físico (plenitude vesical, dor à palpação abdominal):'
-    } else if (templateType === 'dermato') {
-      templateText = 'Anamnese Dermatológica:\n- Espécie/Raça/Idade/Peso:\n- Prurido (coceira) de 0 a 10:\n- Localização das lesões:\n- Sazonalidade ou início súbito:\n- Histórico de ectoparasitas (pulgas/carrapatos):\n- Lesões primárias observadas (pápulas, crostas, pústulas):'
-    }
-    setChatInput(templateText)
-  }
-
-  const handleGenerateCondolence = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!condolenceTutor.trim() || !condolencePet.trim()) return
-
-    let text = ''
-    if (condolenceTone === 'curto') {
-      text = `Oi, ${condolenceTutor}, aqui é a Dra. Beatriz. Sei que nenhuma palavra tira a dor da perda do ${condolencePet}, mas queria te dizer que ele foi muito amado até o último segundo. Fica com Deus, e se precisar de qualquer coisa, tô por aqui.`
-    } else if (condolenceTone === 'luta_longa') {
-      text = `Oi, ${condolenceTutor}, aqui é a Dra. Beatriz. Eu relutei em te mandar mensagem porque a dor é imensa, mas o ${condolencePet} lutou bravamente e agora descansou em paz. Ele foi um verdadeiro guerreiro e teve a melhor tutora que podia ter. Um abraço bem forte.`
-    } else {
-      text = `Oi, ${condolenceTutor}, aqui é a Dra. Beatriz. Queria te mandar um abraço bem apertado pela partida do ${condolencePet}. Ele foi tão especial e alegrou tantos dias nossos na clínica. Que você encontre conforto nas lembranças felizes que deixou. Tô por aqui para o que precisar.`
-    }
-    setGeneratedCondolence(text)
   }
 
   const selectedItem = items.find(i => i.id === selectedItemId && i.type === 'page') || items.find(i => i.type === 'page')
@@ -448,24 +390,6 @@ export default function VetWorkspaceBeatrizV26() {
 
   const totalGastos = finances.reduce((acc, f) => acc + f.amount, 0)
   const saldoRestante = monthlyIncome - totalGastos
-  const percentualGastos = monthlyIncome > 0 ? Math.min(100, (totalGastos / monthlyIncome) * 100) : 0
-
-  const handleAddFinancial = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!finDesc || !finAmount) return
-    const catFinal = finCategory === 'Outro' && finCustomCategory.trim() ? finCustomCategory.trim() : finCategory
-    const newF: FinancialItem = {
-      id: Date.now().toString(),
-      description: finDesc,
-      category: catFinal,
-      amount: parseFloat(finAmount),
-      date: new Date().toLocaleDateString('pt-BR')
-    }
-    setFinances([newF, ...finances])
-    setFinDesc('')
-    setFinAmount('')
-    setFinCustomCategory('')
-  }
 
   const handleAddPatient = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -489,7 +413,6 @@ export default function VetWorkspaceBeatrizV26() {
       date: new Date().toLocaleDateString('pt-BR'),
       evolutions: [initialEvo]
     }
-    
     setPatients([newP, ...patients])
     setNewPetName('')
     setNewBreed('')
@@ -499,70 +422,17 @@ export default function VetWorkspaceBeatrizV26() {
     setNewComplaint('')
   }
 
-  const handleAddEvolution = async (patientId: string, e: React.FormEvent) => {
-    e.preventDefault()
-    if (!evoNotes.trim()) return
-    const newEvo: PatientEvolution = {
-      id: Date.now().toString(),
-      date: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-      weight: evoWeight || 'N/I',
-      temperature: evoTemp ? evoTemp + '°C' : 'N/I',
-      notes: evoNotes
-    }
-    const updated = patients.map(p => p.id === patientId ? { ...p, evolutions: [newEvo, ...p.evolutions] } : p)
-    setPatients(updated)
-    setActivePatientForEvolution(null)
-    setEvoWeight('')
-    setEvoTemp('')
-    setEvoNotes('')
-  }
-
-  const handleSaveNewDrug = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newDrugName.trim() || !newDrugDosage || !newDrugConc) return
-    const newD: VetDrug = {
-      name: newDrugName.trim(),
-      category: newDrugCat.trim() || 'Personalizado',
-      defaultDosage: parseFloat(newDrugDosage) || 0,
-      defaultConcentration: parseFloat(newDrugConc) || 1,
-      maxDays: parseInt(newDrugMaxDays) || 7
-    }
-    setCustomDrugs([newD, ...customDrugs])
-    setSelectedDrugName(newD.name)
-    setCalcDosage(newD.defaultDosage.toString())
-    setCalcConcentration(newD.defaultConcentration.toString())
-    setNewDrugName('')
-    setNewDrugDosage('')
-    setNewDrugConc('')
-    setNewDrugMaxDays('5')
-  }
-
   const handleAddFolder = (parentId: string | null) => {
     const title = prompt('Nome da nova pasta:')
     if (!title) return
-    const newFolder: DocumentItem = {
-      id: 'folder-' + Date.now(),
-      title,
-      parentId,
-      type: 'folder',
-      isOpen: true
-    }
+    const newFolder: DocumentItem = { id: 'folder-' + Date.now(), title, parentId, type: 'folder', isOpen: true }
     setItems([...items, newFolder])
   }
 
   const handleAddPage = (parentId: string | null) => {
     const title = prompt('Nome da nova página de estudo:')
     if (!title) return
-    const newPage: DocumentItem = {
-      id: 'page-' + Date.now(),
-      title,
-      parentId,
-      type: 'page',
-      content: '',
-      differential: '',
-      notes: '',
-      attachments: []
-    }
+    const newPage: DocumentItem = { id: 'page-' + Date.now(), title, parentId, type: 'page', content: '', differential: '', notes: '', attachments: [] }
     setItems([...items, newPage])
     setSelectedItemId(newPage.id)
     setActiveTab('estudos')
@@ -603,22 +473,18 @@ export default function VetWorkspaceBeatrizV26() {
                     <span className="font-extrabold text-xs truncate">{item.title}</span>
                   </div>
                   <div className="hidden group-hover:flex items-center gap-1.5">
-                    <button title="Adicionar Subpasta" onClick={() => handleAddFolder(item.id)} className="p-1 text-pink-600 hover:text-pink-950 bg-white rounded-lg shadow-2xs"><FolderPlus className="w-3.5 h-3.5" /></button>
-                    <button title="Adicionar Página" onClick={() => handleAddPage(item.id)} className="p-1 text-pink-600 hover:text-pink-950 bg-white rounded-lg shadow-2xs"><Plus className="w-3.5 h-3.5" /></button>
+                    <button title="Adicionar Subpasta" onClick={() => handleAddFolder(item.id)} className="p-1 text-pink-600 hover:text-pink-950 bg-white rounded-lg"><FolderPlus className="w-3.5 h-3.5" /></button>
+                    <button title="Adicionar Página" onClick={() => handleAddPage(item.id)} className="p-1 text-pink-600 hover:text-pink-950 bg-white rounded-lg"><Plus className="w-3.5 h-3.5" /></button>
                     <button title="Excluir Pasta" onClick={() => deleteItem(item.id)} className="p-1 text-stone-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 </div>
-                {item.isOpen && (
-                  <div className="pt-1">
-                    {renderTree(item.id)}
-                  </div>
-                )}
+                {item.isOpen && <div className="pt-1">{renderTree(item.id)}</div>}
               </div>
             )
           } else {
             const isSelected = selectedItemId === item.id
             return (
-              <div key={item.id} className={`flex items-center justify-between group px-3 py-2 rounded-xl cursor-pointer transition shadow-2xs ${isSelected ? 'bg-pink-500 text-white font-extrabold shadow-sm' : 'bg-white/80 text-pink-950 hover:bg-pink-50 border border-pink-100'}`} onClick={() => { setSelectedItemId(item.id); setActiveTab('estudos'); }}>
+              <div key={item.id} className={`flex items-center justify-between group px-3 py-2 rounded-xl cursor-pointer transition ${isSelected ? 'bg-pink-500 text-white font-extrabold shadow-sm' : 'bg-white/80 text-pink-950 hover:bg-pink-50 border border-pink-100'}`} onClick={() => { setSelectedItemId(item.id); setActiveTab('estudos'); }}>
                 <div className="flex items-center gap-2.5 truncate">
                   <FileText className={`w-4 h-4 ${isSelected ? 'text-white' : 'text-pink-500'}`} />
                   <span className="text-xs truncate">{item.title}</span>
@@ -637,16 +503,11 @@ export default function VetWorkspaceBeatrizV26() {
   const handleSendAiMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!chatInput.trim() || isAiLoading) return
-
     const userText = chatInput.trim()
     setChatInput('')
     setIsAiLoading(true)
 
-    const updatedMessages: ChatMessage[] = [
-      ...currentChatSession.messages,
-      { sender: 'user', text: userText }
-    ]
-
+    const updatedMessages: ChatMessage[] = [...currentChatSession.messages, { sender: 'user', text: userText }]
     const autoTitle = currentChatSession.title === 'Novo Caso Clínico' || currentChatSession.title === 'Caso Clínico Inicial'
       ? (userText.length > 28 ? userText.substring(0, 28) + '...' : userText)
       : currentChatSession.title
@@ -661,61 +522,19 @@ export default function VetWorkspaceBeatrizV26() {
       })
       const data = await response.json()
       const reply = data.reply || 'Não foi possível processar a resposta no momento.'
-
-      const finalMessages: ChatMessage[] = [
-        ...updatedMessages,
-        { sender: 'ai', text: reply }
-      ]
-
-      setChatSessions(prev => prev.map(s => s.id === currentChatId ? { ...s, messages: finalMessages } : s))
+      setChatSessions(prev => prev.map(s => s.id === currentChatId ? { ...s, messages: [...updatedMessages, { sender: 'ai', text: reply }] } : s))
     } catch (err) {
-      const errorMessages: ChatMessage[] = [
-        ...updatedMessages,
-        { sender: 'ai', text: 'Simulação local: Resposta automática gerada com sucesso para o caso.' }
-      ]
-      setChatSessions(prev => prev.map(s => s.id === currentChatId ? { ...s, messages: errorMessages } : s))
+      setChatSessions(prev => prev.map(s => s.id === currentChatId ? { ...s, messages: [...updatedMessages, { sender: 'ai', text: 'Simulação local: Resposta gerada.' }] } : s))
     } finally {
       setIsAiLoading(false)
-    }
-  }
-
-  const filteredDrugs = customDrugs.filter(d => d.name.toLowerCase().includes(drugSearchQuery.toLowerCase()) || d.category.toLowerCase().includes(drugSearchQuery.toLowerCase()))
-
-  const calendarDays = Array.from({ length: 31 }, (_, i) => {
-    const dayNum = i + 1
-    const formattedDay = dayNum < 10 ? `0${dayNum}` : `${dayNum}`
-    return { day: dayNum, dateKey: `2026-08-${formattedDay}` }
-  })
-
-  const currentSelectedDrugObj = customDrugs.find(d => d.name.toLowerCase() === selectedDrugName.toLowerCase())
-
-  const getAdvancedDrugAlert = (drugName: string) => {
-    const foundDrug = currentSelectedDrugObj
-    const cat = foundDrug ? foundDrug.category.toLowerCase() : ''
-    const nameLower = drugName.toLowerCase()
-    const maxD = foundDrug ? foundDrug.maxDays : 7
-
-    if (cat.includes('aine') || cat.includes('anti-inflamatório') || nameLower.includes('meloxicam')) {
-      return {
-        title: `⚠️ ALERTA DE CLASSE (AINE): USO MÁXIMO DE ${maxD} DIAS`,
-        desc: `Uso recomendado por no máximo ${maxD} dias consecutivos para prevenir úlceras gástricas.`
-      }
-    }
-    return {
-      title: `ℹ️ ORIENTAÇÃO DE USO`,
-      desc: `Limite máximo recomendado: ${maxD} dias.`
     }
   }
 
   return (
     <div className="relative flex h-screen bg-pink-50/40 text-stone-800 font-sans overflow-hidden select-none">
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 opacity-20">
-        <div className="absolute top-10 left-20 animate-bounce text-pink-400">
-          <Cat className="w-12 h-12" />
-        </div>
-        <div className="absolute bottom-20 right-32 text-pink-300">
-          <Flower2 className="w-16 h-16" />
-        </div>
+        <div className="absolute top-10 left-20 animate-bounce text-pink-400"><Cat className="w-12 h-12" /></div>
+        <div className="absolute bottom-20 right-32 text-pink-300"><Flower2 className="w-16 h-16" /></div>
       </div>
 
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".docx,.doc,.xlsx,.xls,.png,.jpg,.jpeg,.pdf" />
@@ -745,9 +564,7 @@ export default function VetWorkspaceBeatrizV26() {
                 <button title="Nova Página Raiz" onClick={() => handleAddPage(null)} className="p-1 rounded hover:bg-pink-100 text-pink-600"><Plus className="w-3.5 h-3.5" /></button>
               </div>
             </div>
-            <div className="mt-1">
-              {renderTree(null)}
-            </div>
+            <div className="mt-1">{renderTree(null)}</div>
           </div>
 
           <div className="pt-2 border-t border-pink-100/60 mt-2">
@@ -887,7 +704,50 @@ export default function VetWorkspaceBeatrizV26() {
             </div>
           )}
 
-          {activeTab === 'wishlist' && <WishlistTabInternal />}
+          {activeTab === 'wishlist' && (
+            <div className="max-w-3xl mx-auto space-y-6">
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
+                <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm">
+                    <Gift className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-extrabold text-pink-950">🎁 Lista de Desejos & Metas de Conquistas</h2>
+                    <p className="text-xs text-pink-500 font-medium">Seus desejos profissionais e pessoais salvos</p>
+                  </div>
+                </div>
+
+                <form onSubmit={(e) => {
+                  e.preventDefault()
+                  if (!newWish.trim()) return
+                  setWishes([newWish, ...wishes])
+                  setNewWish('')
+                }} className="flex gap-2">
+                  <input 
+                    type="text" 
+                    placeholder="Adicionar novo item à lista de desejos..." 
+                    value={newWish} 
+                    onChange={(e) => setNewWish(e.target.value)} 
+                    className="flex-1 bg-pink-50/50 border border-pink-200 rounded-xl px-4 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" 
+                  />
+                  <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-md">
+                    Adicionar
+                  </button>
+                </form>
+
+                <div className="space-y-2">
+                  {wishes.map((wish, idx) => (
+                    <div key={idx} className="flex items-center justify-between bg-pink-50/40 border border-pink-100 p-3.5 rounded-xl text-xs font-medium text-pink-950">
+                      <span>✨ {wish}</span>
+                      <button onClick={() => setWishes(wishes.filter((_, i) => i !== idx))} className="text-stone-400 hover:text-red-500">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {activeTab === 'pacientes' && (
             <div className="max-w-4xl mx-auto space-y-6">
