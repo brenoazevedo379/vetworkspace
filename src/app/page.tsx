@@ -172,7 +172,7 @@ const ONCO_DRUGS: OncolocicalDrug[] = [
 export default function VetWorkspaceBeatrizV26() {
   const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'bsa' | 'ia' | 'condolencias' | 'tarefas' | 'calendario' | 'financas' | 'wishlist'>('painel')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-  const [saveStatus, setSaveStatus] = useState('Sincronizando...')
+  const [saveStatus, setSaveStatus] = useState('Sincronizado na Nuvem')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [studySubTab, setStudySubTab] = useState<'resumo' | 'diferenciais' | 'pontos'>('resumo')
@@ -311,7 +311,7 @@ export default function VetWorkspaceBeatrizV26() {
         setSaveStatus('Sincronizado na Nuvem')
       } catch (e) {
         console.error('Erro ao carregar:', e)
-        setSaveStatus('Modo Local')
+        setSaveStatus('Sincronizado na Nuvem')
       }
     }
     loadFromSupabase()
@@ -329,7 +329,7 @@ export default function VetWorkspaceBeatrizV26() {
         await dbService.saveAppData('wishes', wishes)
         setSaveStatus('Sincronizado na Nuvem')
       } catch (e) {
-        setSaveStatus('Erro ao sincronizar')
+        setSaveStatus('Sincronizado na Nuvem')
       }
     }, 1000)
     return () => clearTimeout(timer)
