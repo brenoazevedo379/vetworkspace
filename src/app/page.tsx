@@ -40,7 +40,6 @@ import {
   Gift
 } from 'lucide-react'
 import WishlistTab from '@/components/WishlistTab'
-import { supabase } from '@/lib/supabase'
 
 interface AttachedFile {
   id: string
@@ -627,18 +626,15 @@ export default function VetWorkspaceBeatrizV26() {
   const [eventDesc, setEventDesc] = useState('')
   const [eventTime, setEventTime] = useState('08:00')
 
-  // BUSCA INICIAL DO SUPABASE PARA SINCRONIZAR NOVOS NAVEGADORES
+  // BUSCA VIA API ROUTE (PROXY) PARA EVITAR BLOQUEIO DE REDE DO BROWSER
   useEffect(() => {
     async function fetchCloudData() {
       try {
-        const { data, error } = await supabase
-          .from('app_data')
-          .select('data')
-          .eq('id', 'beatriz_workspace_v26')
-          .single()
+        const res = await fetch('/api/sync?id=beatriz_workspace_v26')
+        const json = await res.json()
 
-        if (data && data.data) {
-          const d = data.data
+        if (json.data) {
+          const d = json.data
           if (d.items) { setItems(d.items); localStorage.setItem('vet_items_v19', JSON.stringify(d.items)); }
           if (d.patients) { setPatients(d.patients); localStorage.setItem('vet_patients_v18', JSON.stringify(d.patients)); }
           if (d.customDrugs) { setCustomDrugs(d.customDrugs); localStorage.setItem('vet_custom_drugs_v26', JSON.stringify(d.customDrugs)); }
@@ -654,40 +650,9 @@ export default function VetWorkspaceBeatrizV26() {
       }
     }
     fetchCloudData()
-
-    const channel = supabase
-      .channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'app_data',
-          filter: 'id=eq.beatriz_workspace_v26'
-        },
-        (payload: any) => {
-          if (payload.new && payload.new.data) {
-            const d = payload.new.data
-            if (d.items) { setItems(d.items); localStorage.setItem('vet_items_v19', JSON.stringify(d.items)); }
-            if (d.patients) { setPatients(d.patients); localStorage.setItem('vet_patients_v18', JSON.stringify(d.patients)); }
-            if (d.customDrugs) { setCustomDrugs(d.customDrugs); localStorage.setItem('vet_custom_drugs_v26', JSON.stringify(d.customDrugs)); }
-            if (d.monthlyIncome !== undefined) { setMonthlyIncome(d.monthlyIncome); localStorage.setItem('vet_income_v18', d.monthlyIncome.toString()); }
-            if (d.finances) { setFinances(d.finances); localStorage.setItem('vet_finances_v18', JSON.stringify(d.finances)); }
-            if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v18', JSON.stringify(d.tasks)); }
-            if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v18', JSON.stringify(d.events)); }
-            if (d.chatSessions) { setChatSessions(d.chatSessions); localStorage.setItem('vet_chat_sessions_v26', JSON.stringify(d.chatSessions)); }
-            setSaveStatus('Sincronizado via Realtime')
-          }
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
   }, [])
 
-  // SALVAMENTO AUTOMÁTICO COM DEBOUNCE
+  // SALVAMENTO AUTOMÁTICO VIA API ROUTE (PROXY)
   useEffect(() => {
     if (typeof window === 'undefined') return
 
@@ -702,7 +667,7 @@ export default function VetWorkspaceBeatrizV26() {
 
     setSaveStatus('Salvando...')
 
-    const syncToSupabase = async () => {
+    const syncToCloud = async () => {
       try {
         const payload = {
           items,
@@ -715,17 +680,20 @@ export default function VetWorkspaceBeatrizV26() {
           chatSessions
         }
 
-        const { error } = await supabase
-          .from('app_data')
-          .upsert({ 
+        const res = await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
             id: 'beatriz_workspace_v26', 
-            data: payload, 
-            updated_at: new Date().toISOString() 
+            data: payload 
           })
+        })
 
-        if (error) {
-          console.error('Erro detalhado do Supabase:', error.message, error.details)
-          setSaveStatus(`Erro: ${error.message}`)
+        const json = await res.json()
+
+        if (json.error) {
+          console.error('Erro na API de sync:', json.error)
+          setSaveStatus(`Erro: ${json.error}`)
         } else {
           setSaveStatus('Sincronizado')
         }
@@ -734,7 +702,7 @@ export default function VetWorkspaceBeatrizV26() {
       }
     }
 
-    const timer = setTimeout(syncToSupabase, 800)
+    const timer = setTimeout(syncToCloud, 800)
     return () => clearTimeout(timer)
   }, [items, patients, customDrugs, monthlyIncome, finances, tasks, events, chatSessions])
 
