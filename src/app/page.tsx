@@ -40,6 +40,7 @@ import {
   Gift
 } from 'lucide-react'
 import WishlistTab from '@/components/WishlistTab'
+import { supabase } from '@/lib/supabase'
 
 interface AttachedFile {
   id: string
@@ -220,21 +221,15 @@ export default function VetWorkspaceBeatrizV26() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [studySubTab, setStudySubTab] = useState<'resumo' | 'diferenciais' | 'pontos'>('resumo')
 
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_chat_sessions_v26')
-      if (saved) { try { return JSON.parse(saved) } catch (e) {} }
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([
+    {
+      id: 'default-session',
+      title: 'Caso Clínico Inicial',
+      messages: [
+        { sender: 'ai', text: 'Olá, Dra. Beatriz! Sou seu copiloto clínico. Digite o caso ou use os templates rápidos abaixo.' }
+      ]
     }
-    return [
-      {
-        id: 'default-session',
-        title: 'Caso Clínico Inicial',
-        messages: [
-          { sender: 'ai', text: 'Olá, Dra. Beatriz! Sou seu copiloto clínico. Digite o caso ou use os templates rápidos abaixo.' }
-        ]
-      }
-    ]
-  })
+  ])
   const [currentChatId, setCurrentChatId] = useState<string>('default-session')
   const [chatInput, setChatInput] = useState('')
   const [isAiLoading, setIsAiLoading] = useState(false)
@@ -255,10 +250,6 @@ export default function VetWorkspaceBeatrizV26() {
   const [condolencePet, setCondolencePet] = useState('')
   const [condolenceTone, setCondolenceTone] = useState<string>('acolhedor')
   const [generatedCondolence, setGeneratedCondolence] = useState('')
-
-  useEffect(() => {
-    localStorage.setItem('vet_chat_sessions_v26', JSON.stringify(chatSessions))
-  }, [chatSessions])
 
   const currentChatSession = chatSessions.find(s => s.id === currentChatId) || chatSessions[0]
 
@@ -350,7 +341,7 @@ export default function VetWorkspaceBeatrizV26() {
         text = `Oi, ${condolenceTutor}. A partida do(a) ${condolencePet} deixa um silêncio muito forte na rotina, mas a verdade é que vidas como a dele(a) não passam pelas nossas vidas por acaso; elas nos transformam para sempre. O amor que vocês construíram é eterno e transcende a ausência física. Que o tempo traga um pouco de conforto e que fiquem apenas as lembranças das tardes felizes, dos olhares cúmplices e de todo o carinho compartilhado. Meus mais sinceros sentimentos.`
         break
       case 'curto_respeitoso':
-        text = `Oi, ${condolenceTutor}, aqui é a Dra. Beatriz. Só queria te enviar um abraço bem apertado e dizer que sinto muito pela partida do(a) ${condolencePet}. Ele(a) foi muito especial e marcou muito a todos nós. Fique com Deus e conte comigo para o que precisar.`
+        text = `Oi, ${condolenceTutor}, aqui é a Dra. Beatriz. Só queria te enviar um abraço bien apertado e dizer que sinto muito pela partida do(a) ${condolencePet}. Ele(a) foi muito especial e marcou muito a todos nós. Fique com Deus e conte comigo para o que precisar.`
         break
       case 'idoso_gratidao':
         text = `Oi, ${condolenceTutor}. O(A) ${condolencePet} teve uma vida longa, linda e repleta de amor ao seu lado. Você cuidou dele(a) com uma dedicação admirável do primeiro ao último dia de sua velhice. Sei que a saudade vai ser imensa, mas que privilégio foi poder compartilhar tantos anos de companheirismo com ele(a). Um abraço carinhoso e muita força nesse momento.`
@@ -359,7 +350,7 @@ export default function VetWorkspaceBeatrizV26() {
         text = `Oi, ${condolenceTutor}. Estou sem palavras para expressar o quanto sinto pela perda tão repentina do(a) ${condolencePet}. A dor de uma partida sem aviso é dilacerante, mas quero que saiba que ele(a) partiu sabendo o quanto era querido(a) por você. Se precisar desabafar ou de qualquer apoio, minha porta e meu coração estão abertos.`
         break
       case 'filhote_precoce':
-        text = `Oi, ${condolenceTutor}. A partida do(a) ${condolencePet} de forma tão precoce dói na alma de um jeito inexplicável. Ele(a) era apenas uma luz que passou rápido por aqui, mas deixou uma marca profunda e inesquecível em nossas vidas. Que você encontre amparo nas lembranças doces e no carinho imenso que recebeu dele(a). Meus sentimentos mais profundos.`
+        text = `Oi, ${condolenceTutor}. A partida do(a) ${condolencePet} de forma tão precoce dói na alma de um jeito inexplicável. Ele(a) era apenas uma luz que passou rápido por aqui, mas deixou uma marca profunda e inesquecível em nossas vidas. Que você encontre amparo nas lembranças doces e no carinho imenso que recebeu dela(e). Meus sentimentos mais profundos.`
         break
       case 'acolhimento_espiritual':
         text = `Oi, ${condolenceTutor}. Acredito de verdade que os animais que amamos nunca nos deixam por completo; o espírito deles passa a morar em um cantinho protegido do nosso coração. O(A) ${condolencePet} cumpriu a missão dela(e) com louvor: te ensinou a amar incondicionalmente. Que ele(a) descanse em paz e que você sinta esse abraço invisível de conforto hoje.`
@@ -376,25 +367,13 @@ export default function VetWorkspaceBeatrizV26() {
     setGeneratedCondolence(text)
   }
 
-  const [items, setItems] = useState<DocumentItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_items_v19')
-      if (saved) { try { return JSON.parse(saved) } catch (e) {} }
-    }
-    return [
-      { id: 'f-pos', title: 'Pós-graduação & Residência', parentId: null, type: 'folder', isOpen: true },
-      { id: 'p-1', title: 'Módulos e Aulas Teóricas', parentId: 'f-pos', type: 'page', content: '', differential: '', notes: '', attachments: [] }
-    ]
-  })
+  const [items, setItems] = useState<DocumentItem[]>([
+    { id: 'f-pos', title: 'Pós-graduação & Residência', parentId: null, type: 'folder', isOpen: true },
+    { id: 'p-1', title: 'Módulos e Aulas Teóricas', parentId: 'f-pos', type: 'page', content: '', differential: '', notes: '', attachments: [] }
+  ])
   const [selectedItemId, setSelectedItemId] = useState<string>('p-1')
 
-  const [patients, setPatients] = useState<PatientRecord[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_patients_v18')
-      if (saved) { try { return JSON.parse(saved) } catch (e) {} }
-    }
-    return []
-  })
+  const [patients, setPatients] = useState<PatientRecord[]>([])
   const [newPetName, setNewPetName] = useState('')
   const [newSpecies, setNewSpecies] = useState('Canino')
   const [newBreed, setNewBreed] = useState('')
@@ -496,13 +475,7 @@ export default function VetWorkspaceBeatrizV26() {
   }
 
   const [calcMode, setCalcMode] = useState<'dose' | 'fluido'>('dose')
-  const [customDrugs, setCustomDrugs] = useState<VetDrug[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_custom_drugs_v26')
-      if (saved) { try { return JSON.parse(saved) } catch (e) {} }
-    }
-    return INITIAL_DRUGS
-  })
+  const [customDrugs, setCustomDrugs] = useState<VetDrug[]>(INITIAL_DRUGS)
   const [calcWeight, setCalcWeight] = useState<string>('')
   const [drugSearchQuery, setDrugSearchQuery] = useState<string>('')
   const [selectedDrugName, setSelectedDrugName] = useState<string>('Selecione ou adicione...')
@@ -579,20 +552,8 @@ export default function VetWorkspaceBeatrizV26() {
   const [newDrugConc, setNewDrugConc] = useState('')
   const [newDrugMaxDays, setNewDrugMaxDays] = useState('5')
 
-  const [monthlyIncome, setMonthlyIncome] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_income_v18')
-      if (saved) return parseFloat(saved)
-    }
-    return 0.00
-  })
-  const [finances, setFinances] = useState<FinancialItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_finances_v18')
-      if (saved) { try { return JSON.parse(saved) } catch (e) {} }
-    }
-    return []
-  })
+  const [monthlyIncome, setMonthlyIncome] = useState<number>(0.00)
+  const [finances, setFinances] = useState<FinancialItem[]>([])
   const [finDesc, setFinDesc] = useState('')
   const [finCategory, setFinCategory] = useState('Cartão de Crédito')
   const [finCustomCategory, setFinCustomCategory] = useState('')
@@ -600,31 +561,77 @@ export default function VetWorkspaceBeatrizV26() {
   const [editingIncome, setEditingIncome] = useState(false)
   const [tempIncome, setTempIncome] = useState('0')
 
-  const [tasks, setTasks] = useState<TaskItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_tasks_v18')
-      if (saved) { try { return JSON.parse(saved) } catch (e) {} }
-    }
-    return []
-  })
+  const [tasks, setTasks] = useState<TaskItem[]>([])
   const [newTaskText, setNewTaskText] = useState('')
   const [newTaskCategory, setNewTaskCategory] = useState('Geral')
   const [newTaskNotes, setNewTaskNotes] = useState('')
   const [activeTaskForAttach, setActiveTaskForAttach] = useState<string | null>(null)
 
-  const [events, setEvents] = useState<CalendarEvent[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_events_v18')
-      if (saved) { try { return JSON.parse(saved) } catch (e) {} }
-    }
-    return []
-  })
+  const [events, setEvents] = useState<CalendarEvent[]>([])
   const [selectedDate, setSelectedDate] = useState<string>(todayDateKey)
   const [eventTitle, setEventTitle] = useState('')
   const [eventDesc, setEventDesc] = useState('')
   const [eventTime, setEventTime] = useState('08:00')
 
+  // 1. CARREGAMENTO INICIAL DO SUPABASE (Sincronizado entre computadores)
   useEffect(() => {
+    async function loadFromSupabase() {
+      try {
+        const { data, error } = await supabase
+          .from('app_data')
+          .select('data')
+          .eq('id', 'beatriz_workspace_v26')
+          .single()
+
+        if (data && data.data) {
+          const d = data.data
+          if (d.items) setItems(d.items)
+          if (d.patients) setPatients(d.patients)
+          if (d.customDrugs) setCustomDrugs(d.customDrugs)
+          if (d.monthlyIncome !== undefined) setMonthlyIncome(d.monthlyIncome)
+          if (d.finances) setFinances(d.finances)
+          if (d.tasks) setTasks(d.tasks)
+          if (d.events) setEvents(d.events)
+          if (d.chatSessions) setChatSessions(d.chatSessions)
+          setSaveStatus('Sincronizado com a nuvem')
+          return
+        }
+      } catch (err) {
+        console.log('Sem dados na nuvem ou erro de conexão, carregando do localStorage...')
+      }
+
+      // Fallback para o localStorage se não houver dados no Supabase
+      if (typeof window !== 'undefined') {
+        try {
+          const savedItems = localStorage.getItem('vet_items_v19')
+          const savedPatients = localStorage.getItem('vet_patients_v18')
+          const savedDrugs = localStorage.getItem('vet_custom_drugs_v26')
+          const savedIncome = localStorage.getItem('vet_income_v18')
+          const savedFinances = localStorage.getItem('vet_finances_v18')
+          const savedTasks = localStorage.getItem('vet_tasks_v18')
+          const savedEvents = localStorage.getItem('vet_events_v18')
+          const savedChats = localStorage.getItem('vet_chat_sessions_v26')
+
+          if (savedItems) setItems(JSON.parse(savedItems))
+          if (savedPatients) setPatients(JSON.parse(savedPatients))
+          if (savedDrugs) setCustomDrugs(JSON.parse(savedDrugs))
+          if (savedIncome) setMonthlyIncome(parseFloat(savedIncome))
+          if (savedFinances) setFinances(JSON.parse(savedFinances))
+          if (savedTasks) setTasks(JSON.parse(savedTasks))
+          if (savedEvents) setEvents(JSON.parse(savedEvents))
+          if (savedChats) setChatSessions(JSON.parse(savedChats))
+        } catch (e) {}
+      }
+    }
+
+    loadFromSupabase()
+  }, [])
+
+  // 2. SALVAMENTO AUTOMÁTICO (Local + Supabase em Tempo Real)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    // Salva localmente para uso instantâneo e offline
     localStorage.setItem('vet_items_v19', JSON.stringify(items))
     localStorage.setItem('vet_patients_v18', JSON.stringify(patients))
     localStorage.setItem('vet_custom_drugs_v26', JSON.stringify(customDrugs))
@@ -632,10 +639,41 @@ export default function VetWorkspaceBeatrizV26() {
     localStorage.setItem('vet_finances_v18', JSON.stringify(finances))
     localStorage.setItem('vet_tasks_v18', JSON.stringify(tasks))
     localStorage.setItem('vet_events_v18', JSON.stringify(events))
-    setSaveStatus('Salvo com sucesso!')
-    const timer = setTimeout(() => setSaveStatus('Salvo automaticamente'), 2000)
+    localStorage.setItem('vet_chat_sessions_v26', JSON.stringify(chatSessions))
+
+    setSaveStatus('Salvando...')
+
+    // Sincroniza com o Supabase com debounce de 1 segundo
+    const syncToSupabase = async () => {
+      try {
+        const payload = {
+          items,
+          patients,
+          customDrugs,
+          monthlyIncome,
+          finances,
+          tasks,
+          events,
+          chatSessions
+        }
+
+        await supabase
+          .from('app_data')
+          .upsert({ 
+            id: 'beatriz_workspace_v26', 
+            data: payload, 
+            updated_at: new Date().toISOString() 
+          })
+
+        setSaveStatus('Salvo na nuvem')
+      } catch (err) {
+        setSaveStatus('Salvo localmente (offline)')
+      }
+    }
+
+    const timer = setTimeout(syncToSupabase, 1000)
     return () => clearTimeout(timer)
-  }, [items, patients, customDrugs, monthlyIncome, finances, tasks, events])
+  }, [items, patients, customDrugs, monthlyIncome, finances, tasks, events, chatSessions])
 
   const selectedItem = items.find(i => i.id === selectedItemId && i.type === 'page') || items.find(i => i.type === 'page')
 
@@ -837,12 +875,12 @@ export default function VetWorkspaceBeatrizV26() {
                 <div className="flex items-center gap-2.5 truncate">
                   <FileText className={`w-4 h-4 ${isSelected ? 'text-white' : 'text-pink-500'}`} />
                   <span className="text-xs truncate">{item.title}</span>
-                </div>
-                <button title="Excluir Página" onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className={`opacity-0 group-hover:opacity-100 p-1 ${isSelected ? 'text-white/80 hover:text-white' : 'text-stone-400 hover:text-red-500'}`}>
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )
+            </div>
+            <button title="Excluir Página" onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className={`opacity-0 group-hover:opacity-100 p-1 ${isSelected ? 'text-white/80 hover:text-white' : 'text-stone-400 hover:text-red-500'}`}>
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          )
           }
         })}
       </div>
@@ -908,7 +946,6 @@ export default function VetWorkspaceBeatrizV26() {
 
   return (
     <div className="relative flex h-screen bg-pink-50/40 text-stone-800 font-sans overflow-hidden select-none">
-       
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 opacity-20">
         <div className="absolute top-10 left-20 animate-bounce duration-1000 text-pink-400">
           <Cat className="w-12 h-12" />
@@ -1127,862 +1164,862 @@ export default function VetWorkspaceBeatrizV26() {
                 <button onClick={() => setStudySubTab('pontos')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${studySubTab === 'pontos' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}>
                   <Bookmark className="w-3.5 h-3.5" /> Pontos de Atenção / Prova
                 </button>
-            </div>
+              </div>
 
-            {studySubTab === 'resumo' && (
-              <div className="space-y-3">
-                <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><FileText className="w-3.5 h-3.5 text-pink-500" /> Resumo e Anotações da Matéria</label>
-                <textarea value={selectedItem.content || ''} onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, content: e.target.value } : i))} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" placeholder="Digite aqui as explicações, fisiopatologia, posologias..." />
-              </div>
-            )}
-            {studySubTab === 'diferenciais' && (
-              <div className="space-y-3">
-                <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><Layers className="w-3.5 h-3.5 text-pink-500" /> Diagnósticos Diferenciais por Sistema</label>
-                <textarea value={selectedItem.differential || ''} onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, differential: e.target.value } : i))} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" placeholder="Liste aqui os diferenciais clínicos..." />
-              </div>
-            )}
-            {studySubTab === 'pontos' && (
-              <div className="space-y-3">
-                <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><Bookmark className="w-3.5 h-3.5 text-pink-500" /> Alertas Críticos & Pegadinhas de Prova</label>
-                <textarea value={selectedItem.notes || ''} onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, notes: e.target.value } : i))} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" placeholder="Anotações importantes..." />
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'ia' && (
-          <div className="max-w-4xl mx-auto h-[calc(100vh-140px)] flex flex-col bg-white/95 backdrop-blur-md border border-pink-100 rounded-3xl shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-pink-100 bg-pink-50/50 flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Bot className="w-5 h-5" /></div>
-                  <div>
-                    <h2 className="text-sm font-extrabold text-pink-950">Copiloto IA Veterinária - {currentChatSession.title}</h2>
-                    <p className="text-[11px] text-pink-500 font-medium">Raciocínio clínico com templates rápidos e exportação para prontuário</p>
-                  </div>
+              {studySubTab === 'resumo' && (
+                <div className="space-y-3">
+                  <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><FileText className="w-3.5 h-3.5 text-pink-500" /> Resumo e Anotações da Matéria</label>
+                  <textarea value={selectedItem.content || ''} onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, content: e.target.value } : i))} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" placeholder="Digite aqui as explicações, fisiopatologia, posologias..." />
                 </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={handleNewChatSession} className="bg-pink-600 hover:bg-pink-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition">+ Novo Caso</button>
-                  <span className="text-[10px] bg-pink-100 text-pink-700 px-3 py-1 rounded-full font-bold">API Conectada</span>
+              )}
+              {studySubTab === 'diferenciais' && (
+                <div className="space-y-3">
+                  <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><Layers className="w-3.5 h-3.5 text-pink-500" /> Diagnósticos Diferenciais por Sistema</label>
+                  <textarea value={selectedItem.differential || ''} onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, differential: e.target.value } : i))} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" placeholder="Liste aqui os diferenciais clínicos..." />
                 </div>
-              </div>
-
-              <div className="flex items-center gap-2 pt-1 border-t border-pink-100/60 overflow-x-auto pb-1">
-                <span className="text-[11px] font-bold text-stone-500 whitespace-nowrap">Templates Rápidos:</span>
-                <button onClick={() => applyAnamnesisTemplate('cao_ gastro')} className="bg-white hover:bg-pink-100 text-pink-800 border border-pink-200 px-3 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap shadow-2xs">🐕 Cão: Vômito/Gastro</button>
-                <button onClick={() => applyAnamnesisTemplate('gato_flutd')} className="bg-white hover:bg-pink-100 text-pink-800 border border-pink-200 px-3 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap shadow-2xs">🐈 Gato: Urinário (FLUTD)</button>
-                <button onClick={() => applyAnamnesisTemplate('dermato')} className="bg-white hover:bg-pink-100 text-pink-800 border border-pink-200 px-3 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap shadow-2xs">🩺 Dermatologia Geral</button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {currentChatSession.messages.map((msg, idx) => (
-                <div key={idx} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
-                  <div className={`max-w-2xl p-4 rounded-2xl text-xs leading-relaxed whitespace-pre-line shadow-xs ${msg.sender === 'user' ? 'bg-pink-500 text-white rounded-br-xs' : 'bg-pink-50/70 border border-pink-100 text-stone-800 rounded-bl-xs'}`}>
-                    {msg.text}
-                  </div>
-
-                  {msg.sender === 'ai' && patients.length > 0 && (
-                    <div className="flex items-center gap-2 mt-1.5 pl-1">
-                      <select 
-                        id={`export-select-${idx}`}
-                        className="bg-white border border-pink-200 rounded-lg px-2 py-1 text-[10px] text-pink-950 font-medium focus:outline-none"
-                      >
-                        {patients.map(p => (
-                          <option key={p.id} value={p.id}>🐾 {p.petName} ({p.tutor})</option>
-                        ))}
-                      </select>
-                      <button 
-                        onClick={() => {
-                          const selectEl = document.getElementById(`export-select-${idx}`) as HTMLSelectElement
-                          if (selectEl) handleExportAiToPatient(msg.text, selectEl.value)
-                        }}
-                        className="bg-pink-100 hover:bg-pink-200 text-pink-800 px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 border border-pink-200 shadow-2xs cursor-pointer"
-                      >
-                        📥 Enviar para Prontuário
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-              {isAiLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-pink-50/70 border border-pink-100 p-4 rounded-2xl text-xs text-pink-600 flex items-center gap-2 animate-pulse">
-                    <Sparkles className="w-4 h-4 animate-spin" /> A IA está analisando o caso clínico...
-                  </div>
+              )}
+              {studySubTab === 'pontos' && (
+                <div className="space-y-3">
+                  <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><Bookmark className="w-3.5 h-3.5 text-pink-500" /> Alertas Críticos & Pegadinhas de Prova</label>
+                  <textarea value={selectedItem.notes || ''} onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, notes: e.target.value } : i))} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" placeholder="Anotações importantes..." />
                 </div>
               )}
             </div>
+          )}
 
-            <form onSubmit={handleSendAiMessage} className="p-4 border-t border-pink-100 bg-white flex gap-2 items-center">
-              <button type="button" onClick={toggleListening} title={isListening ? "Ouvindo..." : "Falar por voz"} className={`p-3 rounded-xl transition flex items-center justify-center ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-pink-100 hover:bg-pink-200 text-pink-700'}`}>
-                {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-              </button>
-              <input type="text" placeholder={isListening ? "Ouvindo sua fala..." : "Digite o caso ou escolha um template acima..."} value={chatInput} onChange={(e) => setChatInput(e.target.value)} className="flex-1 bg-pink-50/50 border border-pink-200 rounded-xl px-4 py-3 text-xs text-pink-950 focus:outline-none font-medium" />
-              <button type="submit" disabled={isAiLoading} className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50">
-                <Send className="w-4 h-4" /> Perguntar
-              </button>
-            </form>
-          </div>
-        )}
+          {activeTab === 'ia' && (
+            <div className="max-w-4xl mx-auto h-[calc(100vh-140px)] flex flex-col bg-white/95 backdrop-blur-md border border-pink-100 rounded-3xl shadow-sm overflow-hidden">
+              <div className="p-4 border-b border-pink-100 bg-pink-50/50 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Bot className="w-5 h-5" /></div>
+                    <div>
+                      <h2 className="text-sm font-extrabold text-pink-950">Copiloto IA Veterinária - {currentChatSession.title}</h2>
+                      <p className="text-[11px] text-pink-500 font-medium">Raciocínio clínico com templates rápidos e exportação para prontuário</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={handleNewChatSession} className="bg-pink-600 hover:bg-pink-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition">+ Novo Caso</button>
+                    <span className="text-[10px] bg-pink-100 text-pink-700 px-3 py-1 rounded-full font-bold">API Conectada</span>
+                  </div>
+                </div>
 
-        {activeTab === 'bsa' && (
-          <div className="max-w-4xl mx-auto space-y-6">
-            <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
-              <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
-                <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Scale className="w-6 h-6" /></div>
-                <div>
-                  <h2 className="text-base font-extrabold text-pink-950">Calculadora BSA (m²) & Fármacos Oncológicos</h2>
-                  <p className="text-xs text-pink-500 font-medium">Superfície corporal, dose em mg/m², volume em ml, comprimidos e dias máximos de uso</p>
+                <div className="flex items-center gap-2 pt-1 border-t border-pink-100/60 overflow-x-auto pb-1">
+                  <span className="text-[11px] font-bold text-stone-500 whitespace-nowrap">Templates Rápidos:</span>
+                  <button onClick={() => applyAnamnesisTemplate('cao_ gastro')} className="bg-white hover:bg-pink-100 text-pink-800 border border-pink-200 px-3 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap shadow-2xs">🐕 Cão: Vômito/Gastro</button>
+                  <button onClick={() => applyAnamnesisTemplate('gato_flutd')} className="bg-white hover:bg-pink-100 text-pink-800 border border-pink-200 px-3 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap shadow-2xs">🐈 Gato: Urinário (FLUTD)</button>
+                  <button onClick={() => applyAnamnesisTemplate('dermato')} className="bg-white hover:bg-pink-100 text-pink-800 border border-pink-200 px-3 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap shadow-2xs">🩺 Dermatologia Geral</button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">1. Dados do Paciente & Quimioterápico</h3>
-                   
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-bold text-stone-700 block mb-1">Peso (kg)</label>
-                      <input type="number" step="0.1" placeholder="Ex: 15" value={bsaWeightKg} onChange={(e) => setBsaWeightKg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {currentChatSession.messages.map((msg, idx) => (
+                  <div key={idx} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
+                    <div className={`max-w-2xl p-4 rounded-2xl text-xs leading-relaxed whitespace-pre-line shadow-xs ${msg.sender === 'user' ? 'bg-pink-500 text-white rounded-br-xs' : 'bg-pink-50/70 border border-pink-100 text-stone-800 rounded-bl-xs'}`}>
+                      {msg.text}
                     </div>
-                    <div>
-                      <label className="text-xs font-bold text-stone-700 block mb-1">Espécie</label>
-                      <select value={bsaSpecies} onChange={(e) => setBsaSpecies(e.target.value as any)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
-                        <option value="cao">Canino (K=10.1)</option>
-                        <option value="gato">Felino (K=10.0)</option>
-                      </select>
-                    </div>
-                  </div>
 
-                  <div>
-                    <label className="text-xs font-bold text-stone-700 block mb-1">Fármaco Oncológico</label>
-                    <select 
-                      value={selectedOncoDrugName} 
-                      onChange={(e) => {
-                        const found = ONCO_DRUGS.find(d => d.name === e.target.value)
-                        if (found) {
-                          setSelectedOncoDrugName(found.name)
-                          setOncoCustomDosage(found.dosagePerM2.toString())
-                          setOncoCustomConc(found.concentration.toString())
-                        }
-                      }} 
-                      className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
-                    >
-                      {ONCO_DRUGS.map(d => (
-                        <option key={d.name} value={d.name}>{d.name} ({d.category})</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <label className="text-[11px] font-bold text-stone-600 block mb-1">Dose (mg/m²)</label>
-                      <input type="number" step="0.1" value={oncoCustomDosage} onChange={(e) => setOncoCustomDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-bold text-stone-600 block mb-1">Conc. (mg/ml)</label>
-                      <input type="number" step="0.1" value={oncoCustomConc} onChange={(e) => setOncoCustomConc(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-bold text-stone-600 block mb-1">Comp. (mg)</label>
-                      <input type="number" step="0.1" placeholder="Ex: 2" value={oncoPillMg} onChange={(e) => setOncoPillMg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
-                    </div>
-                  </div>
-
-                  <button onClick={() => {
-                    const w = parseFloat(bsaWeightKg) || 0
-                    const dM2 = parseFloat(oncoCustomDosage) || 0
-                    const conc = parseFloat(oncoCustomConc) || 1
-                    const pillM = parseFloat(oncoPillMg) || 0
-                    if (w <= 0) {
-                      setCalculatedBsaValue(null)
-                      setOncoResultMg(null)
-                      setOncoResultMl(null)
-                      setOncoResultPills(null)
-                      return
-                    }
-                    const k = bsaSpecies === 'cao' ? 10.1 : 10.0
-                    const bsa = (k * Math.pow(w, 2/3)) / 100
-                    setCalculatedBsaValue(bsa)
-
-                    const totalMg = bsa * dM2
-                    const totalMl = totalMg / conc
-                    const totalPills = pillM > 0 ? totalMg / pillM : 0
-
-                    setOncoResultMg(totalMg)
-                    setOncoResultMl(totalMl)
-                    setOncoResultPills(totalPills)
-                  }} className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
-                    <Calculator className="w-4 h-4" /> Calcular Dose por m² & Comprimidos
-                  </button>
-                </div>
-
-                <div className="space-y-4 flex flex-col justify-between">
-                  <div>
-                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider mb-2">2. Resultados & Segurança Farmacológica</h3>
-                     
-                    {calculatedBsaValue !== null ? (
-                      <div className="bg-pink-50 border border-pink-200 p-4 rounded-2xl space-y-3 text-center">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <span className="text-[10px] font-bold text-pink-600 uppercase">Superfície (BSA)</span>
-                            <div className="text-lg font-extrabold text-pink-950">{calculatedBsaValue.toFixed(3)} m²</div>
-                          </div>
-                          <div>
-                            <span className="text-[10px] font-bold text-stone-500 uppercase">Dose Total (mg)</span>
-                            <div className="text-lg font-extrabold text-pink-950">{oncoResultMg?.toFixed(2)} mg</div>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-pink-200/60">
-                          <div>
-                            <span className="text-[10px] font-bold text-stone-500 uppercase">Volume (ml)</span>
-                            <div className="text-base font-extrabold text-rose-600">{oncoResultMl?.toFixed(2)} ml</div>
-                          </div>
-                          <div>
-                            <span className="text-[10px] font-bold text-stone-500 uppercase">Comprimidos / Uso</span>
-                            <div className="text-base font-extrabold text-emerald-600">{oncoResultPills ? oncoResultPills.toFixed(2) : '0'} comp. / dia</div>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="bg-pink-50/50 border border-pink-100 p-8 rounded-2xl text-center text-xs text-stone-400">
-                        Preencha o peso e clique em calcular para ver a dose exata.
+                    {msg.sender === 'ai' && patients.length > 0 && (
+                      <div className="flex items-center gap-2 mt-1.5 pl-1">
+                        <select 
+                          id={`export-select-${idx}`}
+                          className="bg-white border border-pink-200 rounded-lg px-2 py-1 text-[10px] text-pink-950 font-medium focus:outline-none"
+                        >
+                          {patients.map(p => (
+                            <option key={p.id} value={p.id}>🐾 {p.petName} ({p.tutor})</option>
+                          ))}
+                        </select>
+                        <button 
+                          onClick={() => {
+                            const selectEl = document.getElementById(`export-select-${idx}`) as HTMLSelectElement
+                            if (selectEl) handleExportAiToPatient(msg.text, selectEl.value)
+                          }}
+                          className="bg-pink-100 hover:bg-pink-200 text-pink-800 px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 border border-pink-200 shadow-2xs cursor-pointer"
+                        >
+                          📥 Enviar para Prontuário
+                        </button>
                       </div>
                     )}
                   </div>
-
-                  {(() => {
-                    const drugObj = ONCO_DRUGS.find(d => d.name === selectedOncoDrugName)
-                    if (!drugObj) return null
-                    return (
-                      <div className="bg-amber-50 border border-amber-300 p-4 rounded-xl text-amber-900 text-xs space-y-1.5 shadow-xs">
-                        <div className="font-extrabold flex items-center gap-1.5 text-amber-950">
-                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                          {drugObj.alertTitle} (Uso máx: {drugObj.maxDays} {drugObj.maxDays === 1 ? 'dia por ciclo' : 'dias'})
-                        </div>
-                        <p className="text-[11px] text-amber-900/95 leading-relaxed pl-5 whitespace-pre-line">
-                          {drugObj.alertDesc}
-                        </p>
-                      </div>
-                    )
-                  })()}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'condolencias' && (
-          <div className="max-w-3xl mx-auto space-y-6">
-            <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
-              <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
-                <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><HeartHandshake className="w-6 h-6" /></div>
-                <div>
-                  <h2 className="text-base font-extrabold text-pink-950">Gerador de Mensagem de Apoio (Condolências)</h2>
-                  <p className="text-xs text-pink-500 font-medium">10 opções de textos altamente humanizados, profundos e sensíveis para tutores em luto</p>
-                </div>
+                ))}
+                {isAiLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-pink-50/70 border border-pink-100 p-4 rounded-2xl text-xs text-pink-600 flex items-center gap-2 animate-pulse">
+                      <Sparkles className="w-4 h-4 animate-spin" /> A IA está analisando o caso clínico...
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <form onSubmit={handleGenerateCondolence} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-bold text-stone-700 block mb-1">Nome do Tutor(a)</label>
-                    <input type="text" placeholder="Ex: Maria" value={condolenceTutor} onChange={(e) => setCondolenceTutor(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-stone-700 block mb-1">Nome do Pet</label>
-                    <input type="text" placeholder="Ex: Mel" value={condolencePet} onChange={(e) => setCondolencePet(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-stone-700 block mb-1">Tom / Contexto da Mensagem (10 Opções)</label>
-                  <select value={condolenceTone} onChange={(e) => setCondolenceTone(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
-                    <option value="acolhedor">1. Acolhedor e Sensível (Foco na gratidão e amor)</option>
-                    <option value="luta_longa">2. Após Longa Batalha / Doença Crônica (Foco na coragem)</option>
-                    <option value="profundo">3. Profundo e Reflexivo (Transformação e vínculo eterno)</option>
-                    <option value="curto_respeitoso">4. Curto, Respeitoso e Direto ao Ponto</option>
-                    <option value="idoso_gratidao">5. Pet Idoso / Longa Vida (Celebração da velhice bem cuidada)</option>
-                    <option value="perda_repentina">6. Perda Repentina / Acidente (Apoio em choque súbito)</option>
-                    <option value="filhote_precoce">7. Partida Precoce / Filhote (Dor do vazio repentino)</option>
-                    <option value="acolhimento_espiritual">8. Acolhimento Espiritual e Suave (Missão cumprida)</option>
-                    <option value="parceiro_de_jornada">9. Foco no Companheirismo (Amigo fiel e confidente)</option>
-                    <option value="apoio_clinico_humano">10. Apoio Clínico Humano (Alívio de culpa e exaltação do tutor)</option>
-                  </select>
-                </div>
-
-                <button type="submit" className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
-                  <Sparkles className="w-4 h-4" /> Gerar Mensagem Humanizada
+              <form onSubmit={handleSendAiMessage} className="p-4 border-t border-pink-100 bg-white flex gap-2 items-center">
+                <button type="button" onClick={toggleListening} title={isListening ? "Ouvindo..." : "Falar por voz"} className={`p-3 rounded-xl transition flex items-center justify-center ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-pink-100 hover:bg-pink-200 text-pink-700'}`}>
+                  {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </button>
+                <input type="text" placeholder={isListening ? "Ouvindo sua fala..." : "Digite o caso ou escolha um template acima..."} value={chatInput} onChange={(e) => setChatInput(e.target.value)} className="flex-1 bg-pink-50/50 border border-pink-200 rounded-xl px-4 py-3 text-xs text-pink-950 focus:outline-none font-medium" />
+                <button type="submit" disabled={isAiLoading} className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50">
+                  <Send className="w-4 h-4" /> Perguntar
                 </button>
               </form>
-
-              {generatedCondolence && (
-                <div className="space-y-3 pt-4 border-t border-pink-100">
-                  <label className="text-xs font-bold text-pink-900 block">Mensagem Pronta para Copiar e Enviar no WhatsApp:</label>
-                  <div className="bg-pink-50/80 border border-pink-200 p-5 rounded-2xl text-xs leading-relaxed text-stone-800 whitespace-pre-line font-normal shadow-2xs">
-                    {generatedCondolence}
-                  </div>
-                  <button onClick={() => { navigator.clipboard.writeText(generatedCondolence); alert('Mensagem copiada para a área de transferência!'); }} className="bg-stone-800 hover:bg-stone-900 text-white px-4 py-2 rounded-xl text-xs font-bold transition">
-                    📋 Copiar Mensagem
-                  </button>
-                </div>
-              )}
             </div>
-          </div>
-        )}
+          )}
 
-        {activeTab === 'wishlist' && (
-          <WishlistTab />
-        )}
-
-        {activeTab === 'pacientes' && (
-          <div className="max-w-4xl mx-auto space-y-6">
-            <h2 className="text-xl font-extrabold text-pink-950">Módulo de Casos Clínicos & Prontuário de Pacientes</h2>
-             
-            <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
-              <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Novo Paciente / Caso Clínico Real</h3>
-              <form onSubmit={handleAddPatient} className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <input type="text" placeholder="Nome do Pet" value={newPetName} onChange={(e) => setNewPetName(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
-                  <select value={newSpecies} onChange={(e) => setNewSpecies(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
-                    <option value="Canino">Canino</option>
-                    <option value="Felino">Felino</option>
-                    <option value="Ave / Silvestre">Ave / Silvestre</option>
-                    <option value="Outro">Outro</option>
-                  </select>
-                  <input type="text" placeholder="Raça" value={newBreed} onChange={(e) => setNewBreed(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+          {activeTab === 'bsa' && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
+                <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Scale className="w-6 h-6" /></div>
+                  <div>
+                    <h2 className="text-base font-extrabold text-pink-950">Calculadora BSA (m²) & Fármacos Oncológicos</h2>
+                    <p className="text-xs text-pink-500 font-medium">Superfície corporal, dose em mg/m², volume em ml, comprimidos e dias máximos de uso</p>
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <input type="text" placeholder="Idade" value={newAge} onChange={(e) => setNewAge(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
-                  <input type="text" placeholder="Peso inicial (ex: 12kg)" value={newWeight} onChange={(e) => setNewWeight(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
-                  <input type="text" placeholder="Nome do Tutor" value={newTutor} onChange={(e) => setNewTutor(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <input type="text" placeholder="Queixa Principal / Anamnese" value={newComplaint} onChange={(e) => setNewComplaint(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
-                <select value={newStatus} onChange={(e) => setNewStatus(e.target.value as any)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
-                  <option value="Em Atendimento">Em Atendimento</option>
-                  <option value="Internado">Internado</option>
-                  <option value="Observação">Observação</option>
-                  <option value="Alta">Alta</option>
-                </select>
-              </div>
-              <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
-                <Plus className="w-4 h-4" /> Cadastrar Caso Clínico
-              </button>
-            </form>
-          </div>
 
-          <div className="space-y-4">
-            {patients.length === 0 ? (
-              <p className="text-xs text-stone-400 py-6 text-center bg-white/50 rounded-2xl border border-pink-100">Nenhum caso clínico cadastrado ainda.</p>
-            ) : (
-              patients.map(p => (
-                <div key={p.id} className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
-                  <div className="flex items-center justify-between border-b border-pink-100 pb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-pink-50 text-pink-600 flex items-center justify-center font-bold">🐾</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">1. Dados do Paciente & Quimioterápico</h3>
+                     
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <h4 className="text-sm font-extrabold text-pink-950">{p.petName} <span className="text-xs font-normal text-stone-500">({p.species} - {p.breed})</span></h4>
-                        <p className="text-[11px] text-stone-400">Tutor: {p.tutor} • Idade: {p.age}</p>
+                        <label className="text-xs font-bold text-stone-700 block mb-1">Peso (kg)</label>
+                        <input type="number" step="0.1" placeholder="Ex: 15" value={bsaWeightKg} onChange={(e) => setBsaWeightKg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-stone-700 block mb-1">Espécie</label>
+                        <select value={bsaSpecies} onChange={(e) => setBsaSpecies(e.target.value as any)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                          <option value="cao">Canino (K=10.1)</option>
+                          <option value="gato">Felino (K=10.0)</option>
+                        </select>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2.5">
-                      <button onClick={() => handlePrintPatient(p)} className="bg-pink-100 hover:bg-pink-200 text-pink-800 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer">
-                        <Printer className="w-3.5 h-3.5" /> Imprimir / PDF
-                      </button>
-                      <span className={`text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-wider ${p.status === 'Internado' ? 'bg-amber-100 text-amber-800' : p.status === 'Alta' ? 'bg-emerald-100 text-emerald-800' : 'bg-pink-100 text-pink-800'}`}>
-                        {p.status}
-                      </span>
-                      <button onClick={() => setPatients(patients.filter(item => item.id !== p.id))} className="text-stone-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
-                    </div>
-                  </div>
 
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-pink-900 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-pink-500" /> Linha do Tempo (Evoluções & Retornos)</span>
-                      <button onClick={() => setActivePatientForEvolution(activePatientForEvolution === p.id ? null : p.id)} className="text-xs font-bold text-pink-600 hover:underline bg-pink-50 px-3 py-1 rounded-lg border border-pink-200">
-                        {activePatientForEvolution === p.id ? 'Fechar' : '+ Adicionar Retorno'}
-                      </button>
-                    </div>
-
-                    {activePatientForEvolution === p.id && (
-                      <form onSubmit={(e) => handleAddEvolution(p.id, e)} className="bg-pink-50/50 border border-pink-200 p-4 rounded-xl space-y-3">
-                        <div className="grid grid-cols-2 gap-2">
-                          <input type="text" placeholder="Peso atual (ex: 12.5kg)" value={evoWeight} onChange={(e) => setEvoWeight(e.target.value)} className="bg-white border border-pink-200 rounded-lg px-3 py-2 text-xs text-stone-800 focus:outline-none" />
-                          <input type="text" placeholder="Temperatura (ex: 38.8)" value={evoTemp} onChange={(e) => setEvoTemp(e.target.value)} className="bg-white border border-pink-200 rounded-lg px-3 py-2 text-xs text-stone-800 focus:outline-none" />
-                        </div>
-                        <textarea placeholder="Evolução clínica, medicação aplicada, resposta..." value={evoNotes} onChange={(e) => setEvoNotes(e.target.value)} rows={2} className="w-full bg-white border border-pink-200 rounded-lg px-3 py-2 text-xs text-stone-800 focus:outline-none resize-none" required />
-                        <button type="submit" className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition">Salvar Retorno</button>
-                      </form>
-                    )}
-
-                    <div className="space-y-2 pt-1">
-                      {p.evolutions.map((evo, idx) => (
-                        <div key={evo.id || idx} className="bg-pink-50/30 border border-pink-100 p-3 rounded-xl text-xs space-y-1">
-                          <div className="flex items-center justify-between text-[11px] font-bold text-pink-950 border-b border-pink-100/60 pb-1">
-                            <span>📅 {evo.date}</span>
-                            <span className="text-pink-600">Peso: {evo.weight} • Temp: {evo.temperature}</span>
-                          </div>
-                          <p className="text-stone-700 pt-1">{evo.notes}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-        )}
-
-        {activeTab === 'calculadora' && (
-          <div className="max-w-4xl mx-auto space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-extrabold text-pink-950">Calculadora Veterinária & Alerta de Dias Máximos</h2>
-              <div className="flex gap-2">
-                <button onClick={() => setCalcMode('dose')} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${calcMode === 'dose' ? 'bg-pink-500 text-white shadow-sm' : 'bg-white text-pink-900 border border-pink-200'}`}>💊 Dose de Fármacos (mg/kg)</button>
-                <button onClick={() => setCalcMode('fluido')} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${calcMode === 'fluido' ? 'bg-pink-500 text-white shadow-sm' : 'bg-white text-pink-900 border border-pink-200'}`}>💧 Tabela de Fluidoterapia</button>
-              </div>
-            </div>
-
-            {calcMode === 'dose' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
-                  <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">1. Selecionar ou Pesquisar Fármaco de Rotina</h3>
-                   
-                  <div className="relative">
-                    <Search className="absolute left-3.5 top-3 w-4 h-4 text-pink-400" />
-                    <input type="text" placeholder="Pesquisar remédio salvo..." value={drugSearchQuery} onChange={(e) => setDrugSearchQuery(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
-                  </div>
-
-                  <div className="max-h-36 overflow-y-auto space-y-1 pr-1 border border-pink-100 p-2 rounded-xl bg-pink-50/20">
-                    {filteredDrugs.length === 0 ? (
-                      <p className="text-[11px] text-stone-400 text-center py-4">Nenhum remédio encontrado. Cadastre abaixo!</p>
-                    ) : (
-                      filteredDrugs.map((drug, idx) => (
-                        <div key={idx} onClick={() => { setSelectedDrugName(drug.name); setCalcDosage(drug.defaultDosage.toString()); setCalcConcentration(drug.defaultConcentration.toString()); }} className={`p-2 rounded-lg text-xs cursor-pointer transition flex justify-between items-center ${selectedDrugName === drug.name ? 'bg-pink-500 text-white font-bold' : 'bg-white text-stone-700 hover:bg-pink-100'}`}>
-                          <div>
-                            <span className="font-bold">{drug.name}</span>
-                            <span className="text-[10px] ml-1 opacity-80">({drug.category})</span>
-                          </div>
-                          <span className="text-[10px] opacity-90">{drug.defaultDosage} mg/kg</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-
-                  {getAdvancedDrugAlert(selectedDrugName) && (
-                    <div className="bg-amber-50 border border-amber-300 p-4 rounded-xl text-amber-900 text-xs space-y-1.5 shadow-xs">
-                      <div className="font-extrabold flex items-center gap-1.5 text-amber-950">
-                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                        {getAdvancedDrugAlert(selectedDrugName)?.title}
-                      </div>
-                      <p className="text-[11px] text-amber-900/95 leading-relaxed pl-5 whitespace-pre-line">
-                        {getAdvancedDrugAlert(selectedDrugName)?.desc}
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="space-y-3 pt-1">
                     <div>
-                      <label className="text-[11px] font-bold text-stone-600 block mb-1">Peso do Animal (kg)</label>
-                      <input type="number" step="0.1" placeholder="Ex: 15" value={calcWeight} onChange={(e) => setCalcWeight(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                      <label className="text-xs font-bold text-stone-700 block mb-1">Fármaco Oncológico</label>
+                      <select 
+                        value={selectedOncoDrugName} 
+                        onChange={(e) => {
+                          const found = ONCO_DRUGS.find(d => d.name === e.target.value)
+                          if (found) {
+                            setSelectedOncoDrugName(found.name)
+                            setOncoCustomDosage(found.dosagePerM2.toString())
+                            setOncoCustomConc(found.concentration.toString())
+                          }
+                        }} 
+                        className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
+                      >
+                        {ONCO_DRUGS.map(d => (
+                          <option key={d.name} value={d.name}>{d.name} ({d.category})</option>
+                        ))}
+                      </select>
                     </div>
+
                     <div className="grid grid-cols-3 gap-2">
                       <div>
-                        <label className="text-[10px] font-bold text-stone-600 block mb-1">Dose (mg/kg)</label>
-                        <input type="number" step="0.01" value={calcDosage} onChange={(e) => setCalcDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                        <label className="text-[11px] font-bold text-stone-600 block mb-1">Dose (mg/m²)</label>
+                        <input type="number" step="0.1" value={oncoCustomDosage} onChange={(e) => setOncoCustomDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-stone-600 block mb-1">Conc. (mg/ml)</label>
-                        <input type="number" step="0.01" value={calcConcentration} onChange={(e) => setCalcConcentration(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                        <label className="text-[11px] font-bold text-stone-600 block mb-1">Conc. (mg/ml)</label>
+                        <input type="number" step="0.1" value={oncoCustomConc} onChange={(e) => setOncoCustomConc(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-stone-600 block mb-1">Comp. (mg)</label>
-                        <input type="number" step="0.1" placeholder="Ex: 20" value={calcPillMg} onChange={(e) => setCalcPillMg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                        <label className="text-[11px] font-bold text-stone-600 block mb-1">Comp. (mg)</label>
+                        <input type="number" step="0.1" placeholder="Ex: 2" value={oncoPillMg} onChange={(e) => setOncoPillMg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                       </div>
                     </div>
 
                     <button onClick={() => {
-                      const w = parseFloat(calcWeight) || 0
-                      const d = parseFloat(calcDosage) || 0
-                      const c = parseFloat(calcConcentration) || 1
-                      const pillM = parseFloat(calcPillMg) || 0
-                      const totalMg = w * d
-                      const totalMl = totalMg / c
+                      const w = parseFloat(bsaWeightKg) || 0
+                      const dM2 = parseFloat(oncoCustomDosage) || 0
+                      const conc = parseFloat(oncoCustomConc) || 1
+                      const pillM = parseFloat(oncoPillMg) || 0
+                      if (w <= 0) {
+                        setCalculatedBsaValue(null)
+                        setOncoResultMg(null)
+                        setOncoResultMl(null)
+                        setOncoResultPills(null)
+                        return
+                      }
+                      const k = bsaSpecies === 'cao' ? 10.1 : 10.0
+                      const bsa = (k * Math.pow(w, 2/3)) / 100
+                      setCalculatedBsaValue(bsa)
+
+                      const totalMg = bsa * dM2
+                      const totalMl = totalMg / conc
                       const totalPills = pillM > 0 ? totalMg / pillM : 0
 
-                      setCalcResultMl(totalMl)
-                      setCalcResultPills(totalPills)
+                      setOncoResultMg(totalMg)
+                      setOncoResultMl(totalMl)
+                      setOncoResultPills(totalPills)
                     }} className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
-                      <Calculator className="w-4 h-4" /> Calcular Volume (ml) & Comprimidos
+                      <Calculator className="w-4 h-4" /> Calcular Dose por m² & Comprimidos
                     </button>
+                  </div>
+
+                  <div className="space-y-4 flex flex-col justify-between">
+                    <div>
+                      <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider mb-2">2. Resultados & Segurança Farmacológica</h3>
+                       
+                      {calculatedBsaValue !== null ? (
+                        <div className="bg-pink-50 border border-pink-200 p-4 rounded-2xl space-y-3 text-center">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <span className="text-[10px] font-bold text-pink-600 uppercase">Superfície (BSA)</span>
+                              <div className="text-lg font-extrabold text-pink-950">{calculatedBsaValue.toFixed(3)} m²</div>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold text-stone-500 uppercase">Dose Total (mg)</span>
+                              <div className="text-lg font-extrabold text-pink-950">{oncoResultMg?.toFixed(2)} mg</div>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-pink-200/60">
+                            <div>
+                              <span className="text-[10px] font-bold text-stone-500 uppercase">Volume (ml)</span>
+                              <div className="text-base font-extrabold text-rose-600">{oncoResultMl?.toFixed(2)} ml</div>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold text-stone-500 uppercase">Comprimidos / Uso</span>
+                              <div className="text-base font-extrabold text-emerald-600">{oncoResultPills ? oncoResultPills.toFixed(2) : '0'} comp. / dia</div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-pink-50/50 border border-pink-100 p-8 rounded-2xl text-center text-xs text-stone-400">
+                          Preencha o peso e clique em calcular para ver a dose exata.
+                        </div>
+                      )}
+                    </div>
+
+                    {(() => {
+                      const drugObj = ONCO_DRUGS.find(d => d.name === selectedOncoDrugName)
+                      if (!drugObj) return null
+                      return (
+                        <div className="bg-amber-50 border border-amber-300 p-4 rounded-xl text-amber-900 text-xs space-y-1.5 shadow-xs">
+                          <div className="font-extrabold flex items-center gap-1.5 text-amber-950">
+                            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                            {drugObj.alertTitle} (Uso máx: {drugObj.maxDays} {drugObj.maxDays === 1 ? 'dia por ciclo' : 'dias'})
+                          </div>
+                          <p className="text-[11px] text-amber-900/95 leading-relaxed pl-5 whitespace-pre-line">
+                            {drugObj.alertDesc}
+                          </p>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'condolencias' && (
+            <div className="max-w-3xl mx-auto space-y-6">
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
+                <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><HeartHandshake className="w-6 h-6" /></div>
+                  <div>
+                    <h2 className="text-base font-extrabold text-pink-950">Gerador de Mensagem de Apoio (Condolências)</h2>
+                    <p className="text-xs text-pink-500 font-medium">10 opções de textos altamente humanizados, profundos e sensíveis para tutores em luto</p>
                   </div>
                 </div>
 
-                <div className="space-y-6">
-                  <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
-                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Resultado ({selectedDrugName})</h3>
-                    {calcResultMl !== null ? (
-                      <div className="bg-pink-50 border border-pink-200 p-5 rounded-2xl text-center space-y-3">
-                        <div>
-                          <span className="text-[10px] font-bold text-pink-600 uppercase">Volume Líquido</span>
-                          <div className="text-2xl font-extrabold text-pink-950">{calcResultMl.toFixed(2)} ml / dia</div>
-                        </div>
-                        {calcPillMg !== '' && parseFloat(calcPillMg) > 0 && (
-                          <div className="pt-2 border-t border-pink-200/60 space-y-1">
-                            <span className="text-[10px] font-bold text-stone-500 uppercase">Quantidade de Comprimidos</span>
-                            <div className="text-xl font-extrabold text-emerald-600">{calcResultPills?.toFixed(2)} comp. / dia</div>
-
-                            {calcResultPills !== null && calcResultPills > 4 && (
-                              <div className="mt-2 bg-rose-50 border border-rose-300 p-3 rounded-xl text-rose-900 text-left space-y-1 animate-pulse">
-                                <div className="font-extrabold flex items-center gap-1.5 text-rose-950 text-xs">
-                                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-                                  ⚠️ ATENÇÃO: NÚMERO EXCESSIVO DE COMPRIMIDOS!
-                                </div>
-                                <p className="text-[11px] text-rose-900/95 leading-relaxed pl-5">
-                                  Este cálculo resultou em mais de 4 comprimidos por dia ({calcResultPills.toFixed(1)} comp.). A administração diária nesta quantidade é inviável e gera alto risco de erro posológico.
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                <form onSubmit={handleGenerateCondolence} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-stone-700 block mb-1">Nome do Tutor(a)</label>
+                      <input type="text" placeholder="Ex: Maria" value={condolenceTutor} onChange={(e) => setCondolenceTutor(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
                     </div>
-                  ) : (
-                    <p className="text-xs text-stone-400 text-center py-6">Selecione um remédio, preencha o peso e calcule.</p>
-                  )}
-              </div>
+                    <div>
+                      <label className="text-xs font-bold text-stone-700 block mb-1">Nome do Pet</label>
+                      <input type="text" placeholder="Ex: Mel" value={condolencePet} onChange={(e) => setCondolencePet(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                    </div>
+                  </div>
 
-              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-3">
-                <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">2. Cadastrar Novo Fármaco de Rotina</h3>
-                <form onSubmit={handleSaveNewDrug} className="space-y-2.5">
-                  <input type="text" placeholder="Nome do Fármaco" value={newDrugName} onChange={(e) => setNewDrugName(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
                   <div>
-                    <label className="text-[10px] font-bold text-stone-500 block mb-1">Categoria</label>
-                    <select value={newDrugCat} onChange={(e) => setNewDrugCat(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium">
-                      <option value="Anti-inflamatório (AINE)">Anti-inflamatório (AINE)</option>
-                      <option value="Corticoide / Esteroidal">Corticoide / Esteroidal</option>
-                      <option value="Psicotrópico / Comportamental">Psicotrópico / Comportamental</option>
-                      <option value="Antibiótico">Antibiótico</option>
-                      <option value="Analgésico / Opióide">Analgésico / Opióide</option>
-                      <option value="Outro / Geral">Outro / Geral</option>
+                    <label className="text-xs font-bold text-stone-700 block mb-1">Tom / Contexto da Mensagem (10 Opções)</label>
+                    <select value={condolenceTone} onChange={(e) => setCondolenceTone(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                      <option value="acolhedor">1. Acolhedor e Sensível (Foco na gratidão e amor)</option>
+                      <option value="luta_longa">2. Após Longa Batalha / Doença Crônica (Foco na coragem)</option>
+                      <option value="profundo">3. Profundo e Reflexivo (Transformação e vínculo eterno)</option>
+                      <option value="curto_respeitoso">4. Curto, Respeitoso e Direto ao Ponto</option>
+                      <option value="idoso_gratidao">5. Pet Idoso / Longa Vida (Celebração da velhice bem cuidada)</option>
+                      <option value="perda_repentina">6. Perda Repentina / Acidente (Apoio em choque súbito)</option>
+                      <option value="filhote_precoce">7. Partida Precoce / Filhote (Dor do vazio repentino)</option>
+                      <option value="acolhimento_espiritual">8. Acolhimento Espiritual e Suave (Missão cumprida)</option>
+                      <option value="parceiro_de_jornada">9. Foco no Companheirismo (Amigo fiel e confidente)</option>
+                      <option value="apoio_clinico_humano">10. Apoio Clínico Humano (Alívio de culpa e exaltação do tutor)</option>
                     </select>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <input type="number" step="0.01" placeholder="Dose (mg/kg)" value={newDrugDosage} onChange={(e) => setNewDrugDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
-                    <input type="number" step="0.01" placeholder="Conc. (mg/ml)" value={newDrugConc} onChange={(e) => setNewDrugConc(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
-                    <input type="number" placeholder="Máx dias" value={newDrugMaxDays} onChange={(e) => setNewDrugMaxDays(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
+
+                  <button type="submit" className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
+                    <Sparkles className="w-4 h-4" /> Gerar Mensagem Humanizada
+                  </button>
+                </form>
+
+                {generatedCondolence && (
+                  <div className="space-y-3 pt-4 border-t border-pink-100">
+                    <label className="text-xs font-bold text-pink-900 block">Mensagem Pronta para Copiar e Enviar no WhatsApp:</label>
+                    <div className="bg-pink-50/80 border border-pink-200 p-5 rounded-2xl text-xs leading-relaxed text-stone-800 whitespace-pre-line font-normal shadow-2xs">
+                      {generatedCondolence}
+                    </div>
+                    <button onClick={() => { navigator.clipboard.writeText(generatedCondolence); alert('Mensagem copiada para a área de transferência!'); }} className="bg-stone-800 hover:bg-stone-900 text-white px-4 py-2 rounded-xl text-xs font-bold transition">
+                      📋 Copiar Mensagem
+                    </button>
                   </div>
-                  <button type="submit" className="w-full bg-pink-600 hover:bg-pink-700 text-white py-2.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer">
-                    <Plus className="w-3.5 h-3.5" /> Salvar Fármaco na Lista
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'wishlist' && (
+            <WishlistTab />
+          )}
+
+          {activeTab === 'pacientes' && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <h2 className="text-xl font-extrabold text-pink-950">Módulo de Casos Clínicos & Prontuário de Pacientes</h2>
+               
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
+                <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Novo Paciente / Caso Clínico Real</h3>
+                <form onSubmit={handleAddPatient} className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input type="text" placeholder="Nome do Pet" value={newPetName} onChange={(e) => setNewPetName(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                    <select value={newSpecies} onChange={(e) => setNewSpecies(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                      <option value="Canino">Canino</option>
+                      <option value="Felino">Felino</option>
+                      <option value="Ave / Silvestre">Ave / Silvestre</option>
+                      <option value="Outro">Outro</option>
+                    </select>
+                    <input type="text" placeholder="Raça" value={newBreed} onChange={(e) => setNewBreed(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input type="text" placeholder="Idade" value={newAge} onChange={(e) => setNewAge(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                    <input type="text" placeholder="Peso inicial (ex: 12kg)" value={newWeight} onChange={(e) => setNewWeight(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                    <input type="text" placeholder="Nome do Tutor" value={newTutor} onChange={(e) => setNewTutor(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <input type="text" placeholder="Queixa Principal / Anamnese" value={newComplaint} onChange={(e) => setNewComplaint(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                    <select value={newStatus} onChange={(e) => setNewStatus(e.target.value as any)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                      <option value="Em Atendimento">Em Atendimento</option>
+                      <option value="Internado">Internado</option>
+                      <option value="Observação">Observação</option>
+                      <option value="Alta">Alta</option>
+                    </select>
+                  </div>
+                  <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
+                    <Plus className="w-4 h-4" /> Cadastrar Caso Clínico
                   </button>
                 </form>
               </div>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
-              <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Cálculo de Fluido Intravenosa (Tabela Oficial)</h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-[11px] font-bold text-stone-600 block mb-1">Peso do Animal (kg)</label>
-                  <input type="number" step="0.1" placeholder="Ex: 10" value={fluidWeight} onChange={(e) => setFluidWeight(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[11px] font-bold text-stone-600 block mb-1">Espécie</label>
-                    <select value={fluidSpecies} onChange={(e) => setFluidSpecies(e.target.value as any)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
-                      <option value="cao">Cão (1,5 ml/kg/h)</option>
-                      <option value="gato">Gato (1 ml/kg/h)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-bold text-stone-600 block mb-1">Objetivo do Fluido</label>
-                    <select value={fluidMode} onChange={(e) => setFluidMode(e.target.value as any)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
-                      <option value="manutencao">Manutenção (Reavaliar contínuo)</option>
-                      <option value="reposicao">Reposição de Desidratação</option>
-                    </select>
-                  </div>
-                </div>
 
-                {fluidMode === 'reposicao' && (
-                  <div>
-                    <label className="text-[11px] font-bold text-stone-600 block mb-1">Percentual de Desidratação (%)</label>
-                    <input type="number" step="1" placeholder="Ex: 8" value={fluidDehydrationPercent} onChange={(e) => setFluidDehydrationPercent(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
-                  </div>
-                )}
+              <div className="space-y-4">
+                {patients.length === 0 ? (
+                  <p className="text-xs text-stone-400 py-6 text-center bg-white/50 rounded-2xl border border-pink-100">Nenhum caso clínico cadastrado ainda.</p>
+                ) : (
+                  patients.map(p => (
+                    <div key={p.id} className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
+                      <div className="flex items-center justify-between border-b border-pink-100 pb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-pink-50 text-pink-600 flex items-center justify-center font-bold">🐾</div>
+                          <div>
+                            <h4 className="text-sm font-extrabold text-pink-950">{p.petName} <span className="text-xs font-normal text-stone-500">({p.species} - {p.breed})</span></h4>
+                            <p className="text-[11px] text-stone-400">Tutor: {p.tutor} • Idade: {p.age}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2.5">
+                          <button onClick={() => handlePrintPatient(p)} className="bg-pink-100 hover:bg-pink-200 text-pink-800 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer">
+                            <Printer className="w-3.5 h-3.5" /> Imprimir / PDF
+                          </button>
+                          <span className={`text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-wider ${p.status === 'Internado' ? 'bg-amber-100 text-amber-800' : p.status === 'Alta' ? 'bg-emerald-100 text-emerald-800' : 'bg-pink-100 text-pink-800'}`}>
+                            {p.status}
+                          </span>
+                          <button onClick={() => setPatients(patients.filter(item => item.id !== p.id))} className="text-stone-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                      </div>
 
-                <button onClick={() => {
-                  const w = parseFloat(fluidWeight) || 0
-                  if (w <= 0) {
-                    setFluidResultSummary(null)
-                    return
-                  }
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-pink-900 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-pink-500" /> Linha do Tempo (Evoluções & Retornos)</span>
+                          <button onClick={() => setActivePatientForEvolution(activePatientForEvolution === p.id ? null : p.id)} className="text-xs font-bold text-pink-600 hover:underline bg-pink-50 px-3 py-1 rounded-lg border border-pink-200">
+                            {activePatientForEvolution === p.id ? 'Fechar' : '+ Adicionar Retorno'}
+                          </button>
+                        </div>
 
-                  if (fluidMode === 'manutencao') {
-                    const rateHour = fluidSpecies === 'cao' ? w * 1.5 : w * 1.0
-                    const range24h = fluidSpecies === 'cao' 
-                      ? `${(w * 35).toFixed(0)} a ${(w * 40).toFixed(0)} ml / 24h` 
-                      : `${(w * 20).toFixed(0)} a ${(w * 25).toFixed(0)} ml / 24h`
+                        {activePatientForEvolution === p.id && (
+                          <form onSubmit={(e) => handleAddEvolution(p.id, e)} className="bg-pink-50/50 border border-pink-200 p-4 rounded-xl space-y-3">
+                            <div className="grid grid-cols-2 gap-2">
+                              <input type="text" placeholder="Peso atual (ex: 12.5kg)" value={evoWeight} onChange={(e) => setEvoWeight(e.target.value)} className="bg-white border border-pink-200 rounded-lg px-3 py-2 text-xs text-stone-800 focus:outline-none" />
+                              <input type="text" placeholder="Temperatura (ex: 38.8)" value={evoTemp} onChange={(e) => setEvoTemp(e.target.value)} className="bg-white border border-pink-200 rounded-lg px-3 py-2 text-xs text-stone-800 focus:outline-none" />
+                            </div>
+                            <textarea placeholder="Evolução clínica, medicação aplicada, resposta..." value={evoNotes} onChange={(e) => setEvoNotes(e.target.value)} rows={2} className="w-full bg-white border border-pink-200 rounded-lg px-3 py-2 text-xs text-stone-800 focus:outline-none resize-none" required />
+                            <button type="submit" className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition">Salvar Retorno</button>
+                          </form>
+                        )}
 
-                    setFluidResultSummary({
-                      mlHour: rateHour,
-                      ml24hRange: range24h,
-                      notes: `Manutenção contínua para ${fluidSpecies === 'cao' ? 'Cão' : 'Gato'}. Reavaliar continuamente.`
-                    })
-                  } else {
-                    const pct = (parseFloat(fluidDehydrationPercent) || 0) / 100
-                    const totalRepositionMl = w * pct * 1000
-                    const rateHour = totalRepositionMl / 9
-
-                    setFluidResultSummary({
-                      mlHour: rateHour,
-                      ml24hRange: `Volume Total de Reposição: ${totalRepositionMl.toFixed(0)} ml`,
-                      notes: `Volume a ser infundido entre 6 e 12 horas (Exemplo: ${w}kg x ${fluidDehydrationPercent}% x 1000 = ${totalRepositionMl.toFixed(0)}ml).`
-                  })
-                }
-              }} className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md cursor-pointer">
-                Calcular Fluidoterapia (Tabela Beatriz)
-              </button>
-            </div>
-          </div>
-
-          <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs flex flex-col justify-between">
-            <div>
-              <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider mb-4">Resultado da Tabela de Fluidoterapia</h3>
-              {fluidResultSummary !== null ? (
-                <div className="bg-pink-50 border border-pink-200 p-6 rounded-2xl text-center space-y-3">
-                  <span className="text-xs font-bold text-pink-600 uppercase">Taxa de Infusão Sugerida</span>
-                  <div className="text-3xl font-extrabold text-pink-950">{fluidResultSummary.mlHour.toFixed(1)} ml / hora</div>
-                  {fluidResultSummary.ml24hRange && (
-                    <div className="text-xs font-bold text-emerald-700 bg-emerald-50 py-1.5 px-3 rounded-xl border border-emerald-200">
-                      {fluidResultSummary.ml24hRange}
+                        <div className="space-y-2 pt-1">
+                          {p.evolutions.map((evo, idx) => (
+                            <div key={evo.id || idx} className="bg-pink-50/30 border border-pink-100 p-3 rounded-xl text-xs space-y-1">
+                              <div className="flex items-center justify-between text-[11px] font-bold text-pink-950 border-b border-pink-100/60 pb-1">
+                                <span>📅 {evo.date}</span>
+                                <span className="text-pink-600">Peso: {evo.weight} • Temp: {evo.temperature}</span>
+                              </div>
+                              <p className="text-stone-700 pt-1">{evo.notes}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
-                  )}
-                  <p className="text-[11px] text-stone-600 pt-2 border-t border-pink-200/60 leading-relaxed">
-                    {fluidResultSummary.notes}
-                  </p>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'calculadora' && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-extrabold text-pink-950">Calculadora Veterinária & Alerta de Dias Máximos</h2>
+                <div className="flex gap-2">
+                  <button onClick={() => setCalcMode('dose')} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${calcMode === 'dose' ? 'bg-pink-500 text-white shadow-sm' : 'bg-white text-pink-900 border border-pink-200'}`}>💊 Dose de Fármacos (mg/kg)</button>
+                  <button onClick={() => setCalcMode('fluido')} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${calcMode === 'fluido' ? 'bg-pink-500 text-white shadow-sm' : 'bg-white text-pink-900 border border-pink-200'}`}>💧 Tabela de Fluidoterapia</button>
+                </div>
+              </div>
+
+              {calcMode === 'dose' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
+                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">1. Selecionar ou Pesquisar Fármaco de Rotina</h3>
+                     
+                    <div className="relative">
+                      <Search className="absolute left-3.5 top-3 w-4 h-4 text-pink-400" />
+                      <input type="text" placeholder="Pesquisar remédio salvo..." value={drugSearchQuery} onChange={(e) => setDrugSearchQuery(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                    </div>
+
+                    <div className="max-h-36 overflow-y-auto space-y-1 pr-1 border border-pink-100 p-2 rounded-xl bg-pink-50/20">
+                      {filteredDrugs.length === 0 ? (
+                        <p className="text-[11px] text-stone-400 text-center py-4">Nenhum remédio encontrado. Cadastre abaixo!</p>
+                      ) : (
+                        filteredDrugs.map((drug, idx) => (
+                          <div key={idx} onClick={() => { setSelectedDrugName(drug.name); setCalcDosage(drug.defaultDosage.toString()); setCalcConcentration(drug.defaultConcentration.toString()); }} className={`p-2 rounded-lg text-xs cursor-pointer transition flex justify-between items-center ${selectedDrugName === drug.name ? 'bg-pink-500 text-white font-bold' : 'bg-white text-stone-700 hover:bg-pink-100'}`}>
+                            <div>
+                              <span className="font-bold">{drug.name}</span>
+                              <span className="text-[10px] ml-1 opacity-80">({drug.category})</span>
+                            </div>
+                            <span className="text-[10px] opacity-90">{drug.defaultDosage} mg/kg</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {getAdvancedDrugAlert(selectedDrugName) && (
+                      <div className="bg-amber-50 border border-amber-300 p-4 rounded-xl text-amber-900 text-xs space-y-1.5 shadow-xs">
+                        <div className="font-extrabold flex items-center gap-1.5 text-amber-950">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                          {getAdvancedDrugAlert(selectedDrugName)?.title}
+                        </div>
+                        <p className="text-[11px] text-amber-900/95 leading-relaxed pl-5 whitespace-pre-line">
+                          {getAdvancedDrugAlert(selectedDrugName)?.desc}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="space-y-3 pt-1">
+                      <div>
+                        <label className="text-[11px] font-bold text-stone-600 block mb-1">Peso do Animal (kg)</label>
+                        <input type="number" step="0.1" placeholder="Ex: 15" value={calcWeight} onChange={(e) => setCalcWeight(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-stone-600 block mb-1">Dose (mg/kg)</label>
+                          <input type="number" step="0.01" value={calcDosage} onChange={(e) => setCalcDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-stone-600 block mb-1">Conc. (mg/ml)</label>
+                          <input type="number" step="0.01" value={calcConcentration} onChange={(e) => setCalcConcentration(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-stone-600 block mb-1">Comp. (mg)</label>
+                          <input type="number" step="0.1" placeholder="Ex: 20" value={calcPillMg} onChange={(e) => setCalcPillMg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                        </div>
+                      </div>
+
+                      <button onClick={() => {
+                        const w = parseFloat(calcWeight) || 0
+                        const d = parseFloat(calcDosage) || 0
+                        const c = parseFloat(calcConcentration) || 1
+                        const pillM = parseFloat(calcPillMg) || 0
+                        const totalMg = w * d
+                        const totalMl = totalMg / c
+                        const totalPills = pillM > 0 ? totalMg / pillM : 0
+
+                        setCalcResultMl(totalMl)
+                        setCalcResultPills(totalPills)
+                      }} className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
+                        <Calculator className="w-4 h-4" /> Calcular Volume (ml) & Comprimidos
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
+                      <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Resultado ({selectedDrugName})</h3>
+                      {calcResultMl !== null ? (
+                        <div className="bg-pink-50 border border-pink-200 p-5 rounded-2xl text-center space-y-3">
+                          <div>
+                            <span className="text-[10px] font-bold text-pink-600 uppercase">Volume Líquido</span>
+                            <div className="text-2xl font-extrabold text-pink-950">{calcResultMl.toFixed(2)} ml / dia</div>
+                          </div>
+                          {calcPillMg !== '' && parseFloat(calcPillMg) > 0 && (
+                            <div className="pt-2 border-t border-pink-200/60 space-y-1">
+                              <span className="text-[10px] font-bold text-stone-500 uppercase">Quantidade de Comprimidos</span>
+                              <div className="text-xl font-extrabold text-emerald-600">{calcResultPills?.toFixed(2)} comp. / dia</div>
+
+                              {calcResultPills !== null && calcResultPills > 4 && (
+                                <div className="mt-2 bg-rose-50 border border-rose-300 p-3 rounded-xl text-rose-900 text-left space-y-1 animate-pulse">
+                                  <div className="font-extrabold flex items-center gap-1.5 text-rose-950 text-xs">
+                                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                                    ⚠️ ATENÇÃO: NÚMERO EXCESSIVO DE COMPRIMIDOS!
+                                  </div>
+                                  <p className="text-[11px] text-rose-900/95 leading-relaxed pl-5">
+                                    Este cálculo resultou em mais de 4 comprimidos por dia ({calcResultPills.toFixed(1)} comp.). A administração diária nesta quantidade é inviável e gera alto risco de erro posológico.
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-stone-400 text-center py-6">Selecione um remédio, preencha o peso e calcule.</p>
+                      )}
+                    </div>
+
+                    <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-3">
+                      <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">2. Cadastrar Novo Fármaco de Rotina</h3>
+                      <form onSubmit={handleSaveNewDrug} className="space-y-2.5">
+                        <input type="text" placeholder="Nome do Fármaco" value={newDrugName} onChange={(e) => setNewDrugName(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
+                        <div>
+                          <label className="text-[10px] font-bold text-stone-500 block mb-1">Categoria</label>
+                          <select value={newDrugCat} onChange={(e) => setNewDrugCat(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium">
+                            <option value="Anti-inflamatório (AINE)">Anti-inflamatório (AINE)</option>
+                            <option value="Corticoide / Esteroidal">Corticoide / Esteroidal</option>
+                            <option value="Psicotrópico / Comportamental">Psicotrópico / Comportamental</option>
+                            <option value="Antibiótico">Antibiótico</option>
+                            <option value="Analgésico / Opióide">Analgésico / Opióide</option>
+                            <option value="Outro / Geral">Outro / Geral</option>
+                          </select>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <input type="number" step="0.01" placeholder="Dose (mg/kg)" value={newDrugDosage} onChange={(e) => setNewDrugDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
+                          <input type="number" step="0.01" placeholder="Conc. (mg/ml)" value={newDrugConc} onChange={(e) => setNewDrugConc(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
+                          <input type="number" placeholder="Máx dias" value={newDrugMaxDays} onChange={(e) => setNewDrugMaxDays(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
+                        </div>
+                        <button type="submit" className="w-full bg-pink-600 hover:bg-pink-700 text-white py-2.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer">
+                          <Plus className="w-3.5 h-3.5" /> Salvar Fármaco na Lista
+                        </button>
+                      </form>
+                    </div>
+                  </div>
                 </div>
               ) : (
-                <p className="text-xs text-stone-400 text-center py-12">Insira o peso e clique em calcular.</p>
-              )}
-          </div>
-          <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 text-[11px] text-stone-600">
-            💡 <strong>Nota da Tabela:</strong> Manutenção com reavaliação contínua. Reposição calculada para infusão rápida entre 6h e 12h.
-          </div>
-        </div>
-      </div>
-    )}
-  </div>
-  )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
+                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Cálculo de Fluido Intravenosa (Tabela Oficial)</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-stone-600 block mb-1">Peso do Animal (kg)</label>
+                        <input type="number" step="0.1" placeholder="Ex: 10" value={fluidWeight} onChange={(e) => setFluidWeight(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[11px] font-bold text-stone-600 block mb-1">Espécie</label>
+                          <select value={fluidSpecies} onChange={(e) => setFluidSpecies(e.target.value as any)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                            <option value="cao">Cão (1,5 ml/kg/h)</option>
+                            <option value="gato">Gato (1 ml/kg/h)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-stone-600 block mb-1">Objetivo do Fluido</label>
+                          <select value={fluidMode} onChange={(e) => setFluidMode(e.target.value as any)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                            <option value="manutencao">Manutenção (Reavaliar contínuo)</option>
+                            <option value="reposicao">Reposição de Desidratação</option>
+                          </select>
+                        </div>
+                      </div>
 
-  {activeTab === 'tarefas' && (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <h2 className="text-xl font-extrabold text-pink-950">Gerenciador de Tarefas</h2>
-      <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
-        <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Nova Tarefa ou Meta</h3>
-        <form onSubmit={(e) => {
-          e.preventDefault()
-          if (!newTaskText.trim()) return
-          setTasks([{ id: Date.now().toString(), text: newTaskText, completed: false, category: newTaskCategory, notes: newTaskNotes, attachments: [] }, ...tasks])
-          setNewTaskText('')
-          setNewTaskNotes('')
-        }} className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <input type="text" placeholder="O que precisa ser feito?" value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} className="md:col-span-2 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
-            <input type="text" placeholder="Categoria" value={newTaskCategory} onChange={(e) => setNewTaskCategory(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
-          </div>
-          <textarea placeholder="Detalhes..." value={newTaskNotes} onChange={(e) => setNewTaskNotes(e.target.value)} rows={2} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium resize-none" />
-          <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5 cursor-pointer"><Plus className="w-4 h-4" /> Adicionar Tarefa</button>
-        </form>
-      </div>
+                      {fluidMode === 'reposicao' && (
+                        <div>
+                          <label className="text-[11px] font-bold text-stone-600 block mb-1">Percentual de Desidratação (%)</label>
+                          <input type="number" step="1" placeholder="Ex: 8" value={fluidDehydrationPercent} onChange={(e) => setFluidDehydrationPercent(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                        </div>
+                      )}
 
-      <div className="space-y-3">
-        {tasks.map(t => (
-          <div key={t.id} className={`bg-white/95 backdrop-blur-md border p-4 rounded-2xl shadow-xs flex flex-col gap-3 transition ${t.completed ? 'border-emerald-200 bg-emerald-50/20 opacity-80' : 'border-pink-100'}`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <input type="checkbox" checked={t.completed} onChange={() => setTasks(tasks.map(item => item.id === t.id ? { ...item, completed: !item.completed } : item))} className="w-4 h-4 accent-pink-500 cursor-pointer" />
-                <div>
-                  <span className={`text-xs font-bold ${t.completed ? 'line-through text-stone-400' : 'text-pink-950'}`}>{t.text}</span>
-                  <span className="ml-2 text-[10px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-md font-semibold">{t.category}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => { setActiveTaskForAttach(t.id); fileInputRef.current?.click(); }} className="text-xs text-pink-600 hover:bg-pink-50 px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1 border border-pink-200 cursor-pointer"><Paperclip className="w-3 h-3" /> Anexar</button>
-                <button onClick={() => setTasks(tasks.filter(item => item.id !== t.id))} className="text-stone-400 hover:text-red-500 p-1"><Trash2 className="w-4 h-4" /></button>
-              </div>
-            </div>
-            {t.notes && <p className="text-xs text-stone-600 pl-7">{t.notes}</p>}
-          </div>
-        ))}
-      </div>
-    </div>
-  )}
+                      <button onClick={() => {
+                        const w = parseFloat(fluidWeight) || 0
+                        if (w <= 0) {
+                          setFluidResultSummary(null)
+                          return
+                        }
 
-  {activeTab === 'calendario' && (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-extrabold text-pink-950">Calendário Estilo Google Agenda & Metas ({currentMonthName})</h2>
-        <span className="text-xs bg-pink-100 text-pink-800 font-bold px-3 py-1 rounded-xl capitalize">Hoje: {formattedHeaderDate}</span>
-      </div>
+                        if (fluidMode === 'manutencao') {
+                          const rateHour = fluidSpecies === 'cao' ? w * 1.5 : w * 1.0
+                          const range24h = fluidSpecies === 'cao' 
+                            ? `${(w * 35).toFixed(0)} a ${(w * 40).toFixed(0)} ml / 24h` 
+                            : `${(w * 20).toFixed(0)} a ${(w * 25).toFixed(0)} ml / 24h`
 
-      <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-3xl shadow-sm space-y-4">
-        <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Visão em Grade do Mês</h3>
-        <div className="grid grid-cols-7 gap-2 text-center">
-          {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map((d, i) => (
-            <span key={i} className="text-[11px] font-extrabold text-pink-500 py-1">{d}</span>
-          ))}
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={`empty-${i}`} className="h-20 bg-pink-50/20 rounded-2xl border border-transparent"></div>
-          ))}
-          {calendarDays.map(cd => {
-            const dayEvents = events.filter(ev => ev.dateKey === cd.dateKey)
-            const isSelected = selectedDate === cd.dateKey
-            const isToday = cd.day === currentDayNum
-            return (
-              <div 
-                key={cd.dateKey} 
-                onClick={() => setSelectedDate(cd.dateKey)}
-                className={`h-24 p-2 rounded-2xl border text-left flex flex-col justify-between transition cursor-pointer overflow-y-auto ${isSelected ? 'border-pink-500 bg-pink-50 shadow-sm' : isToday ? 'border-pink-400 bg-white ring-2 ring-pink-300' : 'border-pink-100 bg-white/70 hover:border-pink-300'}`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className={`text-xs font-extrabold ${isToday ? 'bg-pink-500 text-white w-6 h-6 rounded-full flex items-center justify-center shadow-xs' : 'text-pink-950'}`}>
-                    {cd.day}
-                  </span>
-                  {dayEvents.length > 0 && <span className="text-[9px] bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded-full font-bold">{dayEvents.length}</span>}
-                </div>
-                <div className="space-y-0.5 mt-1">
-                  {dayEvents.slice(0, 2).map((ev, idx) => (
-                    <div key={idx} className="text-[10px] bg-pink-500 text-white px-1.5 py-0.5 rounded truncate font-medium">
-                      {ev.time ? `${ev.time} - ` : ''}{ev.title}
+                          setFluidResultSummary({
+                            mlHour: rateHour,
+                            ml24hRange: range24h,
+                            notes: `Manutenção contínua para ${fluidSpecies === 'cao' ? 'Cão' : 'Gato'}. Reavaliar continuamente.`
+                          })
+                        } else {
+                          const pct = (parseFloat(fluidDehydrationPercent) || 0) / 100
+                          const totalRepositionMl = w * pct * 1000
+                          const rateHour = totalRepositionMl / 9
+
+                          setFluidResultSummary({
+                            mlHour: rateHour,
+                            ml24hRange: `Volume Total de Reposição: ${totalRepositionMl.toFixed(0)} ml`,
+                            notes: `Volume a ser infundido entre 6 e 12 horas (Exemplo: ${w}kg x ${fluidDehydrationPercent}% x 1000 = ${totalRepositionMl.toFixed(0)}ml).`
+                          })
+                        }
+                      }} className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md cursor-pointer">
+                        Calcular Fluidoterapia (Tabela Beatriz)
+                      </button>
                     </div>
-                  ))}
-                  {dayEvents.length > 2 && (
-                    <div className="text-[9px] text-pink-600 font-bold">+ {dayEvents.length - 2} mais</div>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-3xl shadow-sm space-y-4">
-          <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Adicionar Evento com Horário no Dia Selecionado ({selectedDate})</h3>
-          <form onSubmit={(e) => {
-            e.preventDefault()
-            if (!eventTitle.trim()) return
-            setEvents([...events, { dateKey: selectedDate, title: eventTitle, description: eventDesc, time: eventTime }])
-            setEventTitle('')
-            setEventDesc('')
-          }} className="space-y-3">
-            <div className="grid grid-cols-3 gap-2">
-              <input type="text" placeholder="Título do Evento / Matéria" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} className="col-span-2 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
-              <input type="time" value={eventTime} onChange={(e) => setEventTime(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
-            </div>
-            <textarea placeholder="Detalhes ou notas do compromisso..." value={eventDesc} onChange={(e) => setEventDesc(e.target.value)} rows={2} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium resize-none" />
-            <button type="submit" className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md cursor-pointer">Salvar na Agenda</button>
-          </form>
-        </div>
-
-        <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-3xl shadow-sm space-y-4">
-          <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Compromissos do Dia {selectedDate}</h3>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {events.filter(ev => ev.dateKey === selectedDate).length === 0 ? (
-              <p className="text-xs text-stone-400 py-6 text-center">Nenhum evento registrado para este dia.</p>
-            ) : (
-              events.filter(ev => ev.dateKey === selectedDate).map((ev, idx) => (
-                <div key={idx} className="flex items-center justify-between bg-pink-50/40 border border-pink-100 p-3.5 rounded-2xl">
-                  <div>
-                    <div className="text-xs font-bold text-pink-950 flex items-center gap-2">
-                      {ev.time && <span className="bg-pink-100 text-pink-800 px-2 py-0.5 rounded-lg text-[10px] font-extrabold">{ev.time}</span>}
-                      {ev.title}
-                    </div>
-                    {ev.description && <div className="text-[11px] text-stone-600 mt-0.5">{ev.description}</div>}
                   </div>
-                  <button onClick={() => setEvents(events.filter(item => !(item.title === ev.title && item.dateKey === ev.dateKey)))} className="text-stone-400 hover:text-red-500 p-1"><Trash2 className="w-4 h-4" /></button>
+
+                  <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs flex flex-col justify-between">
+                    <div>
+                      <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider mb-4">Resultado da Tabela de Fluidoterapia</h3>
+                      {fluidResultSummary !== null ? (
+                        <div className="bg-pink-50 border border-pink-200 p-6 rounded-2xl text-center space-y-3">
+                          <span className="text-xs font-bold text-pink-600 uppercase">Taxa de Infusão Sugerida</span>
+                          <div className="text-3xl font-extrabold text-pink-950">{fluidResultSummary.mlHour.toFixed(1)} ml / hora</div>
+                          {fluidResultSummary.ml24hRange && (
+                            <div className="text-xs font-bold text-emerald-700 bg-emerald-50 py-1.5 px-3 rounded-xl border border-emerald-200">
+                              {fluidResultSummary.ml24hRange}
+                            </div>
+                          )}
+                          <p className="text-[11px] text-stone-600 pt-2 border-t border-pink-200/60 leading-relaxed">
+                            {fluidResultSummary.notes}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-stone-400 text-center py-12">Insira o peso e clique em calcular.</p>
+                      )}
+                    </div>
+                    <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 text-[11px] text-stone-600">
+                      💡 <strong>Nota da Tabela:</strong> Manutenção com reavaliação contínua. Reposição calculada para infusão rápida entre 6h e 12h.
+                    </div>
+                  </div>
                 </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  )}
-
-  {activeTab === 'financas' && (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <h2 className="text-xl font-extrabold text-pink-950">Controle Financeiro & Gráficos</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
-          <span className="text-xs font-bold text-stone-400">Renda / Entrada do Mês</span>
-          <div className="flex items-center justify-between mt-2">
-            {editingIncome ? (
-              <div className="flex items-center gap-2">
-                <input type="number" step="0.01" value={tempIncome} onChange={(e) => setTempIncome(e.target.value)} className="w-28 bg-pink-50 border border-pink-200 rounded-lg px-2 py-1 text-sm font-bold text-pink-950" />
-                <button onClick={() => { setMonthlyIncome(parseFloat(tempIncome) || 0); setEditingIncome(false); }} className="bg-pink-500 text-white px-2 py-1 rounded-lg text-xs font-bold cursor-pointer">Salvar</button>
-              </div>
-            ) : (
-              <>
-                <span className="text-2xl font-extrabold text-emerald-600">R$ {monthlyIncome.toFixed(2)}</span>
-                <button onClick={() => { setTempIncome(monthlyIncome.toString()); setEditingIncome(true); }} className="text-xs text-pink-500 hover:underline font-semibold cursor-pointer">Editar</button>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs">
-          <span className="text-xs font-bold text-stone-400">Total de Despesas</span>
-          <div className="text-2xl font-extrabold text-rose-500 mt-2">R$ {totalGastos.toFixed(2)}</div>
-        </div>
-
-        <div className={`border p-5 rounded-2xl shadow-xs flex flex-col justify-between backdrop-blur-md ${saldoRestante >= 0 ? 'bg-emerald-50/60 border-emerald-200' : 'bg-rose-50/60 border-rose-200'}`}>
-          <span className="text-xs font-bold text-stone-500">Saldo Restante</span>
-          <div className={`text-2xl font-extrabold mt-2 ${saldoRestante >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>R$ {saldoRestante.toFixed(2)}</div>
-        </div>
-      </div>
-
-      <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-3">
-        <div className="flex justify-between items-center text-xs font-bold">
-          <span className="text-pink-950">Progresso do Orçamento (Gastos vs Renda)</span>
-          <span className={percentualGastos > 85 ? 'text-rose-500' : 'text-emerald-600'}>{percentualGastos.toFixed(1)}% comprometido</span>
-        </div>
-        <div className="w-full bg-pink-100 h-3 rounded-full overflow-hidden">
-          <div className={`h-full transition-all duration-500 ${percentualGastos > 85 ? 'bg-rose-500' : 'bg-pink-500'}`} style={{ width: `${percentualGastos}%` }}></div>
-        </div>
-      </div>
-
-      <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
-        <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Adicionar Despesa</h3>
-        <form onSubmit={handleAddFinancial} className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          <input type="text" placeholder="Descrição" value={finDesc} onChange={(e) => setFinDesc(e.target.value)} className="md:col-span-2 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
-          <select value={finCategory} onChange={(e) => setFinCategory(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
-            <option value="Cartão de Crédito">Cartão de Crédito</option>
-            <option value="Filha">Filha</option>
-            <option value="Filho">Filho</option>
-            <option value="Outro">Outro (Personalizado)</option>
-          </select>
-          {finCategory === 'Outro' ? (
-            <input type="text" placeholder="Nome da categoria" value={finCustomCategory} onChange={(e) => setFinCustomCategory(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
-          ) : (
-            <input type="number" step="0.01" placeholder="Valor (R$)" value={finAmount} onChange={(e) => setFinAmount(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+              )}
+            </div>
           )}
-          {finCategory === 'Outro' ? null : (<button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-xs font-bold transition shadow-md cursor-pointer">Adicionar</button>)}
-        </form>
-        {finCategory === 'Outro' && (
-          <form onSubmit={handleAddFinancial} className="flex gap-3">
-            <input type="number" step="0.01" placeholder="Valor (R$)" value={finAmount} onChange={(e) => setFinAmount(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
-            <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-6 rounded-xl text-xs font-bold transition shadow-md cursor-pointer">Adicionar</button>
-          </form>
-        )}
-      </div>
-    </div>
-  )}
+
+          {activeTab === 'tarefas' && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <h2 className="text-xl font-extrabold text-pink-950">Gerenciador de Tarefas</h2>
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
+                <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Nova Tarefa ou Meta</h3>
+                <form onSubmit={(e) => {
+                  e.preventDefault()
+                  if (!newTaskText.trim()) return
+                  setTasks([{ id: Date.now().toString(), text: newTaskText, completed: false, category: newTaskCategory, notes: newTaskNotes, attachments: [] }, ...tasks])
+                  setNewTaskText('')
+                  setNewTaskNotes('')
+                }} className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input type="text" placeholder="O que precisa ser feito?" value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} className="md:col-span-2 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                    <input type="text" placeholder="Categoria" value={newTaskCategory} onChange={(e) => setNewTaskCategory(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                  </div>
+                  <textarea placeholder="Detalhes..." value={newTaskNotes} onChange={(e) => setNewTaskNotes(e.target.value)} rows={2} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium resize-none" />
+                  <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5 cursor-pointer"><Plus className="w-4 h-4" /> Adicionar Tarefa</button>
+                </form>
+              </div>
+
+              <div className="space-y-3">
+                {tasks.map(t => (
+                  <div key={t.id} className={`bg-white/95 backdrop-blur-md border p-4 rounded-2xl shadow-xs flex flex-col gap-3 transition ${t.completed ? 'border-emerald-200 bg-emerald-50/20 opacity-80' : 'border-pink-100'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <input type="checkbox" checked={t.completed} onChange={() => setTasks(tasks.map(item => item.id === t.id ? { ...item, completed: !item.completed } : item))} className="w-4 h-4 accent-pink-500 cursor-pointer" />
+                        <div>
+                          <span className={`text-xs font-bold ${t.completed ? 'line-through text-stone-400' : 'text-pink-950'}`}>{t.text}</span>
+                          <span className="ml-2 text-[10px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-md font-semibold">{t.category}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => { setActiveTaskForAttach(t.id); fileInputRef.current?.click(); }} className="text-xs text-pink-600 hover:bg-pink-50 px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1 border border-pink-200 cursor-pointer"><Paperclip className="w-3 h-3" /> Anexar</button>
+                        <button onClick={() => setTasks(tasks.filter(item => item.id !== t.id))} className="text-stone-400 hover:text-red-500 p-1"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    </div>
+                    {t.notes && <p className="text-xs text-stone-600 pl-7">{t.notes}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'calendario' && (
+            <div className="max-w-5xl mx-auto space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-extrabold text-pink-950">Calendário Estilo Google Agenda & Metas ({currentMonthName})</h2>
+                <span className="text-xs bg-pink-100 text-pink-800 font-bold px-3 py-1 rounded-xl capitalize">Hoje: {formattedHeaderDate}</span>
+              </div>
+
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-3xl shadow-sm space-y-4">
+                <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Visão em Grade do Mês</h3>
+                <div className="grid grid-cols-7 gap-2 text-center">
+                  {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map((d, i) => (
+                    <span key={i} className="text-[11px] font-extrabold text-pink-500 py-1">{d}</span>
+                  ))}
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={`empty-${i}`} className="h-20 bg-pink-50/20 rounded-2xl border border-transparent"></div>
+                  ))}
+                  {calendarDays.map(cd => {
+                    const dayEvents = events.filter(ev => ev.dateKey === cd.dateKey)
+                    const isSelected = selectedDate === cd.dateKey
+                    const isToday = cd.day === currentDayNum
+                    return (
+                      <div 
+                        key={cd.dateKey} 
+                        onClick={() => setSelectedDate(cd.dateKey)}
+                        className={`h-24 p-2 rounded-2xl border text-left flex flex-col justify-between transition cursor-pointer overflow-y-auto ${isSelected ? 'border-pink-500 bg-pink-50 shadow-sm' : isToday ? 'border-pink-400 bg-white ring-2 ring-pink-300' : 'border-pink-100 bg-white/70 hover:border-pink-300'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className={`text-xs font-extrabold ${isToday ? 'bg-pink-500 text-white w-6 h-6 rounded-full flex items-center justify-center shadow-xs' : 'text-pink-950'}`}>
+                            {cd.day}
+                          </span>
+                          {dayEvents.length > 0 && <span className="text-[9px] bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded-full font-bold">{dayEvents.length}</span>}
+                        </div>
+                        <div className="space-y-0.5 mt-1">
+                          {dayEvents.slice(0, 2).map((ev, idx) => (
+                            <div key={idx} className="text-[10px] bg-pink-500 text-white px-1.5 py-0.5 rounded truncate font-medium">
+                              {ev.time ? `${ev.time} - ` : ''}{ev.title}
+                            </div>
+                          ))}
+                          {dayEvents.length > 2 && (
+                            <div className="text-[9px] text-pink-600 font-bold">+ {dayEvents.length - 2} mais</div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-3xl shadow-sm space-y-4">
+                  <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Adicionar Evento com Horário no Dia Selecionado ({selectedDate})</h3>
+                  <form onSubmit={(e) => {
+                    e.preventDefault()
+                    if (!eventTitle.trim()) return
+                    setEvents([...events, { dateKey: selectedDate, title: eventTitle, description: eventDesc, time: eventTime }])
+                    setEventTitle('')
+                    setEventDesc('')
+                  }} className="space-y-3">
+                    <div className="grid grid-cols-3 gap-2">
+                      <input type="text" placeholder="Título do Evento / Matéria" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} className="col-span-2 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                      <input type="time" value={eventTime} onChange={(e) => setEventTime(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                    </div>
+                    <textarea placeholder="Detalhes ou notas do compromisso..." value={eventDesc} onChange={(e) => setEventDesc(e.target.value)} rows={2} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium resize-none" />
+                    <button type="submit" className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md cursor-pointer">Salvar na Agenda</button>
+                  </form>
+                </div>
+
+                <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-3xl shadow-sm space-y-4">
+                  <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Compromissos do Dia {selectedDate}</h3>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {events.filter(ev => ev.dateKey === selectedDate).length === 0 ? (
+                      <p className="text-xs text-stone-400 py-6 text-center">Nenhum evento registrado para este dia.</p>
+                    ) : (
+                      events.filter(ev => ev.dateKey === selectedDate).map((ev, idx) => (
+                        <div key={idx} className="flex items-center justify-between bg-pink-50/40 border border-pink-100 p-3.5 rounded-2xl">
+                          <div>
+                            <div className="text-xs font-bold text-pink-950 flex items-center gap-2">
+                              {ev.time && <span className="bg-pink-100 text-pink-800 px-2 py-0.5 rounded-lg text-[10px] font-extrabold">{ev.time}</span>}
+                              {ev.title}
+                            </div>
+                            {ev.description && <div className="text-[11px] text-stone-600 mt-0.5">{ev.description}</div>}
+                          </div>
+                          <button onClick={() => setEvents(events.filter(item => !(item.title === ev.title && item.dateKey === ev.dateKey)))} className="text-stone-400 hover:text-red-500 p-1"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'financas' && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <h2 className="text-xl font-extrabold text-pink-950">Controle Financeiro & Gráficos</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
+                  <span className="text-xs font-bold text-stone-400">Renda / Entrada do Mês</span>
+                  <div className="flex items-center justify-between mt-2">
+                    {editingIncome ? (
+                      <div className="flex items-center gap-2">
+                        <input type="number" step="0.01" value={tempIncome} onChange={(e) => setTempIncome(e.target.value)} className="w-28 bg-pink-50 border border-pink-200 rounded-lg px-2 py-1 text-sm font-bold text-pink-950" />
+                        <button onClick={() => { setMonthlyIncome(parseFloat(tempIncome) || 0); setEditingIncome(false); }} className="bg-pink-500 text-white px-2 py-1 rounded-lg text-xs font-bold cursor-pointer">Salvar</button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="text-2xl font-extrabold text-emerald-600">R$ {monthlyIncome.toFixed(2)}</span>
+                        <button onClick={() => { setTempIncome(monthlyIncome.toString()); setEditingIncome(true); }} className="text-xs text-pink-500 hover:underline font-semibold cursor-pointer">Editar</button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs">
+                  <span className="text-xs font-bold text-stone-400">Total de Despesas</span>
+                  <div className="text-2xl font-extrabold text-rose-500 mt-2">R$ {totalGastos.toFixed(2)}</div>
+                </div>
+
+                <div className={`border p-5 rounded-2xl shadow-xs flex flex-col justify-between backdrop-blur-md ${saldoRestante >= 0 ? 'bg-emerald-50/60 border-emerald-200' : 'bg-rose-50/60 border-rose-200'}`}>
+                  <span className="text-xs font-bold text-stone-500">Saldo Restante</span>
+                  <div className={`text-2xl font-extrabold mt-2 ${saldoRestante >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>R$ {saldoRestante.toFixed(2)}</div>
+                </div>
+              </div>
+
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-3">
+                <div className="flex justify-between items-center text-xs font-bold">
+                  <span className="text-pink-950">Progresso do Orçamento (Gastos vs Renda)</span>
+                  <span className={percentualGastos > 85 ? 'text-rose-500' : 'text-emerald-600'}>{percentualGastos.toFixed(1)}% comprometido</span>
+                </div>
+                <div className="w-full bg-pink-100 h-3 rounded-full overflow-hidden">
+                  <div className={`h-full transition-all duration-500 ${percentualGastos > 85 ? 'bg-rose-500' : 'bg-pink-500'}`} style={{ width: `${percentualGastos}%` }}></div>
+                </div>
+              </div>
+
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
+                <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Adicionar Despesa</h3>
+                <form onSubmit={handleAddFinancial} className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                  <input type="text" placeholder="Descrição" value={finDesc} onChange={(e) => setFinDesc(e.target.value)} className="md:col-span-2 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                  <select value={finCategory} onChange={(e) => setFinCategory(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                    <option value="Cartão de Crédito">Cartão de Crédito</option>
+                    <option value="Filha">Filha</option>
+                    <option value="Filho">Filho</option>
+                    <option value="Outro">Outro (Personalizado)</option>
+                  </select>
+                  {finCategory === 'Outro' ? (
+                    <input type="text" placeholder="Nome da categoria" value={finCustomCategory} onChange={(e) => setFinCustomCategory(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                  ) : (
+                    <input type="number" step="0.01" placeholder="Valor (R$)" value={finAmount} onChange={(e) => setFinAmount(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                  )}
+                  {finCategory === 'Outro' ? null : (<button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-xs font-bold transition shadow-md cursor-pointer">Adicionar</button>)}
+                </form>
+                {finCategory === 'Outro' && (
+                  <form onSubmit={handleAddFinancial} className="flex gap-3">
+                    <input type="number" step="0.01" placeholder="Valor (R$)" value={finAmount} onChange={(e) => setFinAmount(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                    <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-6 rounded-xl text-xs font-bold transition shadow-md cursor-pointer">Adicionar</button>
+                  </form>
+                )}
+              </div>
+            </div>
+          )}
 
         </div>
       </div>
