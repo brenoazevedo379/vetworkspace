@@ -199,6 +199,7 @@ const ONCO_DRUGS: OncolocicalDrug[] = [
 
 export default function VetWorkspaceBeatrizV26() {
   const [isMounted, setIsMounted] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)
 
   useEffect(() => {
     setIsMounted(true)
@@ -632,7 +633,7 @@ export default function VetWorkspaceBeatrizV26() {
   const [eventDesc, setEventDesc] = useState('')
   const [eventTime, setEventTime] = useState('08:00')
 
-  // BUSCA VIA API ROUTE (PROXY) COM GATILHO DE FOCO AUTOMÁTICO
+  // CARREGAMENTO SEGURO DA NUVEM COM TRAVA DE INICIALIZAÇÃO (EVITA RACE CONDITION)
   useEffect(() => {
     async function fetchCloudData() {
       try {
@@ -649,23 +650,25 @@ export default function VetWorkspaceBeatrizV26() {
           if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v18', JSON.stringify(d.tasks)); }
           if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v18', JSON.stringify(d.events)); }
           if (d.chatSessions) { setChatSessions(d.chatSessions); localStorage.setItem('vet_chat_sessions_v26', JSON.stringify(d.chatSessions)); }
+          if (d.wishlist) { localStorage.setItem('vet_wishlist', JSON.stringify(d.wishlist)); }
           setSaveStatus('Sincronizado')
         }
       } catch (err) {
         console.log('Modo offline ou dados locais utilizados.')
+      } finally {
+        setIsInitialized(true) // Libera o salvamento automático apenas após baixar da nuvem
       }
     }
     fetchCloudData()
 
-    // Atualiza automaticamente os dados assim que você foca na aba/janela
     const handleFocus = () => fetchCloudData()
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
   }, [])
 
-  // SALVAMENTO AUTOMÁTICO VIA API ROUTE (PROXY)
+  // SALVAMENTO AUTOMÁTICO NA NUVEM (APENAS APÓS ESTAR INICIALIZADO)
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (!isMounted || !isInitialized) return
 
     localStorage.setItem('vet_items_v19', JSON.stringify(items))
     localStorage.setItem('vet_patients_v18', JSON.stringify(patients))
@@ -675,6 +678,12 @@ export default function VetWorkspaceBeatrizV26() {
     localStorage.setItem('vet_tasks_v18', JSON.stringify(tasks))
     localStorage.setItem('vet_events_v18', JSON.stringify(events))
     localStorage.setItem('vet_chat_sessions_v26', JSON.stringify(chatSessions))
+
+    let wishlistData = []
+    try {
+      const savedWish = localStorage.getItem('vet_wishlist')
+      if (savedWish) wishlistData = JSON.parse(savedWish)
+    } catch(e) {}
 
     setSaveStatus('Salvando...')
 
@@ -688,7 +697,8 @@ export default function VetWorkspaceBeatrizV26() {
           finances,
           tasks,
           events,
-          chatSessions
+          chatSessions,
+          wishlist: wishlistData
         }
 
         const res = await fetch('/api/sync', {
@@ -712,7 +722,7 @@ export default function VetWorkspaceBeatrizV26() {
 
     const timer = setTimeout(syncToCloud, 800)
     return () => clearTimeout(timer)
-  }, [items, patients, customDrugs, monthlyIncome, finances, tasks, events, chatSessions])
+  }, [isInitialized, items, patients, customDrugs, monthlyIncome, finances, tasks, events, chatSessions])
 
   const selectedItem = items.find(i => i.id === selectedItemId && i.type === 'page') || items.find(i => i.type === 'page')
 
