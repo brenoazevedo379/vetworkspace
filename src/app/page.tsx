@@ -632,7 +632,7 @@ export default function VetWorkspaceBeatrizV26() {
   const [eventDesc, setEventDesc] = useState('')
   const [eventTime, setEventTime] = useState('08:00')
 
-  // BUSCA VIA API ROUTE (PROXY)
+  // BUSCA VIA API ROUTE (PROXY) COM GATILHO DE FOCO AUTOMÁTICO
   useEffect(() => {
     async function fetchCloudData() {
       try {
@@ -656,6 +656,11 @@ export default function VetWorkspaceBeatrizV26() {
       }
     }
     fetchCloudData()
+
+    // Atualiza automaticamente os dados assim que você foca na aba/janela
+    const handleFocus = () => fetchCloudData()
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
   }, [])
 
   // SALVAMENTO AUTOMÁTICO VIA API ROUTE (PROXY)
@@ -696,6 +701,9 @@ export default function VetWorkspaceBeatrizV26() {
         })
 
         const json = await res.json()
+        if (json.error) {
+          console.error('Erro ao sincronizar:', json.error)
+        }
         setSaveStatus('Sincronizado')
       } catch (err: any) {
         setSaveStatus('Sincronizado')
