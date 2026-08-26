@@ -202,7 +202,6 @@ export default function VetWorkspaceBeatrizV26() {
   const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'bsa' | 'ia' | 'condolencias' | 'tarefas' | 'calendario' | 'financas' | 'wishlist'>('painel')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Sincronizado')
-  const [isDataLoaded, setIsDataLoaded] = useState(true)
 
   const todayObj = new Date()
   const currentYear = todayObj.getFullYear()
@@ -222,7 +221,6 @@ export default function VetWorkspaceBeatrizV26() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [studySubTab, setStudySubTab] = useState<'resumo' | 'diferenciais' | 'pontos'>('resumo')
 
-  // Inicialização síncrona com localStorage para evitar perdas no F5
   const [chatSessions, setChatSessions] = useState<ChatSession[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vet_chat_sessions_v26')
@@ -629,7 +627,67 @@ export default function VetWorkspaceBeatrizV26() {
   const [eventDesc, setEventDesc] = useState('')
   const [eventTime, setEventTime] = useState('08:00')
 
-  // Efeito de salvamento automático no localStorage e Supabase com debounce
+  // BUSCA INICIAL DO SUPABASE PARA SINCRONIZAR NOVOS NAVEGADORES
+  useEffect(() => {
+    async function fetchCloudData() {
+      try {
+        const { data, error } = await supabase
+          .from('app_data')
+          .select('data')
+          .eq('id', 'beatriz_workspace_v26')
+          .single()
+
+        if (data && data.data) {
+          const d = data.data
+          if (d.items) { setItems(d.items); localStorage.setItem('vet_items_v19', JSON.stringify(d.items)); }
+          if (d.patients) { setPatients(d.patients); localStorage.setItem('vet_patients_v18', JSON.stringify(d.patients)); }
+          if (d.customDrugs) { setCustomDrugs(d.customDrugs); localStorage.setItem('vet_custom_drugs_v26', JSON.stringify(d.customDrugs)); }
+          if (d.monthlyIncome !== undefined) { setMonthlyIncome(d.monthlyIncome); localStorage.setItem('vet_income_v18', d.monthlyIncome.toString()); }
+          if (d.finances) { setFinances(d.finances); localStorage.setItem('vet_finances_v18', JSON.stringify(d.finances)); }
+          if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v18', JSON.stringify(d.tasks)); }
+          if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v18', JSON.stringify(d.events)); }
+          if (d.chatSessions) { setChatSessions(d.chatSessions); localStorage.setItem('vet_chat_sessions_v26', JSON.stringify(d.chatSessions)); }
+          setSaveStatus('Sincronizado')
+        }
+      } catch (err) {
+        console.log('Modo offline ou dados locais utilizados.')
+      }
+    }
+    fetchCloudData()
+
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'app_data',
+          filter: 'id=eq.beatriz_workspace_v26'
+        },
+        (payload: any) => {
+          if (payload.new && payload.new.data) {
+            const d = payload.new.data
+            if (d.items) { setItems(d.items); localStorage.setItem('vet_items_v19', JSON.stringify(d.items)); }
+            if (d.patients) { setPatients(d.patients); localStorage.setItem('vet_patients_v18', JSON.stringify(d.patients)); }
+            if (d.customDrugs) { setCustomDrugs(d.customDrugs); localStorage.setItem('vet_custom_drugs_v26', JSON.stringify(d.customDrugs)); }
+            if (d.monthlyIncome !== undefined) { setMonthlyIncome(d.monthlyIncome); localStorage.setItem('vet_income_v18', d.monthlyIncome.toString()); }
+            if (d.finances) { setFinances(d.finances); localStorage.setItem('vet_finances_v18', JSON.stringify(d.finances)); }
+            if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v18', JSON.stringify(d.tasks)); }
+            if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v18', JSON.stringify(d.events)); }
+            if (d.chatSessions) { setChatSessions(d.chatSessions); localStorage.setItem('vet_chat_sessions_v26', JSON.stringify(d.chatSessions)); }
+            setSaveStatus('Sincronizado via Realtime')
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
+  // SALVAMENTO AUTOMÁTICO COM DEBOUNCE
   useEffect(() => {
     if (typeof window === 'undefined') return
 
@@ -1086,7 +1144,7 @@ export default function VetWorkspaceBeatrizV26() {
               <Save className="w-3 h-3" /> {saveStatus}
             </span>
             <span className="text-xs bg-emerald-100 text-emerald-700 px-3.5 py-1.5 rounded-full border border-emerald-200 font-bold flex items-center gap-1.5 shadow-xs">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-500" /> Sincronizado
+              <Sparkles className="w-3.5 h-3.5 text-emerald-500" /> Nuvem Conectada
             </span>
           </div>
         </div>
