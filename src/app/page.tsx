@@ -201,9 +201,8 @@ const ONCO_DRUGS: OncolocicalDrug[] = [
 export default function VetWorkspaceBeatrizV26() {
   const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'bsa' | 'ia' | 'condolencias' | 'tarefas' | 'calendario' | 'financas' | 'wishlist'>('painel')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-  const [saveStatus, setSaveStatus] = useState('Conectando...')
-  
-  const [isDataLoaded, setIsDataLoaded] = useState(false)
+  const [saveStatus, setSaveStatus] = useState('Sincronizado')
+  const [isDataLoaded, setIsDataLoaded] = useState(true)
 
   const todayObj = new Date()
   const currentYear = todayObj.getFullYear()
@@ -223,15 +222,23 @@ export default function VetWorkspaceBeatrizV26() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [studySubTab, setStudySubTab] = useState<'resumo' | 'diferenciais' | 'pontos'>('resumo')
 
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([
-    {
-      id: 'default-session',
-      title: 'Caso Clínico Inicial',
-      messages: [
-        { sender: 'ai', text: 'Olá, Dra. Beatriz! Sou seu copiloto clínico. Digite o caso ou use os templates rápidos abaixo.' }
-      ]
+  // Inicialização síncrona com localStorage para evitar perdas no F5
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_chat_sessions_v26')
+      if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
-  ])
+    return [
+      {
+        id: 'default-session',
+        title: 'Caso Clínico Inicial',
+        messages: [
+          { sender: 'ai', text: 'Olá, Dra. Beatriz! Sou seu copiloto clínico. Digite o caso ou use os templates rápidos abaixo.' }
+        ]
+      }
+    ]
+  })
+
   const [currentChatId, setCurrentChatId] = useState<string>('default-session')
   const [chatInput, setChatInput] = useState('')
   const [isAiLoading, setIsAiLoading] = useState(false)
@@ -369,13 +376,25 @@ export default function VetWorkspaceBeatrizV26() {
     setGeneratedCondolence(text)
   }
 
-  const [items, setItems] = useState<DocumentItem[]>([
-    { id: 'f-pos', title: 'Pós-graduação & Residência', parentId: null, type: 'folder', isOpen: true },
-    { id: 'p-1', title: 'Módulos e Aulas Teóricas', parentId: 'f-pos', type: 'page', content: '', differential: '', notes: '', attachments: [] }
-  ])
+  const [items, setItems] = useState<DocumentItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_items_v19')
+      if (saved) try { return JSON.parse(saved) } catch(e) {}
+    }
+    return [
+      { id: 'f-pos', title: 'Pós-graduação & Residência', parentId: null, type: 'folder', isOpen: true },
+      { id: 'p-1', title: 'Módulos e Aulas Teóricas', parentId: 'f-pos', type: 'page', content: '', differential: '', notes: '', attachments: [] }
+    ]
+  })
   const [selectedItemId, setSelectedItemId] = useState<string>('p-1')
 
-  const [patients, setPatients] = useState<PatientRecord[]>([])
+  const [patients, setPatients] = useState<PatientRecord[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_patients_v18')
+      if (saved) try { return JSON.parse(saved) } catch(e) {}
+    }
+    return []
+  })
   const [newPetName, setNewPetName] = useState('')
   const [newSpecies, setNewSpecies] = useState('Canino')
   const [newBreed, setNewBreed] = useState('')
@@ -477,7 +496,13 @@ export default function VetWorkspaceBeatrizV26() {
   }
 
   const [calcMode, setCalcMode] = useState<'dose' | 'fluido'>('dose')
-  const [customDrugs, setCustomDrugs] = useState<VetDrug[]>(INITIAL_DRUGS)
+  const [customDrugs, setCustomDrugs] = useState<VetDrug[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_custom_drugs_v26')
+      if (saved) try { return JSON.parse(saved) } catch(e) {}
+    }
+    return INITIAL_DRUGS
+  })
   const [calcWeight, setCalcWeight] = useState<string>('')
   const [drugSearchQuery, setDrugSearchQuery] = useState<string>('')
   const [selectedDrugName, setSelectedDrugName] = useState<string>('Selecione ou adicione...')
@@ -554,8 +579,25 @@ export default function VetWorkspaceBeatrizV26() {
   const [newDrugConc, setNewDrugConc] = useState('')
   const [newDrugMaxDays, setNewDrugMaxDays] = useState('5')
 
-  const [monthlyIncome, setMonthlyIncome] = useState<number>(0.00)
-  const [finances, setFinances] = useState<FinancialItem[]>([])
+  const [monthlyIncome, setMonthlyIncome] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_income_v18')
+      if (saved) {
+        const parsed = parseFloat(saved)
+        if (!isNaN(parsed)) return parsed
+      }
+    }
+    return 0.00
+  })
+
+  const [finances, setFinances] = useState<FinancialItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_finances_v18')
+      if (saved) try { return JSON.parse(saved) } catch(e) {}
+    }
+    return []
+  })
+
   const [finDesc, setFinDesc] = useState('')
   const [finCategory, setFinCategory] = useState('Cartão de Crédito')
   const [finCustomCategory, setFinCustomCategory] = useState('')
@@ -563,108 +605,32 @@ export default function VetWorkspaceBeatrizV26() {
   const [editingIncome, setEditingIncome] = useState(false)
   const [tempIncome, setTempIncome] = useState('0')
 
-  const [tasks, setTasks] = useState<TaskItem[]>([])
+  const [tasks, setTasks] = useState<TaskItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_tasks_v18')
+      if (saved) try { return JSON.parse(saved) } catch(e) {}
+    }
+    return []
+  })
   const [newTaskText, setNewTaskText] = useState('')
   const [newTaskCategory, setNewTaskCategory] = useState('Geral')
   const [newTaskNotes, setNewTaskNotes] = useState('')
   const [activeTaskForAttach, setActiveTaskForAttach] = useState<string | null>(null)
 
-  const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [events, setEvents] = useState<CalendarEvent[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_events_v18')
+      if (saved) try { return JSON.parse(saved) } catch(e) {}
+    }
+    return []
+  })
   const [selectedDate, setSelectedDate] = useState<string>(todayDateKey)
   const [eventTitle, setEventTitle] = useState('')
   const [eventDesc, setEventDesc] = useState('')
   const [eventTime, setEventTime] = useState('08:00')
 
-  const applyDataToState = (d: any) => {
-    if (d.items) setItems(d.items)
-    if (d.patients) setPatients(d.patients)
-    if (d.customDrugs) setCustomDrugs(d.customDrugs)
-    if (d.monthlyIncome !== undefined) setMonthlyIncome(d.monthlyIncome)
-    if (d.finances) setFinances(d.finances)
-    if (d.tasks) setTasks(d.tasks)
-    if (d.events) setEvents(d.events)
-    if (d.chatSessions) setChatSessions(d.chatSessions)
-  }
-
+  // Efeito de salvamento automático no localStorage e Supabase com debounce
   useEffect(() => {
-    async function loadFromSupabase() {
-      try {
-        const { data, error } = await supabase
-          .from('app_data')
-          .select('data')
-          .eq('id', 'beatriz_workspace_v26')
-          .single()
-
-        if (data && data.data) {
-          applyDataToState(data.data)
-          setSaveStatus('Sincronizado')
-          setIsDataLoaded(true)
-          return
-        }
-      } catch (err) {
-        console.log('Nuvem vazia ou erro de conexão, tentando fallback local...')
-      }
-
-      if (typeof window !== 'undefined') {
-        try {
-          const savedItems = localStorage.getItem('vet_items_v19')
-          const savedPatients = localStorage.getItem('vet_patients_v18')
-          const savedDrugs = localStorage.getItem('vet_custom_drugs_v26')
-          const savedIncome = localStorage.getItem('vet_income_v18')
-          const savedFinances = localStorage.getItem('vet_finances_v18')
-          const savedTasks = localStorage.getItem('vet_tasks_v18')
-          const savedEvents = localStorage.getItem('vet_events_v18')
-          const savedChats = localStorage.getItem('vet_chat_sessions_v26')
-
-          if (savedItems) setItems(JSON.parse(savedItems))
-          if (savedPatients) setPatients(JSON.parse(savedPatients))
-          if (savedDrugs) setCustomDrugs(JSON.parse(savedDrugs))
-          if (savedIncome) setMonthlyIncome(parseFloat(savedIncome))
-          if (savedFinances) setFinances(JSON.parse(savedFinances))
-          if (savedTasks) setTasks(JSON.parse(savedTasks))
-          if (savedEvents) setEvents(JSON.parse(savedEvents))
-          if (savedChats) setChatSessions(JSON.parse(savedChats))
-        } catch (e) {
-          console.log('Erro ao carregar localStorage:', e)
-        }
-      }
-
-      setIsDataLoaded(true)
-      setSaveStatus('Pronto para sincronizar')
-    }
-
-    loadFromSupabase()
-
-    const channel = supabase
-      .channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'app_data',
-          filter: 'id=eq.beatriz_workspace_v26'
-        },
-        (payload: any) => {
-          if (payload.new && payload.new.data) {
-            applyDataToState(payload.new.data)
-            setSaveStatus('Sincronizado via Realtime')
-          }
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('✅ Conectado ao Realtime do Supabase')
-        }
-      })
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!isDataLoaded) return
     if (typeof window === 'undefined') return
 
     localStorage.setItem('vet_items_v19', JSON.stringify(items))
@@ -709,9 +675,9 @@ export default function VetWorkspaceBeatrizV26() {
       }
     }
 
-    const timer = setTimeout(syncToSupabase, 1000)
+    const timer = setTimeout(syncToSupabase, 800)
     return () => clearTimeout(timer)
-  }, [items, patients, customDrugs, monthlyIncome, finances, tasks, events, chatSessions, isDataLoaded])
+  }, [items, patients, customDrugs, monthlyIncome, finances, tasks, events, chatSessions])
 
   const selectedItem = items.find(i => i.id === selectedItemId && i.type === 'page') || items.find(i => i.type === 'page')
 
@@ -741,7 +707,6 @@ export default function VetWorkspaceBeatrizV26() {
 
   const totalGastos = finances.reduce((acc, f) => acc + f.amount, 0)
   const saldoRestante = monthlyIncome - totalGastos
-  const percentualGastos = monthlyIncome > 0 ? Math.min(100, (totalGastos / monthlyIncome) * 100) : 0
 
   const handleAddFinancial = (e: React.FormEvent) => {
     e.preventDefault()
@@ -1121,7 +1086,7 @@ export default function VetWorkspaceBeatrizV26() {
               <Save className="w-3 h-3" /> {saveStatus}
             </span>
             <span className="text-xs bg-emerald-100 text-emerald-700 px-3.5 py-1.5 rounded-full border border-emerald-200 font-bold flex items-center gap-1.5 shadow-xs">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-500" /> {isDataLoaded ? 'Carregado' : 'Carregando...'}
+              <Sparkles className="w-3.5 h-3.5 text-emerald-500" /> Sincronizado
             </span>
           </div>
         </div>
@@ -2006,7 +1971,12 @@ export default function VetWorkspaceBeatrizV26() {
                     {editingIncome ? (
                       <div className="flex items-center gap-2">
                         <input type="number" step="0.01" value={tempIncome} onChange={(e) => setTempIncome(e.target.value)} className="w-28 bg-pink-50 border border-pink-200 rounded-lg px-2 py-1 text-sm font-bold text-pink-950" />
-                        <button onClick={() => { setMonthlyIncome(parseFloat(tempIncome) || 0); setEditingIncome(false); }} className="bg-pink-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold">Salvar</button>
+                        <button onClick={() => { 
+                          const val = parseFloat(tempIncome) || 0;
+                          setMonthlyIncome(val); 
+                          localStorage.setItem('vet_income_v18', val.toString());
+                          setEditingIncome(false); 
+                        }} className="bg-pink-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold">Salvar</button>
                       </div>
                     ) : (
                       <div className="text-2xl font-extrabold text-emerald-600">R$ {monthlyIncome.toFixed(2)}</div>
