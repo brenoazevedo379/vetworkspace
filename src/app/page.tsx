@@ -175,8 +175,8 @@ export default function VetWorkspaceBeatrizV26() {
   const [saveStatus, setSaveStatus] = useState('Sincronizado na Nuvem')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [studySubTab, setStudySubTab] = useState<'resumo' | 'diferenciais' | 'pontos'>('resumo')
 
+  // Chat / IA
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([
     {
       id: 'default-session',
@@ -189,55 +189,14 @@ export default function VetWorkspaceBeatrizV26() {
   const [currentChatId, setCurrentChatId] = useState<string>('default-session')
   const [chatInput, setChatInput] = useState('')
   const [isAiLoading, setIsAiLoading] = useState(false)
-  const [isListening, setIsListening] = useState(false)
 
-  const [bsaWeightKg, setBsaWeightKg] = useState('')
-  const [bsaSpecies, setBsaSpecies] = useState<'cao' | 'gato'>('cao')
-  const [selectedOncoDrugName, setSelectedOncoDrugName] = useState<string>('Doxorrubicina')
-  const [oncoCustomDosage, setOncoCustomDosage] = useState<string>('30')
-  const [oncoCustomConc, setOncoCustomConc] = useState<string>('2')
-  const [oncoPillMg, setOncoPillMg] = useState<string>('2')
-  const [oncoResultMg, setOncoResultMg] = useState<number | null>(null)
-  const [oncoResultMl, setOncoResultMl] = useState<number | null>(null)
-  const [oncoResultPills, setOncoResultPills] = useState<number | null>(null)
-  const [calculatedBsaValue, setCalculatedBsaValue] = useState<number | null>(null)
-
-  const [condolenceTutor, setCondolenceTutor] = useState('')
-  const [condolencePet, setCondolencePet] = useState('')
-  const [condolenceTone, setCondolenceTone] = useState<'acolhedor' | 'curto' | 'luta_longa'>('acolhedor')
-  const [generatedCondolence, setGeneratedCondolence] = useState('')
-
-  const [items, setItems] = useState<DocumentItem[]>([
-    { id: 'f-pos', title: 'Pós-graduação & Residência', parentId: null, type: 'folder', isOpen: true },
-    { id: 'p-1', title: 'Módulos e Aulas Teóricas', parentId: 'f-pos', type: 'page', content: '', differential: '', notes: '', attachments: [] }
-  ])
-  const [selectedItemId, setSelectedItemId] = useState<string>('p-1')
-
-  const [patients, setPatients] = useState<PatientRecord[]>([])
-  const [newPetName, setNewPetName] = useState('')
-  const [newSpecies, setNewSpecies] = useState('Canino')
-  const [newBreed, setNewBreed] = useState('')
-  const [newAge, setNewAge] = useState('')
-  const [newWeight, setNewWeight] = useState('')
-  const [newTutor, setNewTutor] = useState('')
-  const [newComplaint, setNewComplaint] = useState('')
-  const [newStatus, setNewStatus] = useState<'Em Atendimento' | 'Internado' | 'Alta' | 'Observação'>('Em Atendimento')
-
-  const [activePatientForEvolution, setActivePatientForEvolution] = useState<string | null>(null)
-  const [evoWeight, setEvoWeight] = useState('')
-  const [evoTemp, setEvoTemp] = useState('')
-  const [evoNotes, setEvoNotes] = useState('')
-
-  const [calcMode, setCalcMode] = useState<'dose' | 'fluido'>('dose')
-  const [customDrugs, setCustomDrugs] = useState<VetDrug[]>(INITIAL_DRUGS)
+  // Calculadora & Soro
   const [calcWeight, setCalcWeight] = useState<string>('')
-  const [drugSearchQuery, setDrugSearchQuery] = useState<string>('')
+  const [customDrugs, setCustomDrugs] = useState<VetDrug[]>(INITIAL_DRUGS)
   const [selectedDrugName, setSelectedDrugName] = useState<string>('Selecione ou adicione...')
   const [calcDosage, setCalcDosage] = useState<string>('')
   const [calcConcentration, setCalcConcentration] = useState<string>('')
-  const [calcPillMg, setCalcPillMg] = useState<string>('')
   const [calcResultMl, setCalcResultMl] = useState<number | null>(null)
-  const [calcResultPills, setCalcResultPills] = useState<number | null>(null)
 
   const [fluidWeight, setFluidWeight] = useState<string>('')
   const [fluidSpecies, setFluidSpecies] = useState<'cao' | 'gato'>('cao')
@@ -249,33 +208,57 @@ export default function VetWorkspaceBeatrizV26() {
     notes: string
   } | null>(null)
 
-  const [newDrugName, setNewDrugName] = useState('')
-  const [newDrugCat, setNewDrugCat] = useState('Anti-inflamatório (AINE)')
-  const [newDrugDosage, setNewDrugDosage] = useState('')
-  const [newDrugConc, setNewDrugConc] = useState('')
-  const [newDrugMaxDays, setNewDrugMaxDays] = useState('5')
+  // BSA & Onco
+  const [bsaWeightKg, setBsaWeightKg] = useState('')
+  const [bsaSpecies, setBsaSpecies] = useState<'cao' | 'gato'>('cao')
+  const [selectedOncoDrugName, setSelectedOncoDrugName] = useState<string>('Doxorrubicina')
+  const [oncoResultMg, setOncoResultMg] = useState<number | null>(null)
+  const [oncoResultMl, setOncoResultMl] = useState<number | null>(null)
+  const [calculatedBsaValue, setCalculatedBsaValue] = useState<number | null>(null)
 
+  // Mensagem de Apoio
+  const [condolenceTutor, setCondolenceTutor] = useState('')
+  const [condolencePet, setCondolencePet] = useState('')
+  const [condolenceTone, setCondolenceTone] = useState<'acolhedor' | 'curto' | 'luta_longa'>('acolhedor')
+  const [generatedCondolence, setGeneratedCondolence] = useState('')
+
+  // Estudos & Pós
+  const [items, setItems] = useState<DocumentItem[]>([
+    { id: 'f-pos', title: 'Pós-graduação & Residência', parentId: null, type: 'folder', isOpen: true },
+    { id: 'p-1', title: 'Módulos e Aulas Teóricas', parentId: 'f-pos', type: 'page', content: '', differential: '', notes: '', attachments: [] }
+  ])
+  const [selectedItemId, setSelectedItemId] = useState<string>('p-1')
+
+  // Pacientes & Prontuários
+  const [patients, setPatients] = useState<PatientRecord[]>([])
+  const [newPetName, setNewPetName] = useState('')
+  const [newSpecies, setNewSpecies] = useState('Canino')
+  const [newBreed, setNewBreed] = useState('')
+  const [newAge, setNewAge] = useState('')
+  const [newWeight, setNewWeight] = useState('')
+  const [newTutor, setNewTutor] = useState('')
+  const [newComplaint, setNewComplaint] = useState('')
+  const [newStatus, setNewStatus] = useState<'Em Atendimento' | 'Internado' | 'Alta' | 'Observação'>('Em Atendimento')
+
+  // Finanças
   const [monthlyIncome, setMonthlyIncome] = useState<number>(0.00)
   const [finances, setFinances] = useState<FinancialItem[]>([])
   const [finDesc, setFinDesc] = useState('')
   const [finCategory, setFinCategory] = useState('Cartão de Crédito')
-  const [finCustomCategory, setFinCustomCategory] = useState('')
   const [finAmount, setFinAmount] = useState('')
-  const [editingIncome, setEditingIncome] = useState(false)
-  const [tempIncome, setTempIncome] = useState('0')
 
+  // Tarefas
   const [tasks, setTasks] = useState<TaskItem[]>([])
   const [newTaskText, setNewTaskText] = useState('')
   const [newTaskCategory, setNewTaskCategory] = useState('Geral')
-  const [newTaskNotes, setNewTaskNotes] = useState('')
-  const [activeTaskForAttach, setActiveTaskForAttach] = useState<string | null>(null)
 
+  // Calendário & Metas
   const [events, setEvents] = useState<CalendarEvent[]>([])
-  const [selectedDate, setSelectedDate] = useState<string>('2026-08-25')
   const [eventTitle, setEventTitle] = useState('')
   const [eventDesc, setEventDesc] = useState('')
-  const [eventTime, setEventTime] = useState('08:00')
+  const [selectedDate, setSelectedDate] = useState<string>('2026-08-25')
 
+  // Lista de Desejos
   const [wishes, setWishes] = useState<string[]>([
     'Livro de Clínica Médica de Pequenos Animais - Ettinger',
     'Otoscópio Veterinário Profissional',
@@ -311,13 +294,12 @@ export default function VetWorkspaceBeatrizV26() {
         setSaveStatus('Sincronizado na Nuvem')
       } catch (e) {
         console.error('Erro ao carregar:', e)
-        setSaveStatus('Sincronizado na Nuvem')
       }
     }
     loadFromSupabase()
   }, [])
 
-  // SALVAR TUDO AUTOMATICAMENTE NO SUPABASE
+  // SALVAR NO SUPABASE
   useEffect(() => {
     const timer = setTimeout(async () => {
       try {
@@ -329,46 +311,20 @@ export default function VetWorkspaceBeatrizV26() {
         await dbService.saveAppData('wishes', wishes)
         setSaveStatus('Sincronizado na Nuvem')
       } catch (e) {
-        setSaveStatus('Sincronizado na Nuvem')
+        setSaveStatus('Erro ao sincronizar')
       }
     }, 1000)
     return () => clearTimeout(timer)
   }, [items, tasks, finances, monthlyIncome, events, wishes])
 
   const currentChatSession = chatSessions.find(s => s.id === currentChatId) || chatSessions[0]
-
-  const handleNewChatSession = () => {
-    const newId = Date.now().toString()
-    const newSession: ChatSession = {
-      id: newId,
-      title: 'Novo Caso Clínico',
-      messages: [{ sender: 'ai', text: 'Olá, Dra. Beatriz! Novo caso clínico iniciado.' }]
-    }
-    setChatSessions([newSession, ...chatSessions])
-    setCurrentChatId(newId)
-    setActiveTab('ia')
-  }
-
-  const deleteChatSession = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation()
-    const filtered = chatSessions.filter(s => s.id !== id)
-    if (filtered.length === 0) {
-      const freshId = Date.now().toString()
-      setChatSessions([{ id: freshId, title: 'Caso Inicial', messages: [{ sender: 'ai', text: 'Olá, Dra. Beatriz!' }] }])
-      setCurrentChatId(freshId)
-    } else {
-      setChatSessions(filtered)
-      if (currentChatId === id) setCurrentChatId(filtered[0].id)
-    }
-  }
-
   const selectedItem = items.find(i => i.id === selectedItemId && i.type === 'page') || items.find(i => i.type === 'page')
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
     const file = files[0]
-    const fileUrl = URL.createObjectURL(file)
+    const fileUrl = typeof window !== 'undefined' ? URL.createObjectURL(file) : ''
     const fileName = file.name
     const fileSize = (file.size / (1024 * 1024)).toFixed(1) + ' MB'
     let fileType: 'image' | 'excel' | 'docx' | 'doc' = 'doc'
@@ -378,11 +334,7 @@ export default function VetWorkspaceBeatrizV26() {
     else if (lower.endsWith('.docx') || lower.endsWith('.doc')) fileType = 'docx'
 
     const newAtt: AttachedFile = { id: Date.now().toString(), name: fileName, type: fileType, size: fileSize, url: fileUrl }
-
-    if (activeTaskForAttach) {
-      setTasks(tasks.map(t => t.id === activeTaskForAttach ? { ...t, attachments: [...(t.attachments || []), newAtt] } : t))
-      setActiveTaskForAttach(null)
-    } else if (selectedItem) {
+    if (selectedItem) {
       setItems(items.map(i => i.id === selectedItem.id ? { ...i, attachments: [...(i.attachments || []), newAtt] } : i))
     }
     e.target.value = ''
@@ -391,16 +343,10 @@ export default function VetWorkspaceBeatrizV26() {
   const totalGastos = finances.reduce((acc, f) => acc + f.amount, 0)
   const saldoRestante = monthlyIncome - totalGastos
 
+  // Adicionar Paciente
   const handleAddPatient = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newPetName.trim()) return
-    const initialEvo: PatientEvolution = {
-      id: Date.now().toString(),
-      date: new Date().toLocaleDateString('pt-BR'),
-      weight: newWeight || '0',
-      temperature: '38.5°C',
-      notes: newComplaint || 'Atendimento inicial.'
-    }
     const newP: PatientRecord = {
       id: Date.now().toString(),
       petName: newPetName,
@@ -411,7 +357,7 @@ export default function VetWorkspaceBeatrizV26() {
       complaint: newComplaint || 'Sem queixa relatada',
       status: newStatus,
       date: new Date().toLocaleDateString('pt-BR'),
-      evolutions: [initialEvo]
+      evolutions: []
     }
     setPatients([newP, ...patients])
     setNewPetName('')
@@ -508,11 +454,7 @@ export default function VetWorkspaceBeatrizV26() {
     setIsAiLoading(true)
 
     const updatedMessages: ChatMessage[] = [...currentChatSession.messages, { sender: 'user', text: userText }]
-    const autoTitle = currentChatSession.title === 'Novo Caso Clínico' || currentChatSession.title === 'Caso Clínico Inicial'
-      ? (userText.length > 28 ? userText.substring(0, 28) + '...' : userText)
-      : currentChatSession.title
-
-    setChatSessions(chatSessions.map(s => s.id === currentChatId ? { ...s, title: autoTitle, messages: updatedMessages } : s))
+    setChatSessions(chatSessions.map(s => s.id === currentChatId ? { ...s, messages: updatedMessages } : s))
 
     try {
       const response = await fetch('/api/vet', {
@@ -596,9 +538,11 @@ export default function VetWorkspaceBeatrizV26() {
           <button onClick={() => setActiveTab('tarefas')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'tarefas' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
             <CheckSquare className="w-4 h-4" /> Tarefas ({tasks.filter(t => !t.completed).length})
           </button>
+
           <button onClick={() => setActiveTab('calendario')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'calendario' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
             <CalendarIcon className="w-4 h-4" /> Calendário & Metas
           </button>
+
           <button onClick={() => setActiveTab('financas')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'financas' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
             <DollarSign className="w-4 h-4" /> Finanças & Gráficos
           </button>
@@ -760,12 +704,23 @@ export default function VetWorkspaceBeatrizV26() {
                 </div>
                 <button type="submit" className="bg-pink-500 text-white px-5 py-2 rounded-xl text-xs font-bold">Cadastrar Paciente</button>
               </form>
+              <div className="space-y-3">
+                {patients.map(p => (
+                  <div key={p.id} className="bg-white border border-pink-100 p-5 rounded-2xl flex justify-between items-center">
+                    <div>
+                      <h3 className="font-extrabold text-sm text-pink-950">{p.petName} ({p.species}) - Tutor: {p.tutor}</h3>
+                      <p className="text-xs text-stone-500 mt-1">Queixa: {p.complaint} | Status: {p.status}</p>
+                    </div>
+                    <button onClick={() => setPatients(patients.filter(x => x.id !== p.id))} className="text-stone-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
           {activeTab === 'financas' && (
             <div className="max-w-4xl mx-auto space-y-6">
-              <h2 className="text-xl font-extrabold text-pink-950">Controle Financeiro</h2>
+              <h2 className="text-xl font-extrabold text-pink-950">Controle Financeiro & Gráficos</h2>
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-white border border-pink-100 p-4 rounded-xl">
                   <span className="text-xs text-stone-500">Renda Mensal</span>
@@ -780,6 +735,137 @@ export default function VetWorkspaceBeatrizV26() {
                   <div className="text-xl font-bold text-pink-950">R$ {saldoRestante.toFixed(2)}</div>
                 </div>
               </div>
+              <div className="bg-white border border-pink-100 p-6 rounded-2xl space-y-4">
+                <h3 className="font-bold text-sm text-pink-950">Adicionar Nova Despesa</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <input type="text" placeholder="Descrição (ex: Insumos)" value={finDesc} onChange={(e) => setFinDesc(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs" />
+                  <input type="number" placeholder="Valor (R$)" value={finAmount} onChange={(e) => setFinAmount(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs" />
+                  <button onClick={() => {
+                    if (!finDesc || !finAmount) return
+                    setFinances([...finances, { id: Date.now().toString(), description: finDesc, category: finCategory, amount: parseFloat(finAmount), date: new Date().toLocaleDateString('pt-BR') }])
+                    setFinDesc('')
+                    setFinAmount('')
+                  }} className="bg-pink-500 text-white font-bold rounded-xl text-xs py-2">Adicionar Despesa</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'calculadora' && (
+            <div className="max-w-4xl mx-auto bg-white border border-pink-100 p-8 rounded-3xl space-y-6">
+              <h2 className="text-xl font-extrabold text-pink-950">Calculadora de Medicamentos & Soro</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4 bg-pink-50/30 p-5 rounded-2xl border border-pink-100">
+                  <h3 className="font-bold text-xs text-pink-900 uppercase">Cálculo de Dose</h3>
+                  <input type="number" placeholder="Peso do Paciente (kg)" value={calcWeight} onChange={(e) => setCalcWeight(e.target.value)} className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs" />
+                  <select value={selectedDrugName} onChange={(e) => {
+                    setSelectedDrugName(e.target.value)
+                    const found = customDrugs.find(d => d.name === e.target.value)
+                    if (found) {
+                      setCalcDosage(found.defaultDosage.toString())
+                      setCalcConcentration(found.defaultConcentration.toString())
+                    }
+                  }} className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs">
+                    <option>Selecione ou adicione...</option>
+                    {customDrugs.map(d => <option key={d.name} value={d.name}>{d.name} ({d.category})</option>)}
+                  </select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="number" placeholder="Dose (mg/kg)" value={calcDosage} onChange={(e) => setCalcDosage(e.target.value)} className="bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs" />
+                    <input type="number" placeholder="Concentração (mg/ml)" value={calcConcentration} onChange={(e) => setCalcConcentration(e.target.value)} className="bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs" />
+                  </div>
+                  <button onClick={() => {
+                    const w = parseFloat(calcWeight)
+                    const d = parseFloat(calcDosage)
+                    const c = parseFloat(calcConcentration)
+                    if (w && d && c) setCalcResultMl((w * d) / c)
+                  }} className="w-full bg-pink-500 text-white font-bold rounded-xl py-2.5 text-xs">Calcular Volume (ml)</button>
+                  {calcResultMl !== null && <div className="p-3 bg-white rounded-xl border border-pink-200 text-xs font-bold text-emerald-600">Resultado: {calcResultMl.toFixed(2)} ml</div>}
+                </div>
+
+                <div className="space-y-4 bg-pink-50/30 p-5 rounded-2xl border border-pink-100">
+                  <h3 className="font-bold text-xs text-pink-900 uppercase">Fluidoterapia & Soro</h3>
+                  <input type="number" placeholder="Peso do Paciente (kg)" value={fluidWeight} onChange={(e) => setFluidWeight(e.target.value)} className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs" />
+                  <select value={fluidSpecies} onChange={(e) => setFluidSpecies(e.target.value as 'cao' | 'gato')} className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs">
+                    <option value="cao">Canino (Manutenção 50-60 ml/kg/dia)</option>
+                    <option value="gato">Felino (Manutenção 40-50 ml/kg/dia)</option>
+                  </select>
+                  <button onClick={() => {
+                    const w = parseFloat(fluidWeight)
+                    if (!w) return
+                    const rate = fluidSpecies === 'cao' ? 50 : 45
+                    const totalDay = w * rate
+                    setFluidResultSummary({ mlHour: totalDay / 24, notes: `Taxa ideal para manutenção diária de ${w}kg.` })
+                  }} className="w-full bg-pink-500 text-white font-bold rounded-xl py-2.5 text-xs">Calcular Taxa de Infusão</button>
+                  {fluidResultSummary && <div className="p-3 bg-white rounded-xl border border-pink-200 text-xs font-bold text-emerald-600">Infusão: {fluidResultSummary.mlHour.toFixed(1)} ml/hora</div>}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'bsa' && (
+            <div className="max-w-3xl mx-auto bg-white border border-pink-100 p-8 rounded-3xl space-y-6">
+              <h2 className="text-xl font-extrabold text-pink-950">Calculadora BSA & Oncológicos</h2>
+              <div className="space-y-4">
+                <input type="number" placeholder="Peso do Paciente (kg)" value={bsaWeightKg} onChange={(e) => setBsaWeightKg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-4 py-2 text-xs" />
+                <button onClick={() => {
+                  const w = parseFloat(bsaWeightKg)
+                  if (!w) return
+                  const constK = bsaSpecies === 'cao' ? 10.1 : 10.0
+                  const bsa = (9.0 * Math.pow(w, 2/3)) / constK
+                  setCalculatedBsaValue(bsa)
+                  const drug = ONCO_DRUGS.find(d => d.name === selectedOncoDrugName)
+                  if (drug) {
+                    const totalMg = bsa * drug.dosagePerM2
+                    setOncoResultMg(totalMg)
+                    setOncoResultMl(totalMg / drug.concentration)
+                  }
+                }} className="bg-pink-500 text-white font-bold px-6 py-2.5 rounded-xl text-xs">Calcular Superfície Corporal & Dose</button>
+                {calculatedBsaValue !== null && (
+                  <div className="p-4 bg-pink-50/50 rounded-2xl border border-pink-200 space-y-2 text-xs">
+                    <div className="font-bold text-pink-950">BSA Calculada: {calculatedBsaValue.toFixed(3)} m²</div>
+                    {oncoResultMg !== null && <div className="font-bold text-emerald-600">Dose Total ({selectedOncoDrugName}): {oncoResultMg.toFixed(2)} mg ({oncoResultMl?.toFixed(2)} ml)</div>}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'condolencias' && (
+            <div className="max-w-3xl mx-auto bg-white border border-pink-100 p-8 rounded-3xl space-y-6">
+              <h2 className="text-xl font-extrabold text-pink-950">Gerador de Mensagens de Apoio 🕊️</h2>
+              <div className="space-y-4">
+                <input type="text" placeholder="Nome do Tutor" value={condolenceTutor} onChange={(e) => setCondolenceTutor(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-4 py-2 text-xs" />
+                <input type="text" placeholder="Nome do Pet" value={condolencePet} onChange={(e) => setCondolencePet(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-4 py-2 text-xs" />
+                <button onClick={() => {
+                  setGeneratedCondolence(`Prezado(a) ${condolenceTutor || 'Tutor(a)'},\n\nÉ com o coração partido que nos solidarizamos com a partida do(a) querido(a) ${condolencePet || 'Pet'}. Agradecemos a confiança depositada em nosso trabalho e desejamos muita força neste momento de luto e saudade.\n\nCom carinho,\nDra. Beatriz Contreiras`)
+                }} className="bg-pink-500 text-white font-bold px-6 py-2.5 rounded-xl text-xs">Gerar Mensagem de Apoio</button>
+                {generatedCondolence && <textarea readOnly value={generatedCondolence} rows={6} className="w-full bg-pink-50/30 border border-pink-200 rounded-2xl p-4 text-xs text-stone-800" />}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'tarefas' && (
+            <div className="max-w-3xl mx-auto bg-white border border-pink-100 p-8 rounded-3xl space-y-6">
+              <h2 className="text-xl font-extrabold text-pink-950">Lista de Tarefas</h2>
+              <div className="flex gap-2">
+                <input type="text" placeholder="Nova tarefa..." value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} className="flex-1 bg-pink-50/50 border border-pink-200 rounded-xl px-4 py-2 text-xs" />
+                <button onClick={() => { if (!newTaskText.trim()) return; setTasks([...tasks, { id: Date.now().toString(), text: newTaskText, completed: false, category: newTaskCategory }]); setNewTaskText(''); }} className="bg-pink-500 text-white px-4 py-2 rounded-xl text-xs font-bold">Adicionar</button>
+              </div>
+              <div className="space-y-2">
+                {tasks.map(t => (
+                  <div key={t.id} className="flex items-center justify-between bg-pink-50/30 p-3 rounded-xl border border-pink-100">
+                    <span className={`text-xs ${t.completed ? 'line-through text-stone-400' : 'text-pink-950 font-medium'}`}>{t.text}</span>
+                    <button onClick={() => setTasks(tasks.map(x => x.id === t.id ? { ...x, completed: !x.completed } : x))} className="text-xs font-bold text-pink-600">{t.completed ? 'Concluída' : 'Concluir'}</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'calendario' && (
+            <div className="max-w-3xl mx-auto bg-white border border-pink-100 p-8 rounded-3xl space-y-6">
+              <h2 className="text-xl font-extrabold text-pink-950">Calendário & Metas</h2>
+              <p className="text-xs text-stone-500">Organize sua rotina de residência, plantões e estudos.</p>
             </div>
           )}
         </div>
