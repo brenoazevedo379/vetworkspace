@@ -138,7 +138,7 @@ interface ChatSession {
 const INITIAL_DRUGS: VetDrug[] = [
   { name: 'Meloxicam (Cão)', category: 'Anti-inflamatório (AINE)', defaultDosage: 0.1, defaultConcentration: 2, maxDays: 5 },
   { name: 'Meloxicam (Gato)', category: 'Anti-inflamatório (AINE)', defaultDosage: 0.05, defaultConcentration: 0.5, maxDays: 3 },
-  { name: 'Dipirona', category: 'Analgésico / Antitérmico', defaultDosage: 25, defaultConcentration: 500, maxDays: 7 },
+  { name: 'Dipirona', category: 'Analgésico / Antitérmico', defaultDosage: 25, defaultConcentration: 500, maxDays: 5 },
   { name: 'Tramadol', category: 'Analgésico Opióide', defaultDosage: 2, defaultConcentration: 50, maxDays: 5 },
   { name: 'Omeprazol', category: 'Protetor Gástrico', defaultDosage: 1, defaultConcentration: 20, maxDays: 14 },
   { name: 'Maropitant (Cerenia)', category: 'Antiemético', defaultDosage: 1, defaultConcentration: 10, maxDays: 5 },
@@ -202,10 +202,9 @@ export default function VetWorkspaceBeatrizV26() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Salvo automaticamente')
 
-  // Data atual dinâmica do sistema
   const todayObj = new Date()
   const currentYear = todayObj.getFullYear()
-  const currentMonth = todayObj.getMonth() // 0 a 11
+  const currentMonth = todayObj.getMonth()
   const currentDayNum = todayObj.getDate()
 
   const formattedHeaderDate = todayObj.toLocaleDateString('pt-BR', {
@@ -335,7 +334,6 @@ export default function VetWorkspaceBeatrizV26() {
     setChatInput(templateText)
   }
 
-  // 10 OPÇÕES DE MENSAGENS DE APOIO PROFUNDAS E HUMANIZADAS
   const handleGenerateCondolence = (e: React.FormEvent) => {
     e.preventDefault()
     if (!condolenceTutor.trim() || !condolencePet.trim()) return
@@ -364,7 +362,7 @@ export default function VetWorkspaceBeatrizV26() {
         text = `Oi, ${condolenceTutor}. A partida do(a) ${condolencePet} de forma tão precoce dói na alma de um jeito inexplicável. Ele(a) era apenas uma luz que passou rápido por aqui, mas deixou uma marca profunda e inesquecível em nossas vidas. Que você encontre amparo nas lembranças doces e no carinho imenso que recebeu dele(a). Meus sentimentos mais profundos.`
         break
       case 'acolhimento_espiritual':
-        text = `Oi, ${condolenceTutor}. Acredito de verdade que os animais que amamos nunca nos deixam por completo; o espírito deles passa a morar em um cantinho protegido do nosso coração. O(A) ${condolencePet} cumpriu a missão dele(a) com louvor: te ensinou a amar incondicionalmente. Que ele(a) descanse em paz e que você sinta esse abraço invisível de conforto hoje.`
+        text = `Oi, ${condolenceTutor}. Acredito de verdade que os animais que amamos nunca nos deixam por completo; o espírito deles passa a morar em um cantinho protegido do nosso coração. O(A) ${condolencePet} cumpriu a missão dela(e) com louvor: te ensinou a amar incondicionalmente. Que ele(a) descanse em paz e que você sinta esse abraço invisível de conforto hoje.`
         break
       case 'parceiro_de_jornada':
         text = `Oi, ${condolenceTutor}. O(A) ${condolencePet} não era apenas um pet, era seu companheiro de todas as horas, seu confidente e parte da sua história. Perder uma presença tão constante muda os nossos dias, mas o legado de lealdade que ele(a) deixa é eterno. Estou com você nessa dor e desejo muita paz para o seu coração.`
@@ -516,11 +514,20 @@ export default function VetWorkspaceBeatrizV26() {
 
   const currentSelectedDrugObj = customDrugs.find(d => d.name.toLowerCase() === selectedDrugName.toLowerCase())
 
+  // CORREÇÃO DOS ALERTAS COM DIAS DEFINIDOS PARA CADA CLASSE (SEM UNDEFINED)
   const getAdvancedDrugAlert = (drugName: string) => {
     const foundDrug = currentSelectedDrugObj
     const cat = foundDrug ? foundDrug.category.toLowerCase() : ''
     const nameLower = drugName.toLowerCase()
-    const maxD = foundDrug ? foundDrug.maxDays : 7
+    
+    // Se estiver cadastrado, usa o maxDays do objeto; senão, define por categoria com dias seguros rigorosos
+    const maxD = foundDrug ? foundDrug.maxDays : (
+      cat.includes('aine') || nameLower.includes('meloxicam') || nameLower.includes('carprofeno') || nameLower.includes('cetoprofeno') ? 5 :
+      cat.includes('corticoide') || nameLower.includes('prednisona') || nameLower.includes('prednisolona') ? 7 :
+      cat.includes('antibiótico') || nameLower.includes('amoxicilina') || nameLower.includes('doxiciclina') ? 14 :
+      cat.includes('opióide') || nameLower.includes('tramadol') || nameLower.includes('morfina') ? 5 :
+      cat.includes('psicotrópico') || nameLower.includes('fluoxetina') ? 90 : 7
+    )
 
     if (cat.includes('aine') || cat.includes('anti-inflamatório') || nameLower.includes('meloxicam') || nameLower.includes('carprofeno') || nameLower.includes('cetoprofeno')) {
       return {
@@ -530,24 +537,30 @@ export default function VetWorkspaceBeatrizV26() {
     }
     if (cat.includes('corticoide') || cat.includes('esteroidal') || nameLower.includes('prednisona') || nameLower.includes('prednisolona') || nameLower.includes('dexametasona')) {
       return {
-        title: `⚠️ ALERTA DE CLASSE (CORTICOIDE): RESTRIÇÃO E DESMAME`,
+        title: `⚠️ ALERTA DE CLASSE (CORTICOIDE): RESTRIÇÃO E DESMAME (${maxD} DIAS)`,
         desc: `Corticoides exigem desmame gradual se o uso ultrapassar ${maxD} dias para evitar insuficiência adrenal secundária. Proibida a coadministração com AINEs.`
+      }
+    }
+    if (cat.includes('opióide') || nameLower.includes('tramadol') || nameLower.includes('metadona') || nameLower.includes('codeína')) {
+      return {
+        title: `⚠️ ALERTA DE ANALGÉSICO OPIÓIDE: MÁXIMO DE ${maxD} DIAS`,
+        desc: `Fármacos opióides requerem reavaliação constante da dor e sedação. Uso contínuo sem supervisão pode causar constipação severa, depressão respiratória leve ou tolerância. Limite recomendado de segurança: ${maxD} dias.`
       }
     }
     if (cat.includes('antibiótico') || nameLower.includes('amoxicilina') || nameLower.includes('doxiciclina')) {
       return {
-        title: `⚠️ ALERTA DE ANTIBIOTICOTERAPIA (${maxD} DIAS)`,
+        title: `⚠️ ALERTA DE ANTIBIOTICOTERAPIA: CICLO DE ${maxD} DIAS`,
         desc: `Respeite o ciclo completo de ${maxD} dias prescrito para evitar resistência bacteriana precoce. Recomenda-se acompanhamento clínico ao término.`
       }
     }
     if (cat.includes('psicotrópico') || nameLower.includes('fluoxetina')) {
       return {
-        title: '⚠️ ALERTA COMPORTAMENTAL / NEUROLÓGICO (FLUOXETINA)',
-        desc: 'Uso prolongado (até 90 dias ou conforme protocolo). Ajustar rigorosamente a dose por espécie: Cães (1,0 mg/kg) vs. Gatos (0,5 mg/kg). Atenção à interrupção abrupta e monitoramento de anorexia ou alterações comportamentais.'
+        title: `⚠️ ALERTA COMPORTAMENTAL / NEUROLÓGICO (FLUOXETINA - ${maxD} DIAS)`,
+        desc: `Uso prolongado (até ${maxD} dias ou conforme protocolo). Ajustar rigorosamente a dose por espécie: Cães (1,0 mg/kg) vs. Gatos (0,5 mg/kg). Atenção à interrupção abrupta e monitoramento de anorexia.`
       }
     }
     return {
-      title: `ℹ️ ORIENTAÇÃO DE USO CONTÍNUO`,
+      title: `ℹ️ ORIENTAÇÃO DE USO CONTÍNUO (${maxD} DIAS)`,
       desc: `Limite máximo de segurança recomendado para esta prescrição: ${maxD} dias. Avalie reavaliação clínica após este período.`
     }
   }
