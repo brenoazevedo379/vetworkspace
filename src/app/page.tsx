@@ -205,7 +205,7 @@ export default function VetWorkspaceBeatrizV26() {
   // Data atual dinâmica do sistema
   const todayObj = new Date()
   const currentYear = todayObj.getFullYear()
-  const currentMonth = todayObj.getMonth() // 0 a 11 (8 = Agosto)
+  const currentMonth = todayObj.getMonth() // 0 a 11
   const currentDayNum = todayObj.getDate()
 
   const formattedHeaderDate = todayObj.toLocaleDateString('pt-BR', {
@@ -215,7 +215,6 @@ export default function VetWorkspaceBeatrizV26() {
     year: 'numeric'
   })
 
-  // String YYYY-MM-DD dinâmica para hoje
   const padZero = (n: number) => (n < 10 ? `0${n}` : `${n}`)
   const todayDateKey = `${currentYear}-${padZero(currentMonth + 1)}-${padZero(currentDayNum)}`
 
@@ -255,7 +254,7 @@ export default function VetWorkspaceBeatrizV26() {
 
   const [condolenceTutor, setCondolenceTutor] = useState('')
   const [condolencePet, setCondolencePet] = useState('')
-  const [condolenceTone, setCondolenceTone] = useState<'acolhedor' | 'curto' | 'luta_longa'>('acolhedor')
+  const [condolenceTone, setCondolenceTone] = useState<string>('acolhedor')
   const [generatedCondolence, setGeneratedCondolence] = useState('')
 
   useEffect(() => {
@@ -336,17 +335,45 @@ export default function VetWorkspaceBeatrizV26() {
     setChatInput(templateText)
   }
 
+  // 10 OPÇÕES DE MENSAGENS DE APOIO PROFUNDAS E HUMANIZADAS
   const handleGenerateCondolence = (e: React.FormEvent) => {
     e.preventDefault()
     if (!condolenceTutor.trim() || !condolencePet.trim()) return
 
     let text = ''
-    if (condolenceTone === 'curto') {
-      text = `Oi, ${condolenceTutor}, aqui é a Dra. Beatriz. Sei que nenhuma palavra tira a dor da perda do ${condolencePet}, mas queria te dizer que ele foi muito amado até o último segundo. Fica com Deus, e se precisar de qualquer coisa, tô por aqui.`
-    } else if (condolenceTone === 'luta_longa') {
-      text = `Oi, ${condolenceTutor}, aqui é a Dra. Beatriz. Eu relutei em te mandar mensagem porque a dor é imensa, mas o ${condolencePet} lutou bravamente e agora descansou em paz. Ele foi um verdadeiro guerreiro e teve a melhor tutora que podia ter. Um abraço bem forte.`
-    } else {
-      text = `Oi, ${condolenceTutor}, aqui é a Dra. Beatriz. Queria te mandar um abraço bem apertado pela partida do ${condolencePet}. Ele foi tão especial e alegrou tantos dias nossos na clínica. Que você encontre conforto nas lembranças felizes que deixou. Tô por aqui para o que precisar.`
+    switch (condolenceTone) {
+      case 'acolhedor':
+        text = `Oi, ${condolenceTutor}. É com o coração apertado que te escrevo. Eu sei que nenhuma palavra neste momento é capaz de preencher o vazio que o(a) ${condolencePet} deixa, mas eu precisava te dizer que foi uma honra ter cruzado o caminho dele(a). Ele(a) foi extremamente amado(a), cuidado(a) e teve ao lado dele(a) a melhor família que poderia existir. Guarde no coração a alegria que ele(a) espalhou. Um abraço muito forte e sinta-se abraçado(a) por toda a nossa equipe.`
+        break
+      case 'luta_longa':
+        text = `Oi, ${condolenceTutor}. Demorei para te mandar mensagem porque a dor da despedida é imensa, mas o(a) ${condolencePet} lutou bravamente até o último segundo. Ele(a) foi um verdadeiro guerreiro(a), e você esteve firme ao lado dele(a) em cada etapa dessa jornada difícil. Agora, ele(a) descansou em paz, livre de qualquer dor, levando consigo todo o amor do mundo que você dedicou. Fique com a certeza de que você fez absolutamente tudo o que era possível. Estou aqui para o que você precisar.`
+        break
+      case 'profundo':
+        text = `Oi, ${condolenceTutor}. A partida do(a) ${condolencePet} deixa um silêncio muito forte na rotina, mas a verdade é que vidas como a dele(a) não passam pelas nossas vidas por acaso; elas nos transformam para sempre. O amor que vocês construíram é eterno e transcende a ausência física. Que o tempo traga um pouco de conforto e que fiquem apenas as lembranças das tardes felizes, dos olhares cúmplices e de todo o carinho compartilhado. Meus mais sinceros sentimentos.`
+        break
+      case 'curto_respeitoso':
+        text = `Oi, ${condolenceTutor}, aqui é a Dra. Beatriz. Só queria te enviar um abraço bem apertado e dizer que sinto muito pela partida do(a) ${condolencePet}. Ele(a) foi muito especial e marcou muito a todos nós. Fique com Deus e conte comigo para o que precisar.`
+        break
+      case 'idoso_gratidao':
+        text = `Oi, ${condolenceTutor}. O(A) ${condolencePet} teve uma vida longa, linda e repleta de amor ao seu lado. Você cuidou dele(a) com uma dedicação admirável do primeiro ao último dia de sua velhice. Sei que a saudade vai ser imensa, mas que privilégio foi poder compartilhar tantos anos de companheirismo com ele(a). Um abraço carinhoso e muita força nesse momento.`
+        break
+      case 'perda_repentina':
+        text = `Oi, ${condolenceTutor}. Estou sem palavras para expressar o quanto sinto pela perda tão repentina do(a) ${condolencePet}. A dor de uma partida sem aviso é dilacerante, mas quero que saiba que ele(a) partiu sabendo o quanto era querido(a) por você. Se precisar desabafar ou de qualquer apoio, minha porta e meu coração estão abertos.`
+        break
+      case 'filhote_precoce':
+        text = `Oi, ${condolenceTutor}. A partida do(a) ${condolencePet} de forma tão precoce dói na alma de um jeito inexplicável. Ele(a) era apenas uma luz que passou rápido por aqui, mas deixou uma marca profunda e inesquecível em nossas vidas. Que você encontre amparo nas lembranças doces e no carinho imenso que recebeu dele(a). Meus sentimentos mais profundos.`
+        break
+      case 'acolhimento_espiritual':
+        text = `Oi, ${condolenceTutor}. Acredito de verdade que os animais que amamos nunca nos deixam por completo; o espírito deles passa a morar em um cantinho protegido do nosso coração. O(A) ${condolencePet} cumpriu a missão dele(a) com louvor: te ensinou a amar incondicionalmente. Que ele(a) descanse em paz e que você sinta esse abraço invisível de conforto hoje.`
+        break
+      case 'parceiro_de_jornada':
+        text = `Oi, ${condolenceTutor}. O(A) ${condolencePet} não era apenas um pet, era seu companheiro de todas as horas, seu confidente e parte da sua história. Perder uma presença tão constante muda os nossos dias, mas o legado de lealdade que ele(a) deixa é eterno. Estou com você nessa dor e desejo muita paz para o seu coração.`
+        break
+      case 'apoio_clinico_humano':
+        text = `Oi, ${condolenceTutor}. Acompanhei de perto o quanto você se dedicou, lutou e fez por ele(a). Quero que você tire da sua mente qualquer sentimento de culpa e guarde apenas o orgulho de ter sido o melhor tutor(a) que o(a) ${condolencePet} poderia ter escolhido na vida. Ele(a) foi muito feliz ao seu lado. Um abraço cheio de respeito e admiração pelo seu cuidado.`
+        break
+      default:
+        text = `Oi, ${condolenceTutor}. É com o coração apertado que te escrevo. Sinto muito pela perda do(a) ${condolencePet}. Ele(a) foi muito amado(a) e deixou uma marca linda em nossas vidas. Fique bem.`
     }
     setGeneratedCondolence(text)
   }
@@ -858,7 +885,6 @@ export default function VetWorkspaceBeatrizV26() {
 
   const filteredDrugs = customDrugs.filter(d => d.name.toLowerCase().includes(drugSearchQuery.toLowerCase()) || d.category.toLowerCase().includes(drugSearchQuery.toLowerCase()))
 
-  // Geração dinâmica dos dias do mês atual (Ex: Agosto de 2026)
   const daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
   const calendarDays = Array.from({ length: daysInCurrentMonth }, (_, i) => {
     const dayNum = i + 1
@@ -1344,7 +1370,7 @@ export default function VetWorkspaceBeatrizV26() {
                   <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><HeartHandshake className="w-6 h-6" /></div>
                   <div>
                     <h2 className="text-base font-extrabold text-pink-950">Gerador de Mensagem de Apoio (Condolências)</h2>
-                    <p className="text-xs text-pink-500 font-medium">Crie textos humanizados, acolhedores e naturais para enviar aos tutores em momentos de perda</p>
+                    <p className="text-xs text-pink-500 font-medium">10 opções de textos altamente humanizados, profundos e sensíveis para tutores em luto</p>
                   </div>
                 </div>
 
@@ -1361,11 +1387,18 @@ export default function VetWorkspaceBeatrizV26() {
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold text-stone-700 block mb-1">Tom da Mensagem</label>
-                    <select value={condolenceTone} onChange={(e) => setCondolenceTone(e.target.value as any)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
-                      <option value="acolhedor">Acolhedor e Carinhoso (Padrão)</option>
-                      <option value="curto">Mais Curto e Direto ao Ponto</option>
-                      <option value="luta_longa">Após Longa Batalha / Doença</option>
+                    <label className="text-xs font-bold text-stone-700 block mb-1">Tom / Contexto da Mensagem (10 Opções)</label>
+                    <select value={condolenceTone} onChange={(e) => setCondolenceTone(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                      <option value="acolhedor">1. Acolhedor e Sensível (Foco na gratidão e amor)</option>
+                      <option value="luta_longa">2. Após Longa Batalha / Doença Crônica (Foco na coragem)</option>
+                      <option value="profundo">3. Profundo e Reflexivo (Transformação e vínculo eterno)</option>
+                      <option value="curto_respeitoso">4. Curto, Respeitoso e Direto ao Ponto</option>
+                      <option value="idoso_gratidao">5. Pet Idoso / Longa Vida (Celebração da velhice bem cuidada)</option>
+                      <option value="perda_repentina">6. Perda Repentina / Acidente (Apoio em choque súbito)</option>
+                      <option value="filhote_precoce">7. Partida Precoce / Filhote (Dor do vazio repentino)</option>
+                      <option value="acolhimento_espiritual">8. Acolhimento Espiritual e Suave (Missão cumprida)</option>
+                      <option value="parceiro_de_jornada">9. Foco no Companheirismo (Amigo fiel e confidente)</option>
+                      <option value="apoio_clinico_humano">10. Apoio Clínico Humano (Alívio de culpa e exaltação do tutor)</option>
                     </select>
                   </div>
 
