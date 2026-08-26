@@ -203,7 +203,6 @@ export default function VetWorkspaceBeatrizV26() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Conectando...')
   
-  // TRAVA DE SEGURANÇA CONTRA AMNÉSIA AO RECARREGAR (F5)
   const [isDataLoaded, setIsDataLoaded] = useState(false)
 
   const todayObj = new Date()
@@ -576,7 +575,6 @@ export default function VetWorkspaceBeatrizV26() {
   const [eventDesc, setEventDesc] = useState('')
   const [eventTime, setEventTime] = useState('08:00')
 
-  // FUNÇÃO AUXILIAR PARA APLICAR OS DADOS DO SUPABASE NO ESTADO
   const applyDataToState = (d: any) => {
     if (d.items) setItems(d.items)
     if (d.patients) setPatients(d.patients)
@@ -588,7 +586,6 @@ export default function VetWorkspaceBeatrizV26() {
     if (d.chatSessions) setChatSessions(d.chatSessions)
   }
 
-  // 1. CARREGAMENTO INICIAL DO SUPABASE + REALTIME (COM LIBERAÇÃO DA TRAVA)
   useEffect(() => {
     async function loadFromSupabase() {
       try {
@@ -601,14 +598,13 @@ export default function VetWorkspaceBeatrizV26() {
         if (data && data.data) {
           applyDataToState(data.data)
           setSaveStatus('Sincronizado')
-          setIsDataLoaded(true) // LIBERA A TRAVA APÓS PUXAR DA NUVEM
+          setIsDataLoaded(true)
           return
         }
       } catch (err) {
         console.log('Nuvem vazia ou erro de conexão, tentando fallback local...')
       }
 
-      // Fallback para o localStorage se a nuvem falhar
       if (typeof window !== 'undefined') {
         try {
           const savedItems = localStorage.getItem('vet_items_v19')
@@ -631,7 +627,7 @@ export default function VetWorkspaceBeatrizV26() {
         } catch (e) {}
       }
 
-      setIsDataLoaded(true) // LIBERA A TRAVA MESMO SE USAR O LOCAL
+      setIsDataLoaded(true)
       setSaveStatus('Pronto para salvar')
     }
 
@@ -661,9 +657,8 @@ export default function VetWorkspaceBeatrizV26() {
     }
   }, [])
 
-  // 2. SALVAMENTO AUTOMÁTICO PROTEGIDO PELA TRAVA 'isDataLoaded'
   useEffect(() => {
-    if (!isDataLoaded) return // PROIBIDO SALVAR ANTES DE CARREGAR DA NUVEM (EVITA APAGAR DADOS)
+    if (!isDataLoaded) return
     if (typeof window === 'undefined') return
 
     localStorage.setItem('vet_items_v19', JSON.stringify(items))
@@ -908,17 +903,17 @@ export default function VetWorkspaceBeatrizV26() {
                 <div className="flex items-center gap-2.5 truncate">
                   <FileText className={`w-4 h-4 ${isSelected ? 'text-white' : 'text-pink-500'}`} />
                   <span className="text-xs truncate">{item.title}</span>
-              </div>
-              <button title="Excluir Página" onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className={`opacity-0 group-hover:opacity-100 p-1 ${isSelected ? 'text-white/80 hover:text-white' : 'text-stone-400 hover:text-red-500'}`}>
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
             </div>
-          )
-          }
-        })}
-      </div>
-    )
-  }
+            <button title="Excluir Página" onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className={`opacity-0 group-hover:opacity-100 p-1 ${isSelected ? 'text-white/80 hover:text-white' : 'text-stone-400 hover:text-red-500'}`}>
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )
+        }
+      })}
+    </div>
+  )
+}
 
   const handleSendAiMessage = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -1116,7 +1111,7 @@ export default function VetWorkspaceBeatrizV26() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-8 lg:px-12 space-y-6">
-         
+        
         {activeTab === 'painel' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -2056,4 +2051,5 @@ export default function VetWorkspaceBeatrizV26() {
 
     </div>
   </div>
-
+)
+}
