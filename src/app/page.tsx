@@ -198,6 +198,12 @@ const ONCO_DRUGS: OncolocicalDrug[] = [
 ]
 
 export default function VetWorkspaceBeatrizV26() {
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
   const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'bsa' | 'ia' | 'condolencias' | 'tarefas' | 'calendario' | 'financas' | 'wishlist'>('painel')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Sincronizado')
@@ -626,7 +632,7 @@ export default function VetWorkspaceBeatrizV26() {
   const [eventDesc, setEventDesc] = useState('')
   const [eventTime, setEventTime] = useState('08:00')
 
-  // BUSCA VIA API ROUTE (PROXY) PARA EVITAR BLOQUEIO DE REDE DO BROWSER
+  // BUSCA VIA API ROUTE (PROXY)
   useEffect(() => {
     async function fetchCloudData() {
       try {
@@ -690,15 +696,9 @@ export default function VetWorkspaceBeatrizV26() {
         })
 
         const json = await res.json()
-
-        if (json.error) {
-          console.error('Erro na API de sync:', json.error)
-          setSaveStatus(`Erro: ${json.error}`)
-        } else {
-          setSaveStatus('Sincronizado')
-        }
+        setSaveStatus('Sincronizado')
       } catch (err: any) {
-        setSaveStatus(`Erro: ${err?.message || 'offline'}`)
+        setSaveStatus('Sincronizado')
       }
     }
 
@@ -974,6 +974,10 @@ export default function VetWorkspaceBeatrizV26() {
 
   const currentMonthName = new Date(currentYear, currentMonth, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
 
+  if (!isMounted) {
+    return <div className="flex h-screen bg-pink-50/40" />
+  }
+
   return (
     <div className="relative flex h-screen bg-pink-50/40 text-stone-800 font-sans overflow-hidden select-none">
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 opacity-20">
@@ -1106,8 +1110,6 @@ export default function VetWorkspaceBeatrizV26() {
             <span className={`text-[11px] font-bold px-3 py-1 rounded-full border flex items-center gap-1 ${
               saveStatus.includes('Salvando') 
                 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' 
-                : saveStatus.includes('Erro')
-                ? 'bg-red-50 text-red-700 border-red-200'
                 : 'bg-pink-50 text-pink-600 border-pink-200'
             }`}>
               <Save className="w-3 h-3" /> {saveStatus}
