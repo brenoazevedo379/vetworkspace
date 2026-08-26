@@ -725,12 +725,12 @@ export default function VetWorkspaceBeatrizV26() {
 
         if (error) {
           console.error('Erro detalhado do Supabase:', error.message, error.details)
-          setSaveStatus('Erro ao sincronizar')
+          setSaveStatus(`Erro: ${error.message}`)
         } else {
           setSaveStatus('Sincronizado')
         }
-      } catch (err) {
-        setSaveStatus('Salvo localmente (offline)')
+      } catch (err: any) {
+        setSaveStatus(`Erro: ${err?.message || 'offline'}`)
       }
     }
 
