@@ -469,9 +469,9 @@ export default function VetWorkspaceBeatrizV26() {
         </script>
       </body>
       </html>
-    `
-    printWindow.document.write(htmlContent)
-    printWindow.document.close()
+  `
+  printWindow.document.write(htmlContent)
+  printWindow.document.close()
   }
 
   const [calcMode, setCalcMode] = useState<'dose' | 'fluido'>('dose')
@@ -573,7 +573,19 @@ export default function VetWorkspaceBeatrizV26() {
   const [eventDesc, setEventDesc] = useState('')
   const [eventTime, setEventTime] = useState('08:00')
 
-  // 1. CARREGAMENTO INICIAL DO SUPABASE (Sincronizado entre computadores)
+  // FUNÇÃO AUXILIAR PARA ATUALIZAR OS ESTADOS COM OS DADOS DO SUPABASE
+  const applyDataToState = (d: any) => {
+    if (d.items) setItems(d.items)
+    if (d.patients) setPatients(d.patients)
+    if (d.customDrugs) setCustomDrugs(d.customDrugs)
+    if (d.monthlyIncome !== undefined) setMonthlyIncome(d.monthlyIncome)
+    if (d.finances) setFinances(d.finances)
+    if (d.tasks) setTasks(d.tasks)
+    if (d.events) setEvents(d.events)
+    if (d.chatSessions) setChatSessions(d.chatSessions)
+  }
+
+  // 1. CARREGAMENTO INICIAL + ESCUTA EM TEMPO REAL (REALTIME)
   useEffect(() => {
     async function loadFromSupabase() {
       try {
@@ -584,23 +596,15 @@ export default function VetWorkspaceBeatrizV26() {
           .single()
 
         if (data && data.data) {
-          const d = data.data
-          if (d.items) setItems(d.items)
-          if (d.patients) setPatients(d.patients)
-          if (d.customDrugs) setCustomDrugs(d.customDrugs)
-          if (d.monthlyIncome !== undefined) setMonthlyIncome(d.monthlyIncome)
-          if (d.finances) setFinances(d.finances)
-          if (d.tasks) setTasks(d.tasks)
-          if (d.events) setEvents(d.events)
-          if (d.chatSessions) setChatSessions(d.chatSessions)
-          setSaveStatus('Sincronizado com a nuvem')
+          applyDataToState(data.data)
+          setSaveStatus('Sincronizado em tempo real')
           return
         }
       } catch (err) {
         console.log('Sem dados na nuvem ou erro de conexão, carregando do localStorage...')
       }
 
-      // Fallback para o localStorage se não houver dados no Supabase
+      // Fallback para o localStorage
       if (typeof window !== 'undefined') {
         try {
           const savedItems = localStorage.getItem('vet_items_v19')
@@ -625,13 +629,36 @@ export default function VetWorkspaceBeatrizV26() {
     }
 
     loadFromSupabase()
+
+    // Inscreve para escutar alterações em tempo real vindas de qualquer outro computador
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'app_data',
+          filter: 'id=eq.beatriz_workspace_v26'
+        },
+        (payload: any) => {
+          if (payload.new && payload.new.data) {
+            applyDataToState(payload.new.data)
+            setSaveStatus('Atualizado ao vivo')
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
-  // 2. SALVAMENTO AUTOMÁTICO (Local + Supabase em Tempo Real)
+  // 2. SALVAMENTO AUTOMÁTICO (Local + Supabase com Debounce)
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    // Salva localmente para uso instantâneo e offline
     localStorage.setItem('vet_items_v19', JSON.stringify(items))
     localStorage.setItem('vet_patients_v18', JSON.stringify(patients))
     localStorage.setItem('vet_custom_drugs_v26', JSON.stringify(customDrugs))
@@ -643,7 +670,6 @@ export default function VetWorkspaceBeatrizV26() {
 
     setSaveStatus('Salvando...')
 
-    // Sincroniza com o Supabase com debounce de 1 segundo
     const syncToSupabase = async () => {
       try {
         const payload = {
@@ -875,11 +901,11 @@ export default function VetWorkspaceBeatrizV26() {
                 <div className="flex items-center gap-2.5 truncate">
                   <FileText className={`w-4 h-4 ${isSelected ? 'text-white' : 'text-pink-500'}`} />
                   <span className="text-xs truncate">{item.title}</span>
+              </div>
+              <button title="Excluir Página" onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className={`opacity-0 group-hover:opacity-100 p-1 ${isSelected ? 'text-white/80 hover:text-white' : 'text-stone-400 hover:text-red-500'}`}>
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             </div>
-            <button title="Excluir Página" onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className={`opacity-0 group-hover:opacity-100 p-1 ${isSelected ? 'text-white/80 hover:text-white' : 'text-stone-400 hover:text-red-500'}`}>
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
           )
           }
         })}
@@ -1920,7 +1946,7 @@ export default function VetWorkspaceBeatrizV26() {
                   }} className="space-y-3">
                     <div className="grid grid-cols-3 gap-2">
                       <input type="text" placeholder="Título do Evento / Matéria" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} className="col-span-2 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
-                      <input type="time" value={eventTime} onChange={(e) => setEventTime(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                      <input type="time" value={eventTime} onChange={(e) => setEventTime(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
                     </div>
                     <textarea placeholder="Detalhes ou notas do compromisso..." value={eventDesc} onChange={(e) => setEventDesc(e.target.value)} rows={2} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium resize-none" />
                     <button type="submit" className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md cursor-pointer">Salvar na Agenda</button>
