@@ -175,6 +175,7 @@ interface PersonalPet {
   id: string
   name: string
   species: string
+  age: string
   tribute: string
   photoUrl: string
   isMemorial: boolean
@@ -424,6 +425,7 @@ export default function VetWorkspaceBeatrizV26() {
   })
   const [newPetBiaName, setNewPetBiaName] = useState('')
   const [newPetBiaSpecies, setNewPetBiaSpecies] = useState('Canino / Felino')
+  const [newPetBiaAge, setNewPetBiaAge] = useState('')
   const [newPetBiaTribute, setNewPetBiaTribute] = useState('')
   const [newPetBiaMemorial, setNewPetBiaMemorial] = useState(false)
   const [newPetBiaPhotoUrl, setNewPetBiaPhotoUrl] = useState('')
@@ -435,12 +437,14 @@ export default function VetWorkspaceBeatrizV26() {
       id: Date.now().toString(),
       name: newPetBiaName.trim(),
       species: newPetBiaSpecies.trim(),
+      age: newPetBiaAge.trim() || 'Idade não informada',
       tribute: newPetBiaTribute.trim() || 'Amor eterno',
       photoUrl: newPetBiaPhotoUrl || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=400&auto=format&fit=crop&q=80',
       isMemorial: newPetBiaMemorial
     }
     setPersonalPets([newP, ...personalPets])
     setNewPetBiaName('')
+    setNewPetBiaAge('')
     setNewPetBiaTribute('')
     setNewPetBiaPhotoUrl('')
     setNewPetBiaMemorial(false)
@@ -492,7 +496,6 @@ export default function VetWorkspaceBeatrizV26() {
 
   const totalShiftsAmount = shifts.reduce((acc, s) => acc + s.baseRate + s.commission, 0)
 
-  // Declaração dos states em falta para a calculadora BSA & Oncológicos
   const [bsaWeightKg, setBsaWeightKg] = useState<string>('')
   const [bsaSpecies, setBsaSpecies] = useState<'cao' | 'gato'>('cao')
 
@@ -1481,7 +1484,7 @@ export default function VetWorkspaceBeatrizV26() {
                 </div>
               </div>
 
-              {/* MURAL DE PETS & MEMÓRIAS DA BEATRIZ */}
+              {/* MURAL DE PETS & MEMÓRIAS DA BEATRIZ (COM CAMPO DE IDADE) */}
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-pink-100 pb-4 gap-4">
                   <div>
@@ -1489,17 +1492,18 @@ export default function VetWorkspaceBeatrizV26() {
                       <Heart className="w-4 h-4 text-pink-500 fill-pink-200" /> Cantinho Especial & Mural de Homenagem aos Pets
                     </div>
                     <h2 className="text-xl font-extrabold text-pink-950 mt-1">A Família de Quatro Patas da Dra. Beatriz (Atuais e Eternos)</h2>
-                    <p className="text-xs text-stone-500 mt-0.5">Cadastre seus pets enviando uma foto real do arquivo do seu computador ou informando o link.</p>
+                    <p className="text-xs text-stone-500 mt-0.5">Cadastre seus pets enviando foto real, informando a idade e a homenagem.</p>
                   </div>
 
                   <input type="file" ref={petPhotoInputRef} onChange={handlePetPhotoUpload} className="hidden" accept=".png,.jpg,.jpeg" />
 
                   <form onSubmit={handleAddPersonalPet} className="flex flex-wrap items-center gap-2 bg-pink-50/60 p-3 rounded-2xl border border-pink-200">
-                    <input type="text" placeholder="Nome do Pet" value={newPetBiaName} onChange={(e) => setNewPetBiaName(e.target.value)} className="bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs font-medium text-pink-950 focus:outline-none w-32" required />
-                    <input type="text" placeholder="Homenagem / Descrição" value={newPetBiaTribute} onChange={(e) => setNewPetBiaTribute(e.target.value)} className="bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs font-medium text-pink-950 focus:outline-none w-44" />
+                    <input type="text" placeholder="Nome do Pet" value={newPetBiaName} onChange={(e) => setNewPetBiaName(e.target.value)} className="bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs font-medium text-pink-950 focus:outline-none w-28" required />
+                    <input type="text" placeholder="Idade (ex: 5 anos)" value={newPetBiaAge} onChange={(e) => setNewPetBiaAge(e.target.value)} className="bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs font-medium text-pink-950 focus:outline-none w-28" />
+                    <input type="text" placeholder="Homenagem / Descrição" value={newPetBiaTribute} onChange={(e) => setNewPetBiaTribute(e.target.value)} className="bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs font-medium text-pink-950 focus:outline-none w-36" />
                     
                     <div className="flex items-center gap-1">
-                      <input type="text" placeholder="URL da Foto ou faça upload" value={newPetBiaPhotoUrl} onChange={(e) => setNewPetBiaPhotoUrl(e.target.value)} className="bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs font-medium text-pink-950 focus:outline-none w-36" />
+                      <input type="text" placeholder="URL da Foto ou faça upload" value={newPetBiaPhotoUrl} onChange={(e) => setNewPetBiaPhotoUrl(e.target.value)} className="bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs font-medium text-pink-950 focus:outline-none w-32" />
                       <button 
                         type="button" 
                         onClick={() => petPhotoInputRef.current?.click()} 
@@ -1514,7 +1518,7 @@ export default function VetWorkspaceBeatrizV26() {
                       <input type="checkbox" checked={newPetBiaMemorial} onChange={(e) => setNewPetBiaMemorial(e.target.checked)} className="accent-pink-500 w-3.5 h-3.5" /> Memorial 🕊️
                     </label>
                     <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1">
-                      <Plus className="w-3.5 h-3.5" /> Adicionar ao Mural
+                      <Plus className="w-3.5 h-3.5" /> Adicionar
                     </button>
                   </form>
                 </div>
@@ -1525,7 +1529,7 @@ export default function VetWorkspaceBeatrizV26() {
                       <Cat className="w-8 h-8" />
                     </div>
                     <h3 className="text-sm font-bold text-pink-950">Seu mural está aguardando as primeiras fotos!</h3>
-                    <p className="text-xs text-stone-500 max-w-md mx-auto">Use o botão de upload para enviar fotos reais dos seus bichinhos ou adicione os pets que já partiram.</p>
+                    <p className="text-xs text-stone-500 max-w-md mx-auto">Use o botão de upload para enviar fotos reais dos seus bichinhos junto com a idade e homenagens.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -1546,7 +1550,7 @@ export default function VetWorkspaceBeatrizV26() {
                           <div>
                             <div className="flex items-center justify-between">
                               <h3 className="font-extrabold text-sm text-pink-950">{pet.name}</h3>
-                              <span className="text-[10px] font-semibold text-pink-500 bg-pink-50 px-2 py-0.5 rounded-lg">{pet.species}</span>
+                              <span className="text-[10px] font-semibold text-pink-600 bg-pink-50 px-2 py-0.5 rounded-lg">{pet.age}</span>
                             </div>
                             <p className="text-xs text-stone-600 mt-1 italic leading-relaxed">"{pet.tribute}"</p>
                           </div>
@@ -1758,7 +1762,6 @@ export default function VetWorkspaceBeatrizV26() {
                   </div>
                 </div>
 
-                {/* ABAS DO ESPAÇO PESSOAL (SEM PALAVRAS CRUZADAS) */}
                 <div className="flex flex-wrap items-center gap-2 border-b border-pink-100 pb-3">
                   <button onClick={() => setPersonalSubTab('skincare')} className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 ${personalSubTab === 'skincare' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
                     <Sparkle className="w-3.5 h-3.5" /> Skincare
