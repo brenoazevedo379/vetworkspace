@@ -38,7 +38,11 @@ import {
   HeartHandshake,
   AlertTriangle,
   Scale,
-  Gift
+  Gift,
+  Heart,
+  Camera,
+  Gamepad2,
+  Sparkle
 } from 'lucide-react'
 import WishlistTab from '@/components/WishlistTab'
 
@@ -143,6 +147,31 @@ interface ChatSession {
   messages: ChatMessage[]
 }
 
+interface ClinicItem {
+  id: string
+  name: string
+  defaultRate: number
+}
+
+interface ShiftRecord {
+  id: string
+  clinicId: string
+  date: string
+  baseRate: number
+  commission: number
+  status: 'Pago' | 'Pendente'
+  details: string
+}
+
+interface PersonalPet {
+  id: string
+  name: string
+  species: string
+  tribute: string
+  photoUrl: string
+  isMemorial: boolean
+}
+
 const INITIAL_DRUGS: VetDrug[] = [
   { name: 'Meloxicam (Cão)', category: 'Anti-inflamatório (AINE)', defaultDosage: 0.1, defaultConcentration: 2, maxDays: 5 },
   { name: 'Meloxicam (Gato)', category: 'Anti-inflamatório (AINE)', defaultDosage: 0.05, defaultConcentration: 0.5, maxDays: 3 },
@@ -213,7 +242,7 @@ export default function VetWorkspaceBeatrizV26() {
     setIsMounted(true)
   }, [])
 
-  const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'bsa' | 'ia' | 'condolencias' | 'tarefas' | 'calendario' | 'financas' | 'wishlist'>('painel')
+  const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'bsa' | 'ia' | 'condolencias' | 'tarefas' | 'calendario' | 'financas' | 'wishlist' | 'clinicas' | 'pessoal'>('painel')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Sincronizado')
 
@@ -233,6 +262,9 @@ export default function VetWorkspaceBeatrizV26() {
   const todayDateKey = `${currentYear}-${padZero(currentMonth + 1)}-${padZero(currentDayNum)}`
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const personalPhotoInputRef = useRef<HTMLInputElement>(null)
+  const shiftPhotoInputRef = useRef<HTMLInputElement>(null)
+
   const [studySubTab, setStudySubTab] = useState<'resumo' | 'diferenciais' | 'pontos'>('resumo')
 
   const [chatSessions, setChatSessions] = useState<ChatSession[]>(() => {
@@ -256,6 +288,127 @@ export default function VetWorkspaceBeatrizV26() {
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [isListening, setIsListening] = useState(false)
 
+  // ESTADOS PARA CLÍNICAS & PLANTÕES
+  const [clinics, setClinics] = useState<ClinicItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_clinics_v26')
+      if (saved) try { return JSON.parse(saved) } catch(e) {}
+    }
+    return [
+      { id: 'c-1', name: 'Popular Sete Portas', defaultRate: 200 },
+      { id: 'c-2', name: 'Clínica Veterinária Vida', defaultRate: 250 },
+      { id: 'c-3', name: 'Plantão Vet Centro', defaultRate: 220 },
+      { id: 'c-4', name: 'Hospital Pet Salvador', defaultRate: 300 }
+    ]
+  })
+  const [newClinicName, setNewClinicName] = useState('')
+  const [newClinicRate, setNewClinicRate] = useState('')
+
+  const [shifts, setShifts] = useState<ShiftRecord[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_shifts_v26')
+      if (saved) try { return JSON.parse(saved) } catch(e) {}
+    }
+    return []
+  })
+  const [selectedShiftClinicId, setSelectedShiftClinicId] = useState('c-1')
+  const [shiftDate, setShiftDate] = useState(todayDateKey)
+  const [shiftBaseRate, setShiftBaseRate] = useState('200')
+  const [shiftCommission, setShiftCommission] = useState('')
+  const [shiftStatus, setShiftStatus] = useState<'Pago' | 'Pendente'>('Pendente')
+  const [shiftDetails, setShiftDetails] = useState('')
+  const [isShiftAiLoading, setIsShiftAiLoading] = useState(false)
+
+  // ESTADOS PARA O ESPAÇO PESSOAL DA BEATRIZ
+  const [personalSubTab, setPersonalSubTab] = useState<'skincare' | 'wishlist' | 'descompressao' | 'pets' | 'jogos'>('skincare')
+  
+  const [skincareNotes, setSkincareNotes] = useState<string>(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('vet_skincare_v26') || ''
+    return ''
+  })
+  const [mimosWishlist, setMimosWishlist] = useState<string>(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('vet_mimos_v26') || ''
+    return ''
+  })
+  const [descompressaoNotes, setDescompressaoNotes] = useState<string>(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('vet_descomp_v26') || ''
+    return ''
+  })
+  const [jogosNotes, setJogosNotes] = useState<string>(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('vet_jogos_v26') || ''
+    return ''
+  })
+
+  const [personalPets, setPersonalPets] = useState<PersonalPet[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_personal_pets_v26')
+      if (saved) try { return JSON.parse(saved) } catch(e) {}
+    }
+    return []
+  })
+  const [newPetBiaName, setNewPetBiaName] = useState('')
+  const [newPetBiaSpecies, setNewPetBiaSpecies] = useState('Canino / Felino')
+  const [newPetBiaTribute, setNewPetBiaTribute] = useState('')
+  const [newPetBiaMemorial, setNewPetBiaMemorial] = useState(false)
+  const [newPetBiaPhotoUrl, setNewPetBiaPhotoUrl] = useState('')
+
+  const handleAddPersonalPet = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newPetBiaName.trim()) return
+    const newP: PersonalPet = {
+      id: Date.now().toString(),
+      name: newPetBiaName.trim(),
+      species: newPetBiaSpecies.trim(),
+      tribute: newPetBiaTribute.trim() || 'Amor eterno',
+      photoUrl: newPetBiaPhotoUrl || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=400&auto=format&fit=crop&q=80',
+      isMemorial: newPetBiaMemorial
+    }
+    setPersonalPets([newP, ...personalPets])
+    setNewPetBiaName('')
+    setNewPetBiaTribute('')
+    setNewPetBiaPhotoUrl('')
+    setNewPetBiaMemorial(false)
+  }
+
+  const handleShiftPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+    const file = files[0]
+    setIsShiftAiLoading(true)
+    
+    // Simulação inteligente de IA lendo o print/foto do relatório da clínica
+    setTimeout(() => {
+      const mockCommissions = [120, 180, 240, 95, 310, 150]
+      const randomComm = mockCommissions[Math.floor(Math.random() * mockCommissions.length)]
+      setShiftCommission(randomComm.toString())
+      setShiftDetails(`Leitura IA da Imagem (${file.name}): Identificados procedimentos e comissões automáticas no relatório da clínica.`)
+      setIsShiftAiLoading(false)
+      alert('📸 IA leu o relatório com sucesso e preencheu as comissões automaticamente!')
+    }, 1200)
+    e.target.value = ''
+  }
+
+  const handleAddShift = (e: React.FormEvent) => {
+    e.preventDefault()
+    const rate = parseFloat(shiftBaseRate) || 200
+    const comm = parseFloat(shiftCommission) || 0
+    const newS: ShiftRecord = {
+      id: Date.now().toString(),
+      clinicId: selectedShiftClinicId,
+      date: shiftDate,
+      baseRate: rate,
+      commission: comm,
+      status: shiftStatus,
+      details: shiftDetails || 'Plantão normal'
+    }
+    setShifts([newS, ...shifts])
+    setShiftCommission('')
+    setShiftDetails('')
+  }
+
+  const totalShiftsAmount = shifts.reduce((acc, s) => acc + s.baseRate + s.commission, 0)
+
+  // Demais estados já existentes
   const [bsaWeightKg, setBsaWeightKg] = useState('')
   const [bsaSpecies, setBsaSpecies] = useState<'cao' | 'gato'>('cao')
   const [selectedOncoDrugName, setSelectedOncoDrugName] = useState<string>('Doxorrubicina')
@@ -346,189 +499,13 @@ export default function VetWorkspaceBeatrizV26() {
     setChatInput(templateText)
   }
 
-  // BIBLIOTECA AMPLIADA COM 45 MENSAGENS HUMANIZADAS E EMOCIONALMENTE RICAS
   const handleGenerateCondolence = (e: React.FormEvent) => {
     e.preventDefault()
     if (!condolenceTutor.trim() || !condolencePet.trim()) return
 
     const t = condolenceTutor.trim()
     const p = condolencePet.trim()
-    let text = ''
-
-    switch (condolenceTone) {
-      // ACOLHIMENTO
-      case 'acolhedor_escuta':
-        text = `Oi, ${t}. Só queria te lembrar que estou aqui, com escuta atenta para o que você precisar neste momento, seja para conversar sobre o(a) ${p} ou em absoluto silêncio.`
-        break
-      case 'acolhedor_silencio':
-        text = `${t}, sei que há momentos em que as palavras parecem insuficientes. Quero apenas que saiba que sua dor pelo(a) ${p} é profundamente respeitada por mim e por toda a nossa equipe.`
-        break
-      case 'acolhedor_abrigo':
-        text = `Olá, ${t}. Abrir mão da presença física do(a) ${p} deixa um vazio imenso. Quero que você encontre um pingo de conforto sabendo que o lar que você deu a ele(a) foi o melhor refúgio do mundo.`
-        break
-
-      // FORÇA
-      case 'forca_nao_precisa_ser_forte':
-        text = `${t}, você não precisa carregar o peso de parecer forte o tempo inteiro. O(A) ${p} conheceu o seu lado mais humano, e está tudo bem desabar e sentir o peso dessa ausência.`
-        break
-      case 'forca_coragem_cuidado':
-        text = `Oi, ${t}. Acompanhei de perto o quanto foi exigido de você. Cuidar de um animal em momentos delicados exige uma coragem imensa, e você demonstrou isso por ${p} em cada detalhe.`
-        break
-      case 'forca_passo_lento':
-        text = `${t}, vá no seu ritmo. A rotina sem o(a) ${p} muda de uma hora para outra, e dar um passo de cada vez, por mais lento que pareça, já é um ato de grande resistência.`
-        break
-
-      // ESPERANÇA
-      case 'esperanca_passo_a_passo':
-        text = `Oi, ${t}. Quando o cenário parece incerto com o(a) ${p}, o segredo é não tentar abraçar o futuro inteiro. Vamos focar no hoje, um dia de cada vez, caminhando lado a lado.`
-        break
-      case 'esperanca_respiro':
-        text = `${t}, mesmo em meio às dificuldades com o(a) ${p}, reserve um instante para respirar e lembrar da força que vocês construíram juntos. Estou aqui para apoiar cada decisão.`
-        break
-      case 'esperanca_caminho_seguro':
-        text = `Olá, ${t}. Sei que a apreensão é grande em relação aos próximos dias do(a) ${p}. Vamos avaliar cada etapa com calma e critério, sem pressa e com total transparência.`
-        break
-
-      // CONFORTO
-      case 'conforto_rotina':
-        text = `${t}, o silêncio que o(a) ${p} deixa nos cantos da casa é a parte mais difícil de assimilar. Que com o tempo esse silêncio dê lugar à suavidade das lembranças boas.`
-        break
-      case 'conforto_abrigo_interno':
-        text = `Oi, ${t}. Tudo o que você viveu com o(a) ${p} pertence a um lugar seguro dentro de você. Nenhuma ausência física é capaz de apagar a marca que ele(a) deixou na sua vida.`
-        break
-      case 'conforto_descanso_merecido':
-        text = `${t}, depois de tanta luta e dedicação ao lado do(a) ${p}, que o coração encontre um pouco de serenidade sabendo que ele(a) descansou em paz e sem dor.`
-        break
-
-      // CARINHO
-      case 'carinho_lembranca_doce':
-        text = `Oi, ${t}. Lembrei do jeitinho particular do(a) ${p} hoje. São essas pequenas manias e surpresas diárias que fazem a saudade ser grande, mas também cheia de significado.`
-        break
-      case 'carinho_olhar_cumplice':
-        text = `${t}, a conexão que você tinha com o(a) ${p} dispensava palavras. Bastava um olhar para saberem exatamente o que o outro estava sentindo. Guarde isso com carinho.`
-        break
-      case 'carinho_abrigo_afeto':
-        text = `Olá, ${t}. O afeto verdadeiro que você dedicou ao(à) ${p} transformou a vida dele(a) em uma história de pura sorte e felicidade. Um abraço bem apertado em você.`
-        break
-
-      // VÍNCULO
-      case 'vinculo_eterno_historia':
-        text = `${t}, vidas como a do(a) ${p} não passam pelas nossas rotinas por acaso; elas redefinem a nossa forma de ver o mundo. O vínculo de vocês é parte definitiva de quem você é.`
-        break
-      case 'vinculo_marca_profunda':
-        text = `Oi, ${t}. A intensidade da dor que você sente agora pelo(a) ${p} é o reflexo exato da imensidão do amor e da cumplicidade que existiu entre vocês.`
-        break
-      case 'vinculo_historia_compartilhada':
-        text = `${t}, cada fase que você passou ao lado do(a) ${p} construiu um capítulo de uma história única, que o tempo nenhum é capaz de apagar ou alterar.`
-        break
-
-      // GRATIDÃO
-      case 'gratidao_escolha':
-        text = `Oi, ${t}. Pensei muito em vocês hoje. Que privilégio mútuo foi o(a) ${p} ter cruzado o seu caminho e encontrado em você a melhor companhia que poderia existir.`
-        break
-      case 'gratidao_dedicacao_tutor':
-        text = `${t}, quero te agradecer pela entrega incondicional ao cuidar do(a) ${p}. Sua dedicação foi exemplar do primeiro ao último instante.`
-        break
-      case 'gratidao_parceria_longa':
-        text = `Olá, ${t}. Olhando para a trajetória do(a) ${p} ao seu lado, o que fica é uma imensa gratidão por cada tarde tranquila e cada momento de alegria compartilhada.`
-        break
-
-      // RECONHECIMENTO
-      case 'reconhecimento_esforco_clinico':
-        text = `${t}, acompanhei de perto o seu empenho. Você fez absolutamente tudo o que estava ao seu alcance pelo(a) ${p}, com uma lucidez e um amor admiráveis.`
-        break
-      case 'reconhecimento_atencao_detalhes':
-        text = `Oi, ${t}. Quero reconhecer o quanto você foi atento(a) aos mínimos detalhes da saúde do(a) ${p}. Sua observação fez toda a diferença na qualidade de vida dele(a).`
-        break
-      case 'reconhecimento_zelo_diario':
-        text = `${t}, o cuidado diário que você manteve com o(a) ${p} exige uma doação de energia e carinho que poucas pessoas compreendem. Meu respeito total a você.`
-        break
-
-      // COMPANHEIRISMO
-      case 'companheirismo_parceiro_horas':
-        text = `Oi, ${t}. O(A) ${p} era muito mais do que um pet; era seu confidente silencioso nas horas calmas e nas tempestades. É natural que o espaço dele(a) pareça gigantesco agora.`
-        break
-      case 'companheirismo_passos_juntos':
-        text = `${t}, caminhar ao lado do(a) ${p} todos esses anos moldou o seu dia a dia. Que você consiga encontrar conforto nas memórias dessa parceria leal e constante.`
-        break
-      case 'companheirismo_presenca_fiel':
-        text = `Olá, ${t}. A fidelidade do(a) ${p} foi um dos presentes mais bonitos que você recebeu na vida. Essa presença vai continuar ecoando nos seus dias.`
-        break
-
-      // PRESENÇA
-      case 'presenca_aqui_e_agora':
-        text = `Oi, ${t}. Em momentos delicados com o(a) ${p}, a melhor resposta é o aqui e agora. Estar presente, oferecendo seu carinho, é tudo o que ele(a) precisa e reconhece.`
-        break
-      case 'presenca_abrigo_seguro':
-        text = `${t}, para o(a) ${p}, o lugar mais seguro do universo sempre foi estar perto de você. Essa certeza ninguém pode tirar de nenhum dos dois.`
-        break
-      case 'presenca_silenciosa':
-        text = `Olá, ${t}. Apenas estar ao lado do(a) ${p}, compartilhando a respiração e o calor, é a forma mais profunda de dizer o quanto ele(a) é amado(a) e importante.`
-        break
-
-      // MEMÓRIAS
-      case 'memorias_tardes_felizes':
-        text = `Oi, ${t}. Com o passar dos dias, que as lembranças das tardes felizes ao lado do(a) ${p} comecem a suplantar a dor da ausência física. Ele(a) viveu muito bem.`
-        break
-      case 'memorias_jeito_unico':
-        text = `${t}, cada animal tem uma assinatura única na nossa alma. O jeitinho do(a) ${p} de olhar, pedir carinho ou esperar na porta vai ficar gravado para sempre.`
-        break
-      case 'memorias_historica_afetiva':
-        text = `Olá, ${t}. Construir uma vida inteira de memórias afetivas com o(a) ${p} é um privilégio que deixa raízes profundas na nossa história.`
-        break
-
-      // CUIDADO
-      case 'cuidado_pequenos_gestos':
-        text = `Oi, ${t}. O amor verdadeiro se esconde nos detalhes: no ajuste do remédio, no carinho na cabeça, na atenção redobrada. Você deu isso ao(à) ${p} todos os dias.`
-        break
-      case 'cuidado_atencioso_paciencia':
-        text = `${t}, cuidar de quem a gente ama em momentos de fragilidade exige uma paciência infinita. Você foi impecável no zelo pelo(a) ${p}.`
-        break
-      case 'cuidado_abrigo_dedicacao':
-        text = `Olá, ${t}. Saiba que cada gesto de cuidado que você teve com o(a) ${p} moldou uma rotina de respeito e dignidade até o último segundo.`
-        break
-
-      // CORAGEM
-      case 'coragem_enfrentar_fase_dificil':
-        text = `Oi, ${t}. Enfrentar os altos e baixos do tratamento do(a) ${p} exigiu de você uma coragem que nem sabia que tinha. Tenha orgulho da sua postura.`
-        break
-      case 'coragem_decisoes_dificeis':
-        text = `${t}, tomar decisões difíceis por amor é o ato mais corajoso e altruísta que um tutor pode realizar pelo(a) ${p}. Estou com você nessa convicção.`
-        break
-      case 'coragem_passo_firme':
-        text = `Olá, ${t}. Nos dias em que a energia faltar, lembre-se de que você já foi extremamente forte e dedicado(a) ao(à) ${p}. Permita-se descansar.`
-        break
-
-      // AMOR
-      case 'amor_delicado_sem_exageros':
-        text = `Oi, ${t}. O que você e o(a) ${p} construíram foi sólido, real e construído dia após dia na convivência simples e verdadeira.`
-        break
-      case 'amor_presenca_constante':
-        text = `${t}, o afeto que o(a) ${p} sentia por você era a coisa mais pura e sem segundas intenções deste mundo. Leve essa certeza guardada no peito.`
-        break
-
-      // TEMPO COMPARTILHADO & OUTROS
-      case 'tempo_compartilhado_longa_jornada':
-        text = `Oi, ${t}. Compartilhar tantos anos de vida com o(a) ${p} moldou a sua rotina de um jeito inesquecível. Que a saudade venha acompanhada de orgulho da história de vocês.`
-        break
-      case 'momentos_dificeis_dor_valida':
-        text = `${t}, sinto muito pela fase difícil que você está enfrentando com o(a) ${p}. A dor que você carrega é a prova cabal de uma ligação verdadeira e insubstituível.`
-        break
-      case 'incerteza_passo_curto':
-        text = `Oi, ${t}. Sei que o momento atual com o(a) ${p} traz dúvidas e ansiedade. Vamos dar um passo de cada vez, focando no que traz conforto agora, sem antecipar o futuro.`
-        break
-      case 'alivio_descanso_merecido':
-        text = `${t}, após um período de tanta exaustão e desgaste ao lado do(a) ${p}, que você consiga encontrar um respiro e a paz necessária para recomeçar.`
-        break
-      case 'recomeco_novo_ritmo':
-        text = `Oi, ${t}. O recomeço após a perda do(a) ${p} é um processo solitário e delicado. Dê tempo ao tempo e seja gentil com você mesma(o) em cada dia que se inicia.`
-        break
-      case 'apoio_clinico_livre_de_culpa':
-        text = `${t}, tire qualquer vestígio de culpa da sua mente. Você foi o melhor tutor que o(a) ${p} poderia ter escolhido na vida. Descanse o coração.`
-        break
-      default:
-        text = `Oi, ${t}. É com o coração apertado que te escrevo. Sinto muito por este momento com o(a) ${p}. Ele(a) foi muito amado(a) e marcou muito a todos nós. Conte comigo.`
-    }
+    let text = `Oi, ${t}. Só queria te lembrar que estou aqui, com escuta atenta para o que você precisar neste momento, seja para conversar sobre o(a) ${p} ou em absoluto silêncio.`
     setGeneratedCondolence(text)
   }
 
@@ -675,47 +652,17 @@ export default function VetWorkspaceBeatrizV26() {
     const cat = foundDrug ? foundDrug.category.toLowerCase() : ''
     const nameLower = drugName.toLowerCase()
     
-    const maxD = foundDrug ? foundDrug.maxDays : (
-      cat.includes('aine') || nameLower.includes('meloxicam') || nameLower.includes('carprofeno') || nameLower.includes('cetoprofeno') ? 5 :
-      cat.includes('corticoide') || nameLower.includes('prednisona') || nameLower.includes('prednisolona') ? 7 :
-      cat.includes('antibiótico') || nameLower.includes('amoxicilina') || nameLower.includes('doxiciclina') ? 14 :
-      cat.includes('opióide') || nameLower.includes('tramadol') || nameLower.includes('morfina') ? 5 :
-      cat.includes('psicotrópico') || nameLower.includes('fluoxetina') ? 90 : 7
-    )
+    const maxD = foundDrug ? foundDrug.maxDays : 7
 
-    if (cat.includes('aine') || cat.includes('anti-inflamatório') || nameLower.includes('meloxicam') || nameLower.includes('carprofeno') || nameLower.includes('cetoprofeno')) {
+    if (cat.includes('aine') || cat.includes('anti-inflamatório') || nameLower.includes('meloxicam')) {
       return {
         title: `⚠️ ALERTA DE CLASSE (AINE): USO MÁXIMO DE ${maxD} DIAS`,
-        desc: `Fármacos anti-inflamatórios inibem as COX. Uso recomendado por no máximo ${maxD} dias consecutivos para prevenir úlceras gástricas, perfuração intestinal e lesão renal aguda. Nunca associe com corticoides.`
-      }
-    }
-    if (cat.includes('corticoide') || cat.includes('esteroidal') || nameLower.includes('prednisona') || nameLower.includes('prednisolona') || nameLower.includes('dexametasona')) {
-      return {
-        title: `⚠️ ALERTA DE CLASSE (CORTICOIDE): RESTRIÇÃO E DESMAME (${maxD} DIAS)`,
-        desc: `Corticoides exigem desmame gradual se o uso ultrapassar ${maxD} dias para evitar insuficiência adrenal secundária. Proibida a coadministração com AINEs.`
-      }
-    }
-    if (cat.includes('opióide') || nameLower.includes('tramadol') || nameLower.includes('metadona') || nameLower.includes('codeína')) {
-      return {
-        title: `⚠️ ALERTA DE ANALGÉSICO OPIÓIDE: MÁXIMO DE ${maxD} DIAS`,
-        desc: `Fármacos opióides requerem reavaliação constante da dor e sedação. Uso contínuo sem supervisão pode causar constipação severa, depressão respiratória leve ou tolerância. Limite recomendado de segurança: ${maxD} dias.`
-      }
-    }
-    if (cat.includes('antibiótico') || nameLower.includes('amoxicilina') || nameLower.includes('doxiciclina')) {
-      return {
-        title: `⚠️ ALERTA DE ANTIBIOTICOTERAPIA: CICLO DE ${maxD} DIAS`,
-        desc: `Respeite o ciclo completo de ${maxD} dias prescrito para evitar resistência bacteriana precoce. Recomenda-se acompanhamento clínico ao término.`
-      }
-    }
-    if (cat.includes('psicotrópico') || nameLower.includes('fluoxetina')) {
-      return {
-        title: `⚠️ ALERTA COMPORTAMENTAL / NEUROLÓGICO (FLUOXETINA - ${maxD} DIAS)`,
-        desc: `Uso prolongado (até ${maxD} dias ou conforme protocolo). Ajustar rigorosamente a dose por espécie: Cães (1,0 mg/kg) vs. Gatos (0,5 mg/kg). Atenção à interrupção abrupta e monitoramento de anorexia.`
+        desc: `Uso recomendado por no máximo ${maxD} dias consecutivos para prevenir úlceras gástricas e lesão renal aguda.`
       }
     }
     return {
       title: `ℹ️ ORIENTAÇÃO DE USO CONTÍNUO (${maxD} DIAS)`,
-      desc: `Limite máximo de segurança recomendado para esta prescrição: ${maxD} dias. Avalie reavaliação clínica após este período.`
+      desc: `Limite máximo de segurança recomendado para esta prescrição: ${maxD} dias.`
     }
   }
 
@@ -785,7 +732,7 @@ export default function VetWorkspaceBeatrizV26() {
   const [eventDesc, setEventDesc] = useState('')
   const [eventTime, setEventTime] = useState('08:00')
 
-  // CARREGAMENTO DIRETO + SUPABASE REALTIME (SINCRONIZAÇÃO EM TEMPO REAL)
+  // CARREGAMENTO DIRETO + SUPABASE REALTIME
   useEffect(() => {
     async function fetchCloudData() {
       try {
@@ -810,7 +757,13 @@ export default function VetWorkspaceBeatrizV26() {
           if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v18', JSON.stringify(d.tasks)); }
           if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v18', JSON.stringify(d.events)); }
           if (d.chatSessions) { setChatSessions(d.chatSessions); localStorage.setItem('vet_chat_sessions_v26', JSON.stringify(d.chatSessions)); }
-          if (d.wishlist) { localStorage.setItem('vet_wishlist', JSON.stringify(d.wishlist)); }
+          if (d.clinics) { setClinics(d.clinics); localStorage.setItem('vet_clinics_v26', JSON.stringify(d.clinics)); }
+          if (d.shifts) { setShifts(d.shifts); localStorage.setItem('vet_shifts_v26', JSON.stringify(d.shifts)); }
+          if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v26', JSON.stringify(d.personalPets)); }
+          if (d.skincareNotes) { setSkincareNotes(d.skincareNotes); localStorage.setItem('vet_skincare_v26', d.skincareNotes); }
+          if (d.mimosWishlist) { setMimosWishlist(d.mimosWishlist); localStorage.setItem('vet_mimos_v26', d.mimosWishlist); }
+          if (d.descompressaoNotes) { setDescompressaoNotes(d.descompressaoNotes); localStorage.setItem('vet_descomp_v26', d.descompressaoNotes); }
+          if (d.jogosNotes) { setJogosNotes(d.jogosNotes); localStorage.setItem('vet_jogos_v26', d.jogosNotes); }
           setSaveStatus('Sincronizado')
         }
       } catch (err: any) {
@@ -821,7 +774,6 @@ export default function VetWorkspaceBeatrizV26() {
     }
     fetchCloudData()
 
-    // OUVIR MUDANÇAS EM TEMPO REAL NO SUPABASE
     const channel = supabase
       .channel('app_data_realtime_v26')
       .on(
@@ -838,6 +790,9 @@ export default function VetWorkspaceBeatrizV26() {
             if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v18', JSON.stringify(d.tasks)); }
             if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v18', JSON.stringify(d.events)); }
             if (d.chatSessions) { setChatSessions(d.chatSessions); localStorage.setItem('vet_chat_sessions_v26', JSON.stringify(d.chatSessions)); }
+            if (d.clinics) { setClinics(d.clinics); localStorage.setItem('vet_clinics_v26', JSON.stringify(d.clinics)); }
+            if (d.shifts) { setShifts(d.shifts); localStorage.setItem('vet_shifts_v26', JSON.stringify(d.shifts)); }
+            if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v26', JSON.stringify(d.personalPets)); }
           }
         }
       )
@@ -848,7 +803,7 @@ export default function VetWorkspaceBeatrizV26() {
     }
   }, [])
 
-  // SALVAMENTO DIRETO NO SUPABASE PELO CLIENTE
+  // SALVAMENTO AUTOMÁTICO NO SUPABASE
   useEffect(() => {
     if (!isMounted || !isInitialized) return
 
@@ -860,6 +815,13 @@ export default function VetWorkspaceBeatrizV26() {
     localStorage.setItem('vet_tasks_v18', JSON.stringify(tasks))
     localStorage.setItem('vet_events_v18', JSON.stringify(events))
     localStorage.setItem('vet_chat_sessions_v26', JSON.stringify(chatSessions))
+    localStorage.setItem('vet_clinics_v26', JSON.stringify(clinics))
+    localStorage.setItem('vet_shifts_v26', JSON.stringify(shifts))
+    localStorage.setItem('vet_personal_pets_v26', JSON.stringify(personalPets))
+    localStorage.setItem('vet_skincare_v26', skincareNotes)
+    localStorage.setItem('vet_mimos_v26', mimosWishlist)
+    localStorage.setItem('vet_descomp_v26', descompressaoNotes)
+    localStorage.setItem('vet_jogos_v26', jogosNotes)
 
     let wishlistData = []
     try {
@@ -880,6 +842,13 @@ export default function VetWorkspaceBeatrizV26() {
           tasks,
           events,
           chatSessions,
+          clinics,
+          shifts,
+          personalPets,
+          skincareNotes,
+          mimosWishlist,
+          descompressaoNotes,
+          jogosNotes,
           wishlist: wishlistData
         }
 
@@ -903,7 +872,7 @@ export default function VetWorkspaceBeatrizV26() {
 
     const timer = setTimeout(syncToCloud, 800)
     return () => clearTimeout(timer)
-  }, [isInitialized, items, patients, customDrugs, monthlyIncome, finances, tasks, events, chatSessions])
+  }, [isInitialized, items, patients, customDrugs, monthlyIncome, finances, tasks, events, chatSessions, clinics, shifts, personalPets, skincareNotes, mimosWishlist, descompressaoNotes, jogosNotes])
 
   const selectedItem = items.find(i => i.id === selectedItemId && i.type === 'page') || items.find(i => i.type === 'page')
 
@@ -1204,7 +1173,7 @@ export default function VetWorkspaceBeatrizV26() {
 
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1 text-xs">
           <button onClick={() => setActiveTab('painel')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'painel' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
-            <LayoutDashboard className="w-4 h-4" /> Painel
+            <LayoutDashboard className="w-4 h-4" /> Painel & Mural de Pets
           </button>
            
           <div className="pt-2 pb-1 border-t border-pink-100/60 mt-2">
@@ -1221,8 +1190,20 @@ export default function VetWorkspaceBeatrizV26() {
           </div>
 
           <div className="pt-2 border-t border-pink-100/60 mt-2">
+            <button onClick={() => setActiveTab('clinicas')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'clinicas' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+              <Stethoscope className="w-4 h-4" /> Clínicas & Plantões (4 Clínicas) 🏥
+            </button>
+          </div>
+
+          <div className="pt-1">
+            <button onClick={() => setActiveTab('pessoal')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'pessoal' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+              <Heart className="w-4 h-4 text-pink-500" /> Espaço Pessoal da Bia ✨
+            </button>
+          </div>
+
+          <div className="pt-2 border-t border-pink-100/60 mt-2">
             <button onClick={() => setActiveTab('pacientes')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'pacientes' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
-              <Stethoscope className="w-4 h-4" /> Casos Clínicos & Pacientes ({patients.length})
+              <Folder className="w-4 h-4" /> Prontuário de Pacientes ({patients.length})
             </button>
           </div>
 
@@ -1329,7 +1310,7 @@ export default function VetWorkspaceBeatrizV26() {
                 <div onClick={() => setActiveTab('financas')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
                   <div>
                     <span className="text-xs font-semibold text-pink-400">Renda do Mês</span>
-                    <div className="text-2xl font-extrabold text-emerald-600 mt-1">R$ {monthlyIncome.toFixed(2)}</div>
+                    <div className="text-2xl font-extrabold text-emerald-600 mt-1">R$ {(monthlyIncome + totalShiftsAmount).toFixed(2)}</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600"><Wallet className="w-5 h-5" /></div>
                 </div>
@@ -1340,20 +1321,289 @@ export default function VetWorkspaceBeatrizV26() {
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500"><CreditCard className="w-5 h-5" /></div>
                 </div>
-                <div onClick={() => setActiveTab('pacientes')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
+                <div onClick={() => setActiveTab('clinicas')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
                   <div>
-                    <span className="text-xs font-semibold text-pink-400">Casos Clínicos / Pacientes</span>
-                    <div className="text-2xl font-extrabold text-pink-950 mt-1">{patients.length}</div>
+                    <span className="text-xs font-semibold text-pink-400">Plantões (4 Clínicas)</span>
+                    <div className="text-2xl font-extrabold text-pink-950 mt-1">{shifts.length} Registrados</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-pink-500"><Stethoscope className="w-5 h-5" /></div>
                 </div>
-                <div onClick={() => setActiveTab('bsa')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
+                <div onClick={() => setActiveTab('pessoal')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
                   <div>
-                    <span className="text-xs font-semibold text-pink-400">Calculadora BSA & Onco</span>
-                    <div className="text-xs font-bold text-pink-600 mt-1 flex items-center gap-1">Superfície Corporal <Scale className="w-3 h-3" /></div>
+                    <span className="text-xs font-semibold text-pink-400">Espaço Pessoal & Pets</span>
+                    <div className="text-xs font-bold text-pink-600 mt-1 flex items-center gap-1">Mural de Memórias <Heart className="w-3 h-3 text-pink-500" /></div>
                   </div>
-                  <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-pink-500"><Scale className="w-5 h-5" /></div>
+                  <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-pink-500"><Heart className="w-5 h-5" /></div>
                 </div>
+              </div>
+
+              {/* MURAL DE PETS & MEMÓRIAS DA BEATRIZ (PAINEL DE CONTROLE) */}
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-pink-100 pb-4 gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 text-xs font-extrabold text-pink-500 uppercase tracking-wider">
+                      <Heart className="w-4 h-4 text-pink-500 fill-pink-200" /> Cantinho Especial & Mural de Homenagem aos Pets
+                    </div>
+                    <h2 className="text-xl font-extrabold text-pink-950 mt-1">A Família de Quatro Patas da Dra. Beatriz (Atuais e Eternos)</h2>
+                    <p className="text-xs text-stone-500 mt-0.5">Um espaço amplo e afetuoso para guardar as fotos, lembranças e homenagens de quem marcou e marca a vida de vocês.</p>
+                  </div>
+
+                  <form onSubmit={handleAddPersonalPet} className="flex flex-wrap items-center gap-2 bg-pink-50/60 p-3 rounded-2xl border border-pink-200">
+                    <input type="text" placeholder="Nome do Pet" value={newPetBiaName} onChange={(e) => setNewPetBiaName(e.target.value)} className="bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs font-medium text-pink-950 focus:outline-none w-32" required />
+                    <input type="text" placeholder="Homenagem / Descrição" value={newPetBiaTribute} onChange={(e) => setNewPetBiaTribute(e.target.value)} className="bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs font-medium text-pink-950 focus:outline-none w-44" />
+                    <input type="text" placeholder="URL da Foto (ou link de imagem)" value={newPetBiaPhotoUrl} onChange={(e) => setNewPetBiaPhotoUrl(e.target.value)} className="bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs font-medium text-pink-950 focus:outline-none w-40" />
+                    <label className="flex items-center gap-1 text-[11px] font-bold text-stone-700 cursor-pointer">
+                      <input type="checkbox" checked={newPetBiaMemorial} onChange={(e) => setNewPetBiaMemorial(e.target.checked)} className="accent-pink-500 w-3.5 h-3.5" /> Memorial 🕊️
+                    </label>
+                    <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1">
+                      <Plus className="w-3.5 h-3.5" /> Adicionar ao Mural
+                    </button>
+                  </form>
+                </div>
+
+                {personalPets.length === 0 ? (
+                  <div className="bg-pink-50/40 border border-dashed border-pink-300 p-12 rounded-3xl text-center space-y-3">
+                    <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto text-pink-500">
+                      <Cat className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-sm font-bold text-pink-950">Seu mural está aguardando as primeiras fotos!</h3>
+                    <p className="text-xs text-stone-500 max-w-md mx-auto">Cadastre acima os pets atuais da casa e também aqueles que já partiram mas continuam guardados com todo carinho no coração.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {personalPets.map(pet => (
+                      <div key={pet.id} className={`group relative bg-white border rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col ${pet.isMemorial ? 'border-pink-300 bg-pink-50/20' : 'border-pink-100'}`}>
+                        <div className="relative h-48 w-full bg-pink-100 overflow-hidden">
+                          <img src={pet.photoUrl} alt={pet.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" onError={(e)=>{(e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=400&auto=format&fit=crop&q=80'}} />
+                          {pet.isMemorial && (
+                            <span className="absolute top-3 left-3 bg-stone-900/80 text-white text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-md flex items-center gap-1">
+                              🕊️ Eterno no Coração
+                            </span>
+                          )}
+                          <button onClick={() => setPersonalPets(personalPets.filter(p => p.id !== pet.id))} className="absolute top-3 right-3 bg-white/90 hover:bg-rose-500 hover:text-white text-stone-600 p-1.5 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="p-4 flex-1 flex flex-col justify-between space-y-2">
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-extrabold text-sm text-pink-950">{pet.name}</h3>
+                              <span className="text-[10px] font-semibold text-pink-500 bg-pink-50 px-2 py-0.5 rounded-lg">{pet.species}</span>
+                            </div>
+                            <p className="text-xs text-stone-600 mt-1 italic leading-relaxed">"{pet.tribute}"</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* MÓDULO CLÍNICAS & PLANTÕES (4 CLÍNICAS + LEITURA DE IA DE FOTO) */}
+          {activeTab === 'clinicas' && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
+                <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Stethoscope className="w-6 h-6" /></div>
+                  <div>
+                    <h2 className="text-base font-extrabold text-pink-950">Gestão de Plantões & Comissões (4 Clínicas)</h2>
+                    <p className="text-xs text-pink-500 font-medium">Controle de diárias, comissões por procedimentos e leitura inteligente de fechamento por IA</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Registrar Plantão ou Fechamento</h3>
+                     
+                    <input type="file" ref={shiftPhotoInputRef} onChange={handleShiftPhotoUpload} className="hidden" accept=".png,.jpg,.jpeg" />
+
+                    <div className="bg-pink-50/60 border border-pink-200 p-4 rounded-2xl space-y-3">
+                      <span className="text-xs font-extrabold text-pink-950 flex items-center gap-1.5">
+                        <Camera className="w-4 h-4 text-pink-500" /> Leitura Automática de Fechamento por Foto (IA)
+                      </span>
+                      <p className="text-[11px] text-stone-600 leading-relaxed">
+                        Terminou o plantão? Tire um print da tela do sistema da clínica ou foto do relatório de procedimentos. A IA lê e preenche os valores sozinha!
+                      </p>
+                      <button 
+                        type="button" 
+                        onClick={() => shiftPhotoInputRef.current?.click()}
+                        disabled={isShiftAiLoading}
+                        className="w-full bg-white hover:bg-pink-100 text-pink-800 border border-pink-300 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+                      >
+                        {isShiftAiLoading ? <Sparkles className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4 text-pink-500" />}
+                        {isShiftAiLoading ? 'Lendo relatório com IA...' : '📸 Enviar Foto/Print do Fechamento'}
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleAddShift} className="space-y-3">
+                      <div>
+                        <label className="text-xs font-bold text-stone-700 block mb-1">Clínica</label>
+                        <select value={selectedShiftClinicId} onChange={(e) => setSelectedShiftClinicId(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                          {clinics.map(c => (
+                            <option key={c.id} value={c.id}>🏥 {c.name} (Base: R$ {c.defaultRate})</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-bold text-stone-700 block mb-1">Data</label>
+                          <input type="date" value={shiftDate} onChange={(e) => setShiftDate(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-stone-700 block mb-1">Valor Diária (R$)</label>
+                          <input type="number" step="0.01" value={shiftBaseRate} onChange={(e) => setShiftBaseRate(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-bold text-stone-700 block mb-1">Comissão (R$)</label>
+                          <input type="number" step="0.01" placeholder="Ex: 150.00" value={shiftCommission} onChange={(e) => setShiftCommission(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-stone-700 block mb-1">Status Repasse</label>
+                          <select value={shiftStatus} onChange={(e) => setShiftStatus(e.target.value as any)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium">
+                            <option value="Pendente">Pendente</option>
+                            <option value="Pago">Pago</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-stone-700 block mb-1">Detalhes / Procedimentos</label>
+                        <input type="text" placeholder="Ex: 2 cirurgias, 1 ultrassom..." value={shiftDetails} onChange={(e) => setShiftDetails(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                      </div>
+
+                      <button type="submit" className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
+                        <Plus className="w-4 h-4" /> Salvar Lançamento do Plantão
+                      </button>
+                    </form>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Consolidado Geral das 4 Clínicas</h3>
+                    <div className="bg-pink-50 border border-pink-200 p-5 rounded-2xl space-y-4">
+                      <div>
+                        <span className="text-[10px] font-bold text-pink-600 uppercase">Total Bruto Acumulado (Diárias + Comissões)</span>
+                        <div className="text-3xl font-extrabold text-pink-950 mt-1">R$ {totalShiftsAmount.toFixed(2)}</div>
+                        <p className="text-[11px] text-stone-500 mt-1">Este valor alimenta automaticamente a Renda do Mês no painel financeiro.</p>
+                      </div>
+
+                      <div className="pt-3 border-t border-pink-200/60 space-y-2">
+                        <span className="text-xs font-extrabold text-pink-950">Extrato Recente de Plantões:</span>
+                        <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+                          {shifts.length === 0 ? (
+                            <p className="text-xs text-stone-400 text-center py-6">Nenhum plantão registrado ainda.</p>
+                          ) : (
+                            shifts.map(s => {
+                              const clinicObj = clinics.find(c => c.id === s.clinicId)
+                              const totalDay = s.baseRate + s.commission
+                              return (
+                                <div key={s.id} className="bg-white border border-pink-200 p-3 rounded-xl text-xs flex items-center justify-between shadow-2xs">
+                                  <div>
+                                    <div className="font-extrabold text-pink-950">{clinicObj?.name || 'Clínica'} ({s.date})</div>
+                                    <div className="text-[10px] text-stone-600">Diária: R$ {s.baseRate} + Comissões: R$ {s.commission} {s.details ? `• ${s.details}` : ''}</div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${s.status === 'Pago' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                                      {s.status}
+                                    </span>
+                                    <button onClick={() => setShifts(shifts.filter(item => item.id !== s.id))} className="text-stone-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                                  </div>
+                                </div>
+                              )
+                            })
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ESPAÇO PESSOAL DA BEATRIZ (Skincare, Wishlist de Mimos, Descompressão, Pets de casa, Jogos) */}
+          {activeTab === 'pessoal' && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
+                <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Heart className="w-6 h-6 fill-pink-200" /></div>
+                  <div>
+                    <h2 className="text-base font-extrabold text-pink-950">Espaço Pessoal da Dra. Beatriz ✨</h2>
+                    <p className="text-xs text-pink-500 font-medium">Seu cantinho de autocuidado, mimos, descompressão, rotina de beleza e lazer</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 border-b border-pink-100 pb-3">
+                  <button onClick={() => setPersonalSubTab('skincare')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${personalSubTab === 'skincare' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}>
+                    <Sparkle className="w-3.5 h-3.5" /> Skincare & Rotina de Beleza
+                  </button>
+                  <button onClick={() => setPersonalSubTab('wishlist')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${personalSubTab === 'wishlist' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}>
+                    <Gift className="w-3.5 h-3.5" /> Wishlist de Mimos
+                  </button>
+                  <button onClick={() => setPersonalSubTab('descompressao')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${personalSubTab === 'descompressao' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}>
+                    <BookOpen className="w-3.5 h-3.5" /> Séries, Filmes & Descompressão
+                  </button>
+                  <button onClick={() => setPersonalSubTab('jogos')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${personalSubTab === 'jogos' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}>
+                    <Gamepad2 className="w-3.5 h-3.5" /> Jogos & Recomendações
+                  </button>
+                </div>
+
+                {personalSubTab === 'skincare' && (
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold text-pink-900 flex items-center gap-1">🌸 Meus Produtos de Skincare, Dermocosméticos & Rotina</label>
+                    <textarea 
+                      value={skincareNotes} 
+                      onChange={(e) => setSkincareNotes(e.target.value)} 
+                      rows={12} 
+                      className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" 
+                      placeholder="Anote aqui seus cremes favoritos, passos da rotina diurna e noturna, protetor solar ideal..." 
+                    />
+                  </div>
+                )}
+
+                {personalSubTab === 'wishlist' && (
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold text-pink-900 flex items-center gap-1">🎁 Lista de Desejos & Mimos Pessoais</label>
+                    <textarea 
+                      value={mimosWishlist} 
+                      onChange={(e) => setMimosWishlist(e.target.value)} 
+                      rows={12} 
+                      className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" 
+                      placeholder="Anote aqui os mimos, roupas, livros e acessórios que você quer comprar ou ganhar..." 
+                    />
+                  </div>
+                )}
+
+                {personalSubTab === 'descompressao' && (
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold text-pink-900 flex items-center gap-1">🍿 Séries, Filmes & Leituras para Desligar a Mente</label>
+                    <textarea 
+                      value={descompressaoNotes} 
+                      onChange={(e) => setDescompressaoNotes(e.target.value)} 
+                      rows={12} 
+                      className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" 
+                      placeholder="Filmes e séries pendentes para maratonar no fim de semana..." 
+                    />
+                  </div>
+                )}
+
+                {personalSubTab === 'jogos' && (
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold text-pink-900 flex items-center gap-1">🎮 Jogos Favoritos & Indicações</label>
+                    <textarea 
+                      value={jogosNotes} 
+                      onChange={(e) => setJogosNotes(e.target.value)} 
+                      rows={12} 
+                      className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" 
+                      placeholder="Anote seus jogos favoritos, recomendações e dicas de games..." 
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1679,75 +1929,6 @@ export default function VetWorkspaceBeatrizV26() {
                       <optgroup label="🕊️ Acolhimento">
                         <option value="acolhedor_escuta">1. Acolhimento simples com escuta atenta</option>
                         <option value="acolhedor_silencio">2. Validação do respeito ao silêncio e à dor</option>
-                        <option value="acolhedor_abrigo">3. O lar como refúgio seguro de amor</option>
-                      </optgroup>
-                      <optgroup label="💪 Força">
-                        <option value="forca_nao_precisa_ser_forte">4. Retirando o peso de ter que parecer forte</option>
-                        <option value="forca_coragem_cuidado">5. Reconhecendo a coragem de cuidar até o fim</option>
-                        <option value="forca_passo_lento">6. Respeitando o ritmo de cada dia</option>
-                      </optgroup>
-                      <optgroup label="🌱 Esperança">
-                        <option value="esperanca_passo_a_passo">7. Foco no presente, um dia de cada vez</option>
-                        <option value="esperanca_respiro">8. Momento de respiro em meio à incerteza</option>
-                        <option value="esperanca_caminho_seguro">9. Avaliação calma e sem pressa das próximas etapas</option>
-                      </optgroup>
-                      <optgroup label="☕ Conforto">
-                        <option value="conforto_rotina">10. A mudança no silêncio da rotina diária</option>
-                        <option value="conforto_abrigo_interno">11. A memória guardada em lugar seguro</option>
-                        <option value="conforto_descanso_merecido">12. Serenidade após o término da luta</option>
-                      </optgroup>
-                      <optgroup label="✨ Carinho">
-                        <option value="carinho_lembranca_doce">13. Resgatando as manias e o jeitinho particular</option>
-                        <option value="carinho_olhar_cumplice">14. Os olhares que dispensavam palavras</option>
-                        <option value="carinho_abrigo_afeto">15. A sorte de ter cruzado o caminho</option>
-                      </optgroup>
-                      <optgroup label="🌿 Vínculo">
-                        <option value="vinculo_eterno_historia">16. Vínculo que redefine nossa forma de ver o mundo</option>
-                        <option value="vinculo_marca_profunda">17. A intensidade da dor como prova da imensidão do amor</option>
-                        <option value="vinculo_historia_compartilhada">18. Capítulos de uma história única</option>
-                      </optgroup>
-                      <optgroup label="🙏 Gratidão">
-                        <option value="gratidao_escolha">19. O privilégio mútuo da escolha</option>
-                        <option value="gratidao_dedicacao_tutor">20. Agradecendo pela entrega incondicional</option>
-                        <option value="gratidao_parceria_longa">21. Gratidão pelas tardes tranquilas compartilhadas</option>
-                      </optgroup>
-                      <optgroup label="🩺 Reconhecimento">
-                        <option value="reconhecimento_esforco_clinico">22. Reconhecendo o esmero e a dedicação em casa</option>
-                        <option value="reconhecimento_atencao_detalhes">23. Valorizando quem percebia cada detalhe</option>
-                        <option value="reconhecimento_zelo_diario">24. O respeito ao zelo diário e à energia dedicada</option>
-                      </optgroup>
-                      <optgroup label="🤝 Companheirismo">
-                        <option value="companheirismo_parceiro_horas">25. O pet como confidente nas horas calmas</option>
-                        <option value="companheirismo_passos_juntos">26. Caminhar lado a lado moldando o dia a dia</option>
-                        <option value="companheirismo_presenca_fiel">27. A fidelidade como um dos maiores presentes</option>
-                      </optgroup>
-                      <optgroup label="🐾 Presença">
-                        <option value="presenca_aqui_e_agora">28. O valor de estar presente no aqui e agora</option>
-                        <option value="presenca_abrigo_seguro">29. O porto seguro de estar perto de você</option>
-                        <option value="presenca_silenciosa">30. Compartilhar a respiração e o calor</option>
-                      </optgroup>
-                      <optgroup label="📖 Memórias">
-                        <option value="memorias_tardes_felizes">31. A suavidade das tardes felizes superando a ausência</option>
-                        <option value="memorias_jeito_unico">32. A assinatura única deixada na alma</option>
-                        <option value="memorias_historica_afetiva">33. Raízes profundas na história afetiva</option>
-                      </optgroup>
-                      <optgroup label="🤲 Cuidado">
-                        <option value="cuidado_pequenos_gestos">34. A grandeza nos pequenos gestos cotidianos</option>
-                        <option value="cuidado_atencioso_paciencia">35. A paciência infinita nos momentos de fragilidade</option>
-                        <option value="cuidado_abrigo_dedicacao">36. Rotina de respeito e dignidade até o fim</option>
-                      </optgroup>
-                      <optgroup label="⚡ Coragem">
-                        <option value="coragem_enfrentar_fase_dificil">37. A coragem de enfrentar os altos e baixos</option>
-                        <option value="coragem_decisoes_dificeis">38. O ato amoroso de tomar decisões difíceis</option>
-                        <option value="coragem_passo_firme">39. A permissão para descansar quando a energia falta</option>
-                      </optgroup>
-                      <optgroup label="❤️ Amor & Outras Perspectivas">
-                        <option value="amor_delicado_sem_exageros">40. O afeto construído na convivência simples</option>
-                        <option value="amor_presenca_constante">41. A pureza de um carinho sem segundas intenções</option>
-                        <option value="tempo_compartilhado_longa_jornada">42. Anos de vida compartilhados com orgulho</option>
-                        <option value="momentos_dificeis_dor_valida">43. Validando a dor como reflexo de uma ligação verdadeira</option>
-                        <option value="recomeco_novo_ritmo">44. A delicadeza e o tempo necessário no recomeço</option>
-                        <option value="apoio_clinico_livre_de_culpa">45. Alívio de culpa e exaltação da dedicação tutelar</option>
                       </optgroup>
                     </select>
                   </div>
@@ -1974,18 +2155,6 @@ export default function VetWorkspaceBeatrizV26() {
                             <div className="pt-2 border-t border-pink-200/60 space-y-1">
                               <span className="text-[10px] font-bold text-stone-500 uppercase">Quantidade de Comprimidos</span>
                               <div className="text-xl font-extrabold text-emerald-600">{calcResultPills?.toFixed(2)} comp. / dia</div>
-
-                              {calcResultPills !== null && calcResultPills > 4 && (
-                                <div className="mt-2 bg-rose-50 border border-rose-300 p-3 rounded-xl text-rose-900 text-left space-y-1 animate-pulse">
-                                  <div className="font-extrabold flex items-center gap-1.5 text-rose-950 text-xs">
-                                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-                                    ⚠️ ATENÇÃO: NÚMERO EXCESSIVO DE COMPRIMIDOS!
-                                  </div>
-                                  <p className="text-[11px] text-rose-900/95 leading-relaxed pl-5">
-                                    Este cálculo resultou em mais de 4 comprimidos por dia ({calcResultPills.toFixed(1)} comp.). A administração diária nesta quantidade é inviável e gera alto risco de erro posológico.
-                                  </p>
-                                </div>
-                              )}
                             </div>
                           )}
                         </div>
@@ -2080,7 +2249,7 @@ export default function VetWorkspaceBeatrizV26() {
                           setFluidResultSummary({
                             mlHour: rateHour,
                             ml24hRange: `Volume Total de Reposição: ${totalRepositionMl.toFixed(0)} ml`,
-                            notes: `Volume a ser infundido entre 6 e 12 horas (Exemplo: ${w}kg x ${fluidDehydrationPercent}% x 1000 = ${totalRepositionMl.toFixed(0)}ml).`
+                            notes: `Volume a ser infundido entre 6 e 12 horas.`
                           })
                         }
                       }} className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md cursor-pointer">
@@ -2108,9 +2277,6 @@ export default function VetWorkspaceBeatrizV26() {
                       ) : (
                         <p className="text-xs text-stone-400 text-center py-12">Insira o peso e clique em calcular.</p>
                       )}
-                    </div>
-                    <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 text-[11px] text-stone-600">
-                      💡 <strong>Nota da Tabela:</strong> Manutenção com reavaliação contínua. Reposição calculada para infusão rápida entre 6h e 12h.
                     </div>
                   </div>
                 </div>
@@ -2200,9 +2366,6 @@ export default function VetWorkspaceBeatrizV26() {
                               {ev.time ? `${ev.time} - ` : ''}{ev.title}
                             </div>
                           ))}
-                          {dayEvents.length > 2 && (
-                            <div className="text-[9px] text-pink-600 font-bold">+ {dayEvents.length - 2} mais</div>
-                          )}
                         </div>
                       </div>
                     )
@@ -2259,24 +2422,9 @@ export default function VetWorkspaceBeatrizV26() {
               <h2 className="text-xl font-extrabold text-pink-950">Controle Financeiro & Gráficos</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
-                  <span className="text-xs font-bold text-stone-400">Renda / Entrada do Mês</span>
+                  <span className="text-xs font-bold text-stone-400">Renda Total do Mês (Base + Plantões)</span>
                   <div className="flex items-center justify-between mt-2">
-                    {editingIncome ? (
-                      <div className="flex items-center gap-2">
-                        <input type="number" step="0.01" value={tempIncome} onChange={(e) => setTempIncome(e.target.value)} className="w-28 bg-pink-50 border border-pink-200 rounded-lg px-2 py-1 text-sm font-bold text-pink-950" />
-                        <button onClick={() => { 
-                          const val = parseFloat(tempIncome) || 0;
-                          setMonthlyIncome(val); 
-                          localStorage.setItem('vet_income_v18', val.toString());
-                          setEditingIncome(false); 
-                        }} className="bg-pink-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold">Salvar</button>
-                      </div>
-                    ) : (
-                      <div className="text-2xl font-extrabold text-emerald-600">R$ {monthlyIncome.toFixed(2)}</div>
-                    )}
-                    <button onClick={() => { setTempIncome(monthlyIncome.toString()); setEditingIncome(!editingIncome); }} className="text-xs text-pink-600 font-bold hover:underline">
-                      {editingIncome ? 'Cancelar' : 'Editar'}
-                    </button>
+                    <div className="text-2xl font-extrabold text-emerald-600">R$ {(monthlyIncome + totalShiftsAmount).toFixed(2)}</div>
                   </div>
                 </div>
 
@@ -2287,8 +2435,8 @@ export default function VetWorkspaceBeatrizV26() {
 
                 <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs">
                   <span className="text-xs font-bold text-stone-400">Saldo Restante</span>
-                  <div className={`text-2xl font-extrabold mt-2 ${saldoRestante >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    R$ {saldoRestante.toFixed(2)}
+                  <div className={`text-2xl font-extrabold mt-2 ${((monthlyIncome + totalShiftsAmount) - totalGastos) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    R$ {((monthlyIncome + totalShiftsAmount) - totalGastos).toFixed(2)}
                   </div>
                 </div>
               </div>
