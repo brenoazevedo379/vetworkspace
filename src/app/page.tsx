@@ -492,6 +492,10 @@ export default function VetWorkspaceBeatrizV26() {
 
   const totalShiftsAmount = shifts.reduce((acc, s) => acc + s.baseRate + s.commission, 0)
 
+  // Declaração dos states em falta para a calculadora BSA & Oncológicos
+  const [bsaWeightKg, setBsaWeightKg] = useState<string>('')
+  const [bsaSpecies, setBsaSpecies] = useState<'cao' | 'gato'>('cao')
+
   const [selectedOncoDrugName, setSelectedOncoDrugName] = useState<string>('Doxorrubicina')
   const [oncoCustomDosage, setOncoCustomDosage] = useState<string>('30')
   const [oncoCustomConc, setOncoCustomConc] = useState<string>('2')
