@@ -633,7 +633,7 @@ export default function VetWorkspaceBeatrizV26() {
   const [eventDesc, setEventDesc] = useState('')
   const [eventTime, setEventTime] = useState('08:00')
 
-  // CARREGAMENTO SEGURO DA NUVEM COM TRAVA DE INICIALIZAÇÃO (EVITA RACE CONDITION)
+  // CARREGAMENTO SEGURO DA NUVEM COM TRAVA DE INICIALIZAÇÃO
   useEffect(() => {
     async function fetchCloudData() {
       try {
@@ -656,7 +656,7 @@ export default function VetWorkspaceBeatrizV26() {
       } catch (err) {
         console.log('Modo offline ou dados locais utilizados.')
       } finally {
-        setIsInitialized(true) // Libera o salvamento automático apenas após baixar da nuvem
+        setIsInitialized(true)
       }
     }
     fetchCloudData()
@@ -666,7 +666,7 @@ export default function VetWorkspaceBeatrizV26() {
     return () => window.removeEventListener('focus', handleFocus)
   }, [])
 
-  // SALVAMENTO AUTOMÁTICO NA NUVEM (APENAS APÓS ESTAR INICIALIZADO)
+  // SALVAMENTO AUTOMÁTICO NA NUVEM COM EXIBIÇÃO DE ERROS NA TELA
   useEffect(() => {
     if (!isMounted || !isInitialized) return
 
@@ -713,10 +713,12 @@ export default function VetWorkspaceBeatrizV26() {
         const json = await res.json()
         if (json.error) {
           console.error('Erro ao sincronizar:', json.error)
+          setSaveStatus(`Erro Supabase: ${json.error}`)
+        } else {
+          setSaveStatus('Sincronizado')
         }
-        setSaveStatus('Sincronizado')
       } catch (err: any) {
-        setSaveStatus('Sincronizado')
+        setSaveStatus(`Erro de Rede`)
       }
     }
 
@@ -1126,7 +1128,9 @@ export default function VetWorkspaceBeatrizV26() {
           </div>
           <div className="flex items-center gap-3">
             <span className={`text-[11px] font-bold px-3 py-1 rounded-full border flex items-center gap-1 ${
-              saveStatus.includes('Salvando') 
+              saveStatus.includes('Erro') 
+                ? 'bg-rose-50 text-rose-700 border-rose-300 animate-pulse' 
+                : saveStatus.includes('Salvando') 
                 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' 
                 : 'bg-pink-50 text-pink-600 border-pink-200'
             }`}>

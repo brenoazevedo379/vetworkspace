@@ -20,7 +20,7 @@ export async function GET(request: Request) {
       .maybeSingle()
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ error: error.message, details: error }, { status: 400 })
     }
     return NextResponse.json({ data: data?.data || null })
   } catch (err: any) {
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       }, { onConflict: 'id' })
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ error: error.message, code: error.code }, { status: 400 })
     }
     return NextResponse.json({ success: true })
   } catch (err: any) {
