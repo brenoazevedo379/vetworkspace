@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
+import { createClient } from '@supabase/supabase-js'
 import { 
   LayoutDashboard, 
   BookOpen, 
@@ -40,6 +41,13 @@ import {
   Gift
 } from 'lucide-react'
 import WishlistTab from '@/components/WishlistTab'
+
+const supabaseUrl = 'https://jzphctzxqqaucbqprpe.supabase.co'
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp6cGhjdHp4cXFhdWNicXpwcnBlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTgxODcsImV4cCI6MjEwMzE5NDE4N30.Usk9FvW7JpxsL32go_2wTWTP2Rn3dCflzn9rUaHQA9E'
+
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: { persistSession: false }
+})
 
 interface AttachedFile {
   id: string
@@ -633,15 +641,23 @@ export default function VetWorkspaceBeatrizV26() {
   const [eventDesc, setEventDesc] = useState('')
   const [eventTime, setEventTime] = useState('08:00')
 
-  // CARREGAMENTO SEGURO DA NUVEM COM TRAVA DE INICIALIZAÇÃO
+  // CARREGAMENTO DIRETO DO SUPABASE NO CLIENTE (SEM PASSAR PELA VERCEL API)
   useEffect(() => {
     async function fetchCloudData() {
       try {
-        const res = await fetch('/api/sync?id=beatriz_workspace_v26')
-        const json = await res.json()
+        const { data, error } = await supabase
+          .from('app_data')
+          .select('data')
+          .eq('id', 'beatriz_workspace_v26')
+          .maybeSingle()
 
-        if (json.data) {
-          const d = json.data
+        if (error) {
+          setSaveStatus(`Erro Supabase: ${error.message}`)
+          return
+        }
+
+        if (data && data.data) {
+          const d = data.data
           if (d.items) { setItems(d.items); localStorage.setItem('vet_items_v19', JSON.stringify(d.items)); }
           if (d.patients) { setPatients(d.patients); localStorage.setItem('vet_patients_v18', JSON.stringify(d.patients)); }
           if (d.customDrugs) { setCustomDrugs(d.customDrugs); localStorage.setItem('vet_custom_drugs_v26', JSON.stringify(d.customDrugs)); }
@@ -653,8 +669,8 @@ export default function VetWorkspaceBeatrizV26() {
           if (d.wishlist) { localStorage.setItem('vet_wishlist', JSON.stringify(d.wishlist)); }
           setSaveStatus('Sincronizado')
         }
-      } catch (err) {
-        console.log('Modo offline ou dados locais utilizados.')
+      } catch (err: any) {
+        setSaveStatus(`Erro: ${err.message}`)
       } finally {
         setIsInitialized(true)
       }
@@ -666,7 +682,7 @@ export default function VetWorkspaceBeatrizV26() {
     return () => window.removeEventListener('focus', handleFocus)
   }, [])
 
-  // SALVAMENTO AUTOMÁTICO NA NUVEM COM EXIBIÇÃO DE ERROS NA TELA
+  // SALVAMENTO DIRETO NO SUPABASE PELO CLIENTE
   useEffect(() => {
     if (!isMounted || !isInitialized) return
 
@@ -701,19 +717,16 @@ export default function VetWorkspaceBeatrizV26() {
           wishlist: wishlistData
         }
 
-        const res = await fetch('/api/sync', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            id: 'beatriz_workspace_v26', 
-            data: payload 
-          })
-        })
+        const { error } = await supabase
+          .from('app_data')
+          .upsert({
+            id: 'beatriz_workspace_v26',
+            data: payload,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'id' })
 
-        const json = await res.json()
-        if (json.error) {
-          console.error('Erro ao sincronizar:', json.error)
-          setSaveStatus(`Erro Supabase: ${json.error}`)
+        if (error) {
+          setSaveStatus(`Erro Supabase: ${error.message}`)
         } else {
           setSaveStatus('Sincronizado')
         }
@@ -1129,7 +1142,7 @@ export default function VetWorkspaceBeatrizV26() {
           <div className="flex items-center gap-3">
             <span className={`text-[11px] font-bold px-3 py-1 rounded-full border flex items-center gap-1 ${
               saveStatus.includes('Erro') 
-                ? 'bg-rose-50 text-rose-700 border-rose-300 animate-pulse' 
+                ? 'bg-rose-50 text-rose-700 border-rose-300' 
                 : saveStatus.includes('Salvando') 
                 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' 
                 : 'bg-pink-50 text-pink-600 border-pink-200'
