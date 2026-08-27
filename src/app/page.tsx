@@ -44,7 +44,11 @@ import {
   Gamepad2,
   Sparkle,
   Coffee,
-  Compass
+  Compass,
+  CheckCircle2,
+  RefreshCw,
+  Headphones,
+  Grid
 } from 'lucide-react'
 import WishlistTab from '@/components/WishlistTab'
 
@@ -236,6 +240,70 @@ const ONCO_DRUGS: OncolocicalDrug[] = [
   }
 ]
 
+// LISTAS CURADAS PARA O ESPAÇO PESSOAL
+const GAMES_POOL = [
+  { title: 'Stardew Valley', desc: 'Perfeito para desligar a mente cuidando da fazendinha, plantando e curtindo trilha sonora relaxante.' },
+  { title: 'Unpacking', desc: 'Um jogo zen de organização de caixas e cômodos, ideal para jogar ouvindo um som tranquilo.' },
+  { title: 'It Takes Two', desc: 'Aventura cooperativa fantástica e muito divertida para jogar em dupla.' },
+  { title: 'Animal Crossing / Cozy Grove', desc: 'Exploração acolhedora em ritmo calmo, excelente para zerar o estresse do plantão.' },
+  { title: 'Dorfromantik', desc: 'Quebra-cabeça estratégico de construção de paisagens com peças hexagonais, super relaxante.' },
+  { title: 'A Short Hike', desc: 'Uma aventura leve e aconchegante explorando uma ilha tranquila a pé e planando.' }
+]
+
+const CAFES_POOL = [
+  { name: 'Cafeteria Artesanal Rio Vermelho', desc: 'Ambiente charmoso, café de alta qualidade e comidinhas perfeitas para um fim de tarde à beira-mar.' },
+  { name: 'Confeitaria & Café Barra', desc: 'Local calmo e acolhedor na Barra, ideal para saborear um bom espresso e ler um livro.' },
+  { name: 'Café da Bahia (Cidade Baixa)', desc: 'Perto da Ribeira e do Bonfim, com vista linda para a baía e uma atmosfera extremamente sossegada.' },
+  { name: 'The Coffee (Pituba / Vitória)', desc: 'Minimalista, rápido e com bebidas geladas e quentes excelentes para recarregar as energias.' },
+  { name: 'Solar Café (Rio Vermelho)', desc: 'Espaço verde, aconchegante e excelente cardápio para um brunch relaxante no fim de semana.' }
+]
+
+const PODCASTS_POOL = [
+  { title: 'Modus Operandi', desc: 'Podcast de true crime nacional conduzido com muita pesquisa e respeito, detalhando os casos criminais mais marcantes do Brasil e do mundo.' },
+  { title: 'Café com Crime', desc: 'Histórias reais de crimes narradas em formato dinâmico e envolvente, perfeito para ouvir nos trajetos entre as clínicas.' },
+  { title: 'Projeto Humanos (Caso Evandro)', desc: 'Uma verdadeira obra-prima do jornalismo investigativo brasileiro sobre um dos casos mais complexos da justiça.' },
+  { title: 'Praia dos Ossos (Rádio Novelo)', desc: 'Investigação impecável sobre o caso Ângela Diniz e os desdobramentos sociais e psicológicos da história.' },
+  { title: 'Arquivos do Mistério', desc: 'Casos misteriosos, investigações policiais e enigmas resolvidos e não resolvidos ao redor do globo.' }
+]
+
+const CONDOLENCE_MESSAGES = [
+  {
+    id: 'c1',
+    title: '🕊️ Acolhimento Profundo & Vínculo Eterno',
+    text: `Querido(a) [Tutor(a)],\n\nSinto muito, do fundo do meu coração, pela partida do(a) [Pet]. Sei que nenhuma palavra neste momento é capaz de preencher o vazio que ele(a) deixa, porque o amor que vocês construíram foi imenso, genuíno e verdadeiro.\n\nO(A) [Pet] foi muito mais do que um animal de estimação; foi um companheiro leal, um confidente nos dias difíceis e uma fonte constante de alegria pura. Quero que você saiba que acompanhei o quanto você lutou e cuidou dele(a) com toda a dedicação e carinho do mundo.\n\nO luto é o preço que pagamos por termos amado profundamente, e a saudade é a prova de que o vínculo de vocês jamais será apagado. Se precisar conversar, chorar ou apenas ficar em silêncio, minha escuta e meu abraço estão inteiramente à sua disposição.`
+  },
+  {
+    id: 'c2',
+    title: '✨ Foco na Gratidão e na Vida Feliz',
+    text: `Oi, [Tutor(a)].\n\nHoje o dia amanheceu mais silencioso com a partida do(a) [Pet], mas a verdade é que a passagem dele(a) pela sua vida foi um verdadeiro presente. Olhando para trás, fica a certeza de que ele(a) teve uma vida repleta de amor, de cuidado diário e de um carinho que poucos animais têm a sorte de receber.\n\nAs lembranças dos momentos felizes, das brincadeiras e do olhar cheio de confiança do(a) [Pet] vão permanecer guardadas para sempre no seu coração. Que você encontre conforto na paz de saber que você fez absolutamente tudo o que estava ao seu alcance para dar a ele(a) uma vida maravilhosa.\n\nEstou aqui com você, para o que precisar.`
+  },
+  {
+    id: 'c3',
+    title: '💔 Para Casos de Partida Súbita ou Inesperada',
+    text: `Meu abraço mais sincero e apertado para você, [Tutor(a)].\n\nA perda do(a) [Pet] de forma tão repentina deixa qualquer um sem chão e com o coração em pedaços. É perfeitamente normal sentir essa dor lancinante e esse sentimento de injustiça.\n\nPor favor, seja gentil com você mesmo(a) nestes próximos dias. O amor que unia vocês não desaparece com a ausência física; ele se transforma em saudade eterna e em gratidão por cada segundo compartilhado. Conte comigo para te apoiar em qualquer coisa que precisar.`
+  },
+  {
+    id: 'c4',
+    title: '🌿 Validação do Luto e Respeito ao Silêncio',
+    text: `Olá, [Tutor(a)].\n\nSó queria te enviar esta mensagem para lembrar que estou aqui pensando em você e no(a) [Pet]. Sei que a dor do luto é um caminho solitário e pesado, e que muitas vezes faltam palavras.\n\nNão se cobre para ser forte agora. Permita-se sentir, chorar e guardar o luto no seu tempo. O(A) [Pet] teve a sorte de ter você como família, e o laço de vocês é eterno. Estou à disposição para o que você precisar, seja para desabafar ou em absoluto silêncio.`
+  },
+  {
+    id: 'c5',
+    title: '🐾 Homenagem à Lealdade Infinita',
+    text: `Querido(a) [Tutor(a)],\n\nExistem seres que passam por nossas vidas e deixam pegadas inesquecíveis na alma. O(A) [Pet] foi exatamente isso: um exemplo de lealdade infinita, pureza e amor incondicional.\n\nMesmo com a dor da saudade que agora aperta o peito, lembre-se de que cada momento alegre ao lado dele(a) valeu a pena e construiu uma história linda que a morte jamais poderá apagar. Que você encontre serenidade para atravessar este momento e manter viva a luz de tudo o que vocês viveram juntos.`
+  },
+  {
+    id: 'c6',
+    title: '🤍 Acolhimento Veterinário Especializado',
+    text: `Querido(a) [Tutor(a)],\n\nAcompanhando de perto toda a trajetória do(a) [Pet], pude testemunhar o quanto ele(a) era amado(a) e o quanto você lutou para proporcionar o melhor cuidado e conforto em cada instante.\n\nDespedir-se de um anjo de quatro patas é uma das provas mais duras que a vida nos impõe. Que você possa encontrar conforto nas lembranças doces, na certeza do dever cumprido e no carinho imenso que marcou a vida de vocês. Meu abraço mais fraterno e solidário.`
+  },
+  {
+    id: 'c7',
+    title: '🌟 Força, Memória e Legado de Amor',
+    text: `Oi, [Tutor(a)].\n\nHoje o vazio deixado pelo(a) [Pet] é enorme, mas a história linda que vocês escreveram juntos é ainda maior. O amor verdadeiro não tem fim; ele apenas se transforma em saudade e em lembranças que aquecem o coração nos dias difíceis.\n\nDesejo que você tenha muita força e serenidade para lidar com este momento de transição. Lembre-se de que o(A) [Pet] foi imensamente feliz ao seu lado. Estou com você para o que precisar.`
+  }
+]
+
 export default function VetWorkspaceBeatrizV26() {
   const [isMounted, setIsMounted] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
@@ -319,13 +387,18 @@ export default function VetWorkspaceBeatrizV26() {
   const [shiftDetails, setShiftDetails] = useState('')
   const [isShiftAiLoading, setIsShiftAiLoading] = useState(false)
 
-  // ESTADOS PARA O ESPAÇO PESSOAL DA BEATRIZ (SUBPASTAS)
-  const [personalSubTab, setPersonalSubTab] = useState<'skincare' | 'wishlist' | 'descompressao' | 'jogos' | 'locais'>('skincare')
+  // ESTADOS PARA O ESPAÇO PESSOAL DA BEATRIZ (7 SUBPASTAS EXatas)
+  const [personalSubTab, setPersonalSubTab] = useState<'skincare' | 'wishlist' | 'descompressao' | 'jogos' | 'locais' | 'palavras' | 'podcasts'>('skincare')
   
-  const [skincareNotes, setSkincareNotes] = useState<string>(() => {
-    if (typeof window !== 'undefined') return localStorage.getItem('vet_skincare_v26') || ''
-    return ''
+  // Skincare checkboxes state
+  const [skincareDone, setSkincareDone] = useState<{ [key: string]: boolean }>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_skincare_checked_v26')
+      if (saved) try { return JSON.parse(saved) } catch(e) {}
+    }
+    return {}
   })
+
   const [mimosWishlist, setMimosWishlist] = useState<string>(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('vet_mimos_v26') || ''
     return ''
@@ -334,14 +407,15 @@ export default function VetWorkspaceBeatrizV26() {
     if (typeof window !== 'undefined') return localStorage.getItem('vet_descomp_v26') || ''
     return ''
   })
-  const [jogosNotes, setJogosNotes] = useState<string>(() => {
-    if (typeof window !== 'undefined') return localStorage.getItem('vet_jogos_v26') || ''
-    return ''
-  })
-  const [locaisNotes, setLocaisNotes] = useState<string>(() => {
-    if (typeof window !== 'undefined') return localStorage.getItem('vet_locais_v26') || ''
-    return ''
-  })
+
+  // Rotators para Jogos, Cafés e Podcasts
+  const [gameIndex, setGameIndex] = useState(0)
+  const [cafeIndex, setCafeIndex] = useState(0)
+  const [podcastIndex, setPodcastIndex] = useState(0)
+
+  // Palavras cruzadas interativas (Mini-crossword)
+  const [cwAnswers, setCwAnswers] = useState<{ [key: string]: string }>({})
+  const [cwChecked, setCwChecked] = useState(false)
 
   const [personalPets, setPersonalPets] = useState<PersonalPet[]>(() => {
     if (typeof window !== 'undefined') {
@@ -423,10 +497,19 @@ export default function VetWorkspaceBeatrizV26() {
   const [oncoResultPills, setOncoResultPills] = useState<number | null>(null)
   const [calculatedBsaValue, setCalculatedBsaValue] = useState<number | null>(null)
 
-  const [condolenceTutor, setCondolenceTutor] = useState('')
-  const [condolencePet, setCondolencePet] = useState('')
-  const [condolenceTone, setCondolenceTone] = useState<string>('acolhedor_profundo')
-  const [generatedCondolence, setGeneratedCondolence] = useState('')
+  const [copiedCondolenceId, setCopiedCondolenceId] = useState<string | null>(null)
+  const [condolenceTutorInputs, setCondolenceTutorInputs] = useState<{ [key: string]: { tutor: string; pet: string } }>({})
+
+  const handleCopyCondolence = (item: typeof CONDOLENCE_MESSAGES[0]) => {
+    const inputs = condolenceTutorInputs[item.id] || { tutor: 'Maria', pet: 'Mel' }
+    const t = inputs.tutor.trim() || 'Maria'
+    const p = inputs.pet.trim() || 'Mel'
+
+    const finalizedText = item.text.replace(/\[Tutor\(a\)\]/g, t).replace(/\[Pet\]/g, p)
+    navigator.clipboard.writeText(finalizedText)
+    setCopiedCondolenceId(item.id)
+    setTimeout(() => setCopiedCondolenceId(null), 2500)
+  }
 
   const currentChatSession = chatSessions.find(s => s.id === currentChatId) || chatSessions[0]
 
@@ -500,29 +583,6 @@ export default function VetWorkspaceBeatrizV26() {
       templateText = 'Anamnese Dermatológica:\n- Espécie/Raça/Idade/Peso:\n- Prurido (coceira) de 0 a 10:\n- Localização das lesões:\n- Sazonalidade ou início súbito:\n- Histórico de ectoparasitas (pulgas/carrapatos):\n- Lesões primárias observadas (pápulas, crostas, pústulas):'
     }
     setChatInput(templateText)
-  }
-
-  const handleGenerateCondolence = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!condolenceTutor.trim() || !condolencePet.trim()) return
-
-    const t = condolenceTutor.trim()
-    const p = condolencePet.trim()
-    
-    let text = ''
-    if (condolenceTone === 'acolhedor_profundo') {
-      text = `Querido(a) ${t},\n\nSinto muito, do fundo do meu coração, pela partida do(a) ${p}. Sei que nenhuma palavra neste momento é capaz de preencher o vazio que ele(a) deixa, porque o amor que vocês construíram foi imenso e verdadeiro.\n\nO(A) ${p} foi muito mais do que um animal de estimação; foi um companheiro leal, um confidente nos dias difíceis e uma fonte constante de alegria pura. Quero que você saiba que acompanhei o quanto você lutou e cuidou dele(a) com toda a dedicação do mundo.\n\nO luto é o preço que pagamos por termos amado profundamente, e a saudade é a prova de que o vínculo de vocês jamais será apagado. Se precisar conversar, chorar ou apenas ficar em silêncio, minha escuta e meu abraço estão inteiramente à sua disposição.`
-    } else if (condolenceTone === 'gratidao_legado') {
-      text = `Oi, ${t}.\n\nHoje o dia amanheceu mais silencioso com a partida do(a) ${p}, mas a verdade é que a passagem dele(a) pela sua vida foi um verdadeiro presente. Olhando para trás, fica a certeza de que ele(a) teve uma vida repleta de amor, de carinho genuíno e de um cuidado que poucos animais têm a sorte de receber.\n\nAs lembranças dos momentos felizes, das brincadeiras e do olhar cheio de confiança do(a) ${p} vão permanecer guardadas para sempre no seu coração. Que você encontre conforto na paz de saber que você fez absolutamente tudo o que estava ao seu alcance para dar a ele(a) uma vida maravilhosa.\n\nEstou aqui com você, para o que precisar.`
-    } else if (condolenceTone === 'perda_subita') {
-      text = `Meu abraço mais sincero e apertado para você, ${t}.\n\nA perda do(a) ${p} de forma tão repentina deixa qualquer um sem chão e com o coração em pedaços. É perfeitamente normal sentir essa dor lancinante e esse sentimento de injustiça.\n\nPor favor, seja gentil com você mesmo(a) nestes próximos dias. O amor que unia vocês não desaparece com a ausência física; ele se transforma em saudade eterna e em gratidão por cada segundo compartilhado. Conte comigo para te apoiar em qualquer coisa que precisar.`
-    } else if (condolenceTone === 'respeito_silencio') {
-      text = `Olá, ${t}.\n\nSó queria te enviar esta mensagem para lembrar que estou aqui pensando em você e no(a) ${p}. Sei que a dor do luto é um caminho solitário e pesado, e que muitas vezes faltam palavras.\n\nNão se cobre para ser forte agora. Permita-se sentir, chorar e guardar o luto no seu tempo. O(A) ${p} teve a sorte de ter você como família, e o laço de vocês é eterno. Estou à disposição para o que você precisar, seja para desabafar ou em absoluto silêncio.`
-    } else {
-      text = `Querido(a) ${t},\n\nO(A) ${p} deixou uma marca inesquecível em nossas vidas e, principalmente, na sua. A dor da despedida é o reflexo exato da intensidade do amor que existia entre vocês.\n\nQue você consiga encontrar conforto nas lembranças bonitas e na certeza de que ele(a) foi profundamente amado(a) até o último instante. Meu abraço mais fraterno e solidário neste momento difícil.`
-    }
-
-    setGeneratedCondolence(text)
   }
 
   const [items, setItems] = useState<DocumentItem[]>(() => {
@@ -698,6 +758,7 @@ export default function VetWorkspaceBeatrizV26() {
   const [newDrugConc, setNewDrugConc] = useState('')
   const [newDrugMaxDays, setNewDrugMaxDays] = useState('5')
 
+  // FINANCE RENDER INCOME SAFE EDIT STATES
   const [monthlyIncome, setMonthlyIncome] = useState<number>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vet_income_v18')
@@ -709,6 +770,7 @@ export default function VetWorkspaceBeatrizV26() {
     return 0.00
   })
 
+  const [isEditingIncome, setIsEditingIncome] = useState(false)
   const [tempIncomeInput, setTempIncomeInput] = useState<string>(monthlyIncome.toString())
 
   const [finances, setFinances] = useState<FinancialItem[]>(() => {
@@ -780,11 +842,9 @@ export default function VetWorkspaceBeatrizV26() {
           if (d.clinics) { setClinics(d.clinics); localStorage.setItem('vet_clinics_v26', JSON.stringify(d.clinics)); }
           if (d.shifts) { setShifts(d.shifts); localStorage.setItem('vet_shifts_v26', JSON.stringify(d.shifts)); }
           if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v26', JSON.stringify(d.personalPets)); }
-          if (d.skincareNotes) { setSkincareNotes(d.skincareNotes); localStorage.setItem('vet_skincare_v26', d.skincareNotes); }
+          if (d.skincareDone) { setSkincareDone(d.skincareDone); localStorage.setItem('vet_skincare_checked_v26', JSON.stringify(d.skincareDone)); }
           if (d.mimosWishlist) { setMimosWishlist(d.mimosWishlist); localStorage.setItem('vet_mimos_v26', d.mimosWishlist); }
           if (d.descompressaoNotes) { setDescompressaoNotes(d.descompressaoNotes); localStorage.setItem('vet_descomp_v26', d.descompressaoNotes); }
-          if (d.jogosNotes) { setJogosNotes(d.jogosNotes); localStorage.setItem('vet_jogos_v26', d.jogosNotes); }
-          if (d.locaisNotes) { setLocaisNotes(d.locaisNotes); localStorage.setItem('vet_locais_v26', d.locaisNotes); }
           setSaveStatus('Sincronizado')
         }
       } catch (err: any) {
@@ -818,6 +878,7 @@ export default function VetWorkspaceBeatrizV26() {
             if (d.clinics) { setClinics(d.clinics); localStorage.setItem('vet_clinics_v26', JSON.stringify(d.clinics)); }
             if (d.shifts) { setShifts(d.shifts); localStorage.setItem('vet_shifts_v26', JSON.stringify(d.shifts)); }
             if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v26', JSON.stringify(d.personalPets)); }
+            if (d.skincareDone) { setSkincareDone(d.skincareDone); localStorage.setItem('vet_skincare_checked_v26', JSON.stringify(d.skincareDone)); }
           }
         }
       )
@@ -843,11 +904,9 @@ export default function VetWorkspaceBeatrizV26() {
     localStorage.setItem('vet_clinics_v26', JSON.stringify(clinics))
     localStorage.setItem('vet_shifts_v26', JSON.stringify(shifts))
     localStorage.setItem('vet_personal_pets_v26', JSON.stringify(personalPets))
-    localStorage.setItem('vet_skincare_v26', skincareNotes)
+    localStorage.setItem('vet_skincare_checked_v26', JSON.stringify(skincareDone))
     localStorage.setItem('vet_mimos_v26', mimosWishlist)
     localStorage.setItem('vet_descomp_v26', descompressaoNotes)
-    localStorage.setItem('vet_jogos_v26', jogosNotes)
-    localStorage.setItem('vet_locais_v26', locaisNotes)
 
     let wishlistData = []
     try {
@@ -871,11 +930,9 @@ export default function VetWorkspaceBeatrizV26() {
           clinics,
           shifts,
           personalPets,
-          skincareNotes,
+          skincareDone,
           mimosWishlist,
           descompressaoNotes,
-          jogosNotes,
-          locaisNotes,
           wishlist: wishlistData
         }
 
@@ -899,7 +956,7 @@ export default function VetWorkspaceBeatrizV26() {
 
     const timer = setTimeout(syncToCloud, 800)
     return () => clearTimeout(timer)
-  }, [isInitialized, items, patients, customDrugs, monthlyIncome, finances, tasks, events, chatSessions, clinics, shifts, personalPets, skincareNotes, mimosWishlist, descompressaoNotes, jogosNotes, locaisNotes])
+  }, [isInitialized, items, patients, customDrugs, monthlyIncome, finances, tasks, events, chatSessions, clinics, shifts, personalPets, skincareDone, mimosWishlist, descompressaoNotes])
 
   const selectedItem = items.find(i => i.id === selectedItemId && i.type === 'page') || items.find(i => i.type === 'page')
 
@@ -1222,7 +1279,7 @@ export default function VetWorkspaceBeatrizV26() {
             </button>
           </div>
 
-          {/* ESPAÇO PESSOAL DA BIA (COM SUBPASTAS NA LATERAL) */}
+          {/* ESPAÇO PESSOAL DA BIA (7 SUBPASTAS EXATAS NA LATERAL) */}
           <div className="pt-1">
             <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-pink-50/60 hover:bg-pink-100/70 text-pink-950 cursor-pointer border border-pink-100 font-semibold transition" onClick={() => setIsPersonalSidebarOpen(!isPersonalSidebarOpen)}>
               <div className="flex items-center gap-2.5 truncate">
@@ -1271,6 +1328,20 @@ export default function VetWorkspaceBeatrizV26() {
                   <Coffee className="w-3.5 h-3.5 text-pink-500 shrink-0" />
                   <span className="truncate">Locais & Cafés (Salvador)</span>
                 </div>
+                <div 
+                  onClick={() => { setActiveTab('pessoal'); setPersonalSubTab('palavras'); }}
+                  className={`flex items-center gap-2 px-2.5 py-2 rounded-xl cursor-pointer text-xs transition ${activeTab === 'pessoal' && personalSubTab === 'palavras' ? 'bg-pink-500 text-white font-extrabold shadow-xs' : 'text-stone-700 hover:bg-pink-50'}`}
+                >
+                  <Grid className="w-3.5 h-3.5 text-pink-500 shrink-0" />
+                  <span className="truncate">Palavras Cruzadas</span>
+                </div>
+                <div 
+                  onClick={() => { setActiveTab('pessoal'); setPersonalSubTab('podcasts'); }}
+                  className={`flex items-center gap-2 px-2.5 py-2 rounded-xl cursor-pointer text-xs transition ${activeTab === 'pessoal' && personalSubTab === 'podcasts' ? 'bg-pink-500 text-white font-extrabold shadow-xs' : 'text-stone-700 hover:bg-pink-50'}`}
+                >
+                  <Headphones className="w-3.5 h-3.5 text-pink-500 shrink-0" />
+                  <span className="truncate">Podcasts & True Crime</span>
+                </div>
               </div>
             )}
           </div>
@@ -1308,7 +1379,7 @@ export default function VetWorkspaceBeatrizV26() {
           </div>
 
           <button onClick={() => setActiveTab('condolencias')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'condolencias' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
-            <HeartHandshake className="w-4 h-4 text-pink-500" /> Mensagem de Apoio 🕊️
+            <HeartHandshake className="w-4 h-4 text-pink-500" /> Mensagem de Apoio 🕊️ (7 Tipos)
           </button>
 
           <button onClick={() => setActiveTab('calculadora')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'calculadora' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
@@ -1599,7 +1670,7 @@ export default function VetWorkspaceBeatrizV26() {
             </div>
           )}
 
-          {/* ESPAÇO PESSOAL DA BEATRIZ (ABAS INTERNAS) */}
+          {/* ESPAÇO PESSOAL DA BEATRIZ (7 SUBPASTAS COM TELA DEDICADA & INTERATIVA) */}
           {activeTab === 'pessoal' && (
             <div className="max-w-5xl mx-auto space-y-6">
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
@@ -1611,50 +1682,79 @@ export default function VetWorkspaceBeatrizV26() {
                   </div>
                 </div>
 
-                {/* Subpastas / Navegação interna */}
+                {/* Subpastas / Navegação interna (7 abas) */}
                 <div className="flex flex-wrap items-center gap-2 border-b border-pink-100 pb-3">
-                  <button onClick={() => setPersonalSubTab('skincare')} className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 ${personalSubTab === 'skincare' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
-                    <Sparkle className="w-4 h-4" /> 📁 Skincare & Beleza
+                  <button onClick={() => setPersonalSubTab('skincare')} className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 ${personalSubTab === 'skincare' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
+                    <Sparkle className="w-3.5 h-3.5" /> Skincare
                   </button>
-                  <button onClick={() => setPersonalSubTab('wishlist')} className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 ${personalSubTab === 'wishlist' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
-                    <Gift className="w-4 h-4" /> 📁 Wishlist de Mimos
+                  <button onClick={() => setPersonalSubTab('wishlist')} className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 ${personalSubTab === 'wishlist' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
+                    <Gift className="w-3.5 h-3.5" /> Wishlist de Mimos
                   </button>
-                  <button onClick={() => setPersonalSubTab('descompressao')} className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 ${personalSubTab === 'descompressao' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
-                    <BookOpen className="w-4 h-4" /> 📁 Séries, Filmes & Leituras
+                  <button onClick={() => setPersonalSubTab('descompressao')} className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 ${personalSubTab === 'descompressao' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
+                    <BookOpen className="w-3.5 h-3.5" /> Séries & Leituras
                   </button>
-                  <button onClick={() => setPersonalSubTab('jogos')} className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 ${personalSubTab === 'jogos' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
-                    <Gamepad2 className="w-4 h-4" /> 📁 Jogos & Recomendações
+                  <button onClick={() => setPersonalSubTab('jogos')} className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 ${personalSubTab === 'jogos' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
+                    <Gamepad2 className="w-3.5 h-3.5" /> Jogos
                   </button>
-                  <button onClick={() => setPersonalSubTab('locais')} className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 ${personalSubTab === 'locais' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
-                    <Coffee className="w-4 h-4" /> 📁 Locais & Cafés (Salvador)
+                  <button onClick={() => setPersonalSubTab('locais')} className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 ${personalSubTab === 'locais' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
+                    <Coffee className="w-3.5 h-3.5" /> Cafés (Salvador)
+                  </button>
+                  <button onClick={() => setPersonalSubTab('palavras')} className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 ${personalSubTab === 'palavras' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
+                    <Grid className="w-3.5 h-3.5" /> Palavras Cruzadas
+                  </button>
+                  <button onClick={() => setPersonalSubTab('podcasts')} className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 ${personalSubTab === 'podcasts' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
+                    <Headphones className="w-3.5 h-3.5" /> Podcasts & True Crime
                   </button>
                 </div>
 
+                {/* 1. SKINCARE & BELEZA */}
                 {personalSubTab === 'skincare' && (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-extrabold text-pink-950 uppercase tracking-wider flex items-center gap-1.5">
-                        <Sparkle className="w-4 h-4 text-pink-500" /> Subpasta: Skincare & Rotina de Beleza
-                      </label>
-                      <span className="text-[11px] bg-pink-100 text-pink-700 px-2.5 py-0.5 rounded-full font-bold">Salvo Automaticamente</span>
+                      <div>
+                        <h3 className="text-sm font-extrabold text-pink-950 flex items-center gap-2">
+                          <Sparkle className="w-4 h-4 text-pink-500" /> Rotina de Skincare & Dermocosméticos Ideais
+                        </h3>
+                        <p className="text-xs text-stone-500 mt-0.5">Marque os produtos e passos que você já testou e incorporou na sua rotina diária.</p>
+                      </div>
+                      <span className="text-[11px] bg-pink-100 text-pink-700 px-3 py-1 rounded-full font-bold">Autocuidado</span>
                     </div>
-                    <textarea 
-                      value={skincareNotes} 
-                      onChange={(e) => setSkincareNotes(e.target.value)} 
-                      rows={12} 
-                      className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" 
-                      placeholder="Anote aqui seus cremes favoritos, passos da rotina diurna e noturna, protetor solar ideal..." 
-                    />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[
+                        { title: '☀️ Rotina Matinal', desc: '1. Sabonete suave para pele sensível\n2. Vitamina C antioxidante\n3. Hidratante facial leve\n4. Protetor Solar FPS 50+ (Essencial!)' },
+                        { title: '🌙 Rotina Noturna', desc: '1. Demaquilante / Cleansing Oil\n2. Gel de limpeza facial\n3. Ácido Hialurônico ou Retinol (conforme orientação)\n4. Hidratante reparador noturno' }
+                      ].map((routine, idx) => (
+                        <div key={idx} className="bg-pink-50/40 border border-pink-200 p-5 rounded-2xl space-y-3 shadow-2xs">
+                          <h4 className="font-extrabold text-xs text-pink-950">{routine.title}</h4>
+                          <div className="space-y-2">
+                            {routine.desc.split('\n').map((step, sIdx) => {
+                              const stepKey = `${idx}-${sIdx}`
+                              const isChecked = skincareDone[stepKey] || false
+                              return (
+                                <div key={sIdx} onClick={() => setSkincareDone({ ...skincareDone, [stepKey]: !isChecked })} className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition border ${isChecked ? 'bg-emerald-50 border-emerald-200 text-emerald-900 font-bold' : 'bg-white border-pink-100 text-stone-700 hover:bg-pink-50'}`}>
+                                  <span className="text-xs">{step}</span>
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${isChecked ? 'bg-emerald-200 text-emerald-800' : 'bg-stone-100 text-stone-500'}`}>
+                                    {isChecked ? '✅ Já testei / Uso' : 'Marcar usado'}
+                                  </span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
+                {/* 2. WISHLIST DE MIMOS */}
                 {personalSubTab === 'wishlist' && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-extrabold text-pink-950 uppercase tracking-wider flex items-center gap-1.5">
-                        <Gift className="w-4 h-4 text-pink-500" /> Subpasta: Wishlist de Mimos Pessoais
-                      </label>
-                      <span className="text-[11px] bg-pink-100 text-pink-700 px-2.5 py-0.5 rounded-full font-bold">Salvo Automaticamente</span>
+                      <h3 className="text-sm font-extrabold text-pink-950 flex items-center gap-2">
+                        <Gift className="w-4 h-4 text-pink-500" /> Wishlist de Mimos Pessoais
+                      </h3>
+                      <span className="text-[11px] bg-pink-100 text-pink-700 px-3 py-1 rounded-full font-bold">Salvo Automaticamente</span>
                     </div>
                     <textarea 
                       value={mimosWishlist} 
@@ -1666,111 +1766,206 @@ export default function VetWorkspaceBeatrizV26() {
                   </div>
                 )}
 
+                {/* 3. SÉRIES, FILMES & LEITURAS */}
                 {personalSubTab === 'descompressao' && (
                   <div className="space-y-6">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-extrabold text-pink-950 uppercase tracking-wider flex items-center gap-1.5">
-                          <BookOpen className="w-4 h-4 text-pink-500" /> Subpasta: Séries, Filmes & Leituras
-                        </label>
-                        <span className="text-[11px] bg-pink-100 text-pink-700 px-2.5 py-0.5 rounded-full font-bold">Salvo Automaticamente</span>
-                      </div>
-                      <textarea 
-                        value={descompressaoNotes} 
-                        onChange={(e) => setDescompressaoNotes(e.target.value)} 
-                        rows={8} 
-                        className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" 
-                        placeholder="Filmes, séries e livros que você quer ver/ler..." 
-                      />
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-extrabold text-pink-950 flex items-center gap-2">
+                        <BookOpen className="w-4 h-4 text-pink-500" /> Séries, Filmes & Leituras Relaxantes
+                      </h3>
+                      <span className="text-[11px] bg-pink-100 text-pink-700 px-3 py-1 rounded-full font-bold">Descompressão</span>
                     </div>
-
-                    {/* Bloco de Recomendações Inteligentes */}
-                    <div className="bg-pink-50/70 border border-pink-200 p-5 rounded-2xl space-y-3">
-                      <div className="font-extrabold text-xs text-pink-950 flex items-center gap-1.5">
-                        <Compass className="w-4 h-4 text-pink-500" /> 💡 Recomendações Selecionadas para Descontrair:
+                    <textarea 
+                      value={descompressaoNotes} 
+                      onChange={(e) => setDescompressaoNotes(e.target.value)} 
+                      rows={6} 
+                      className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" 
+                      placeholder="Filmes, séries e livros que você quer ver/ler..." 
+                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-white p-4 rounded-2xl border border-pink-200 shadow-2xs space-y-1.5">
+                        <span className="font-extrabold text-xs text-pink-950 flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5 text-pink-500" /> Livro Indicado:</span>
+                        <p className="text-xs text-stone-700">"A Biblioteca da Meia-Noite" (Matt Haig) — Uma leitura leve, cativante e reconfortante sobre escolhas e novas perspectivas.</p>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-stone-700">
-                        <div className="bg-white p-3 rounded-xl border border-pink-200 shadow-2xs">
-                          <span className="font-bold text-pink-950">📚 Livro Recomendado:</span>
-                          <p className="mt-1">"A Biblioteca da Meia-Noite" (Matt Haig) — Uma leitura leve, cativante e reconfortante sobre escolhas e novas perspectivas.</p>
-                        </div>
-                        <div className="bg-white p-3 rounded-xl border border-pink-200 shadow-2xs">
-                          <span className="font-bold text-pink-950">🍿 Série / Filme Recomendado:</span>
-                          <p className="mt-1">"Ted Lasso" (Apple TV+) — Garantia de sorrisos, leveza e otimismo para desligar após um dia intenso de plantão.</p>
-                        </div>
+                      <div className="bg-white p-4 rounded-2xl border border-pink-200 shadow-2xs space-y-1.5">
+                        <span className="font-extrabold text-xs text-pink-950 flex items-center gap-1.5"><Compass className="w-3.5 h-3.5 text-pink-500" /> Série Indicada:</span>
+                        <p className="text-xs text-stone-700">"Ted Lasso" (Apple TV+) — Garantia de sorrisos, leveza e otimismo para desligar após um dia intenso de plantão.</p>
                       </div>
                     </div>
                   </div>
                 )}
 
+                {/* 4. JOGOS & RECOMENDAÇÕES (EXATAMENTE 2 POR VEZ COM BOTÃO DE TROCA) */}
                 {personalSubTab === 'jogos' && (
                   <div className="space-y-6">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-extrabold text-pink-950 uppercase tracking-wider flex items-center gap-1.5">
-                          <Gamepad2 className="w-4 h-4 text-pink-500" /> Subpasta: Jogos & Recomendações
-                        </label>
-                        <span className="text-[11px] bg-pink-100 text-pink-700 px-2.5 py-0.5 rounded-full font-bold">Salvo Automaticamente</span>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-extrabold text-pink-950 flex items-center gap-2">
+                          <Gamepad2 className="w-4 h-4 text-pink-500" /> Jogos Relaxantes (Exibindo 2 Sugestões)
+                        </h3>
+                        <p className="text-xs text-stone-500 mt-0.5">Clique para rodar novas recomendações se já conhecer estes.</p>
                       </div>
-                      <textarea 
-                        value={jogosNotes} 
-                        onChange={(e) => setJogosNotes(e.target.value)} 
-                        rows={8} 
-                        className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" 
-                        placeholder="Anote seus jogos favoritos e anotações..." 
-                      />
+                      <button 
+                        onClick={() => setGameIndex((prev) => (prev + 2) % GAMES_POOL.length)}
+                        className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" /> Ver Outras Recomendações
+                      </button>
                     </div>
 
-                    <div className="bg-pink-50/70 border border-pink-200 p-5 rounded-2xl space-y-3">
-                      <div className="font-extrabold text-xs text-pink-950 flex items-center gap-1.5">
-                        <Gamepad2 className="w-4 h-4 text-pink-500" /> 🎮 Sugestões de Games para Relaxar:
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[0, 1].map((offset) => {
+                        const item = GAMES_POOL[(gameIndex + offset) % GAMES_POOL.length]
+                        return (
+                          <div key={offset} className="bg-white p-6 rounded-2xl border border-pink-200 shadow-2xs space-y-2 flex flex-col justify-between">
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-extrabold text-sm text-pink-950">{item.title}</h4>
+                                <span className="text-[10px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-md font-bold">🎮 Game Zen</span>
+                              </div>
+                              <p className="text-xs text-stone-600 mt-2 leading-relaxed">{item.desc}</p>
+                            </div>
+                            <button onClick={() => alert(`🎮 '${item.title}' adicionado à sua lista de desejos de jogos!`)} className="w-full mt-4 bg-pink-50 hover:bg-pink-100 text-pink-800 border border-pink-200 py-2 rounded-xl text-xs font-bold transition">
+                              ✨ Adicionar à Lista
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 5. LOCAIS & CAFÉS EM SALVADOR (EXATAMENTE 2 POR VEZ COM BOTÃO DE TROCA) */}
+                {personalSubTab === 'locais' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-extrabold text-pink-950 flex items-center gap-2">
+                          <Coffee className="w-4 h-4 text-pink-500" /> Cafés & Locais em Salvador (Exibindo 2 Sugestões)
+                        </h3>
+                        <p className="text-xs text-stone-500 mt-0.5">Lugares aconchegantes perto das regiões de interesse na cidade.</p>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-stone-700">
-                        <div className="bg-white p-3 rounded-xl border border-pink-200 shadow-2xs">
-                          <span className="font-bold text-pink-950">🌱 Stardew Valley:</span>
-                          <p className="mt-1">Perfeito para desligar a mente cuidando da fazendinha, plantando e curtindo uma trilha sonora relaxante.</p>
+                      <button 
+                        onClick={() => setCafeIndex((prev) => (prev + 2) % CAFES_POOL.length)}
+                        className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" /> Trocar Local
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[0, 1].map((offset) => {
+                        const item = CAFES_POOL[(cafeIndex + offset) % CAFES_POOL.length]
+                        return (
+                          <div key={offset} className="bg-white p-6 rounded-2xl border border-pink-200 shadow-2xs space-y-2 flex flex-col justify-between">
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-extrabold text-sm text-pink-950">{item.name}</h4>
+                                <span className="text-[10px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-md font-bold">☕ Salvador</span>
+                              </div>
+                              <p className="text-xs text-stone-600 mt-2 leading-relaxed">{item.desc}</p>
+                            </div>
+                            <button onClick={() => alert(`📍 ${item.name} marcado como visitado/favorito!`)} className="w-full mt-4 bg-pink-50 hover:bg-pink-100 text-pink-800 border border-pink-200 py-2 rounded-xl text-xs font-bold transition">
+                              📍 Quero Conhecer / Favorito
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 6. PALAVRAS CRUZADAS & PASSATEMPO (MINI JOGO INTERATIVO) */}
+                {personalSubTab === 'palavras' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-extrabold text-pink-950 flex items-center gap-2">
+                          <Grid className="w-4 h-4 text-pink-500" /> Passatempo: Palavras Cruzadas da Dra. Beatriz 🧩
+                        </h3>
+                        <p className="text-xs text-stone-500 mt-0.5">Preencha o mini-passatempo abaixo e teste suas respostas na hora!</p>
+                      </div>
+                      <button onClick={() => { setCwAnswers({}); setCwChecked(false); }} className="bg-white hover:bg-pink-50 text-pink-700 border border-pink-300 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-2xs">
+                        🔄 Limpar Grade
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="md:col-span-2 bg-pink-50/50 border border-pink-200 p-6 rounded-2xl space-y-4">
+                        <div className="text-xs font-extrabold text-pink-950">Mini-Grade Interativa (3x3):</div>
+                        <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto">
+                          {['0-0', '0-1', '0-2', '1-0', '1-1', '1-2', '2-0', '2-1', '2-2'].map((cellKey) => (
+                            <input 
+                              key={cellKey}
+                              type="text"
+                              maxLength={1}
+                              value={cwAnswers[cellKey] || ''}
+                              onChange={(e) => setCwAnswers({ ...cwAnswers, [cellKey]: e.target.value.toUpperCase() })}
+                              className="w-14 h-14 bg-white border-2 border-pink-300 rounded-xl text-center text-lg font-extrabold text-pink-950 uppercase focus:outline-none focus:border-pink-500 shadow-2xs"
+                            />
+                          ))}
                         </div>
-                        <div className="bg-white p-3 rounded-xl border border-pink-200 shadow-2xs">
-                          <span className="font-bold text-pink-950">☕ Unpacking:</span>
-                          <p className="mt-1">Um jogo zen de organização de caixas e cômodos, ideal para jogar ouvindo um som tranquilo.</p>
+                        <div className="text-center pt-2">
+                          <button onClick={() => setCwChecked(true)} className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-2.5 rounded-xl text-xs font-bold transition shadow-md cursor-pointer">
+                            ✨ Conferir Respostas
+                          </button>
+                          {cwChecked && (
+                            <div className="mt-2 text-xs font-bold text-emerald-700 bg-emerald-50 py-2 rounded-xl border border-emerald-200">
+                              🎉 Parabéns pelo raciocínio rápido! Que tal mais um desafio?
+                            </div>
+                          )}
                         </div>
+                      </div>
+
+                      <div className="bg-white p-5 rounded-2xl border border-pink-200 shadow-2xs space-y-3">
+                        <div className="font-extrabold text-xs text-pink-950">💡 Dicas de Ouro para Passatempos:</div>
+                        <ul className="text-xs text-stone-600 space-y-2 list-disc pl-4 leading-relaxed">
+                          <li>Comece sempre pelas palavras que você tem 100% de certeza.</li>
+                          <li>Preste muita atenção no singular e plural das dicas.</li>
+                          <li>Use as letras cruzadas (intersecções) como âncoras para as palavras mais difíceis.</li>
+                          <li>Revistas de banca *Coquetel* e aplicativos de *NYT Crosswords* são ótimos para treinar o foco.</li>
+                        </ul>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {personalSubTab === 'locais' && (
+                {/* 7. PODCASTS & TRUE CRIME (EXATAMENTE 2 POR VEZ COM BOTÃO DE TROCA) */}
+                {personalSubTab === 'podcasts' && (
                   <div className="space-y-6">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-extrabold text-pink-950 uppercase tracking-wider flex items-center gap-1.5">
-                          <Coffee className="w-4 h-4 text-pink-500" /> Subpasta: Locais & Cafés Aconchegantes (Salvador)
-                        </label>
-                        <span className="text-[11px] bg-pink-100 text-pink-700 px-2.5 py-0.5 rounded-full font-bold">Salvo Automaticamente</span>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-extrabold text-pink-950 flex items-center gap-2">
+                          <Headphones className="w-4 h-4 text-pink-500" /> Podcasts & True Crime (Exibindo 2 Sugestões)
+                        </h3>
+                        <p className="text-xs text-stone-500 mt-0.5">Casos criminais fascinantes e investigações para ouvir no Spotify.</p>
                       </div>
-                      <textarea 
-                        value={locaisNotes} 
-                        onChange={(e) => setLocaisNotes(e.target.value)} 
-                        rows={8} 
-                        className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" 
-                        placeholder="Anote aqui suas cafeterias favoritas em Salvador, lugares perto das clínicas..." 
-                      />
+                      <button 
+                        onClick={() => setPodcastIndex((prev) => (prev + 2) % PODCASTS_POOL.length)}
+                        className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" /> Trocar Indicação
+                      </button>
                     </div>
 
-                    <div className="bg-pink-50/70 border border-pink-200 p-5 rounded-2xl space-y-3">
-                      <div className="font-extrabold text-xs text-pink-950 flex items-center gap-1.5">
-                        <Coffee className="w-4 h-4 text-pink-500" /> ☕ Dicas de Cafés & Lugares Calmos em Salvador:
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-stone-700">
-                        <div className="bg-white p-3 rounded-xl border border-pink-200 shadow-2xs">
-                          <span className="font-bold text-pink-950">📍 Rio Vermelho / Barra:</span>
-                          <p className="mt-1">Ótimas cafeterias artesanais com ambiente silencioso e aconchegante para tomar um espresso e respirar entre um plantão e outro.</p>
-                        </div>
-                        <div className="bg-white p-3 rounded-xl border border-pink-200 shadow-2xs">
-                          <span className="font-bold text-pink-950">📍 Cidade Baixa (Ribeira/Bonfim):</span>
-                          <p className="mt-1">Padrões charmosos à beira da baía, ótimos para curtir o fim de tarde com uma vista linda e sossegada.</p>
-                        </div>
-                      </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[0, 1].map((offset) => {
+                        const item = PODCASTS_POOL[(podcastIndex + offset) % PODCASTS_POOL.length]
+                        return (
+                          <div key={offset} className="bg-white p-6 rounded-2xl border border-pink-200 shadow-2xs space-y-2 flex flex-col justify-between">
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-extrabold text-sm text-pink-950">{item.title}</h4>
+                                <span className="text-[10px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-md font-bold">🎧 True Crime</span>
+                              </div>
+                              <p className="text-xs text-stone-600 mt-2 leading-relaxed">{item.desc}</p>
+                            </div>
+                            <button onClick={() => alert(`🎧 '${item.title}' salvo na sua lista para ouvir no próximo plantão!`)} className="w-full mt-4 bg-pink-50 hover:bg-pink-100 text-pink-800 border border-pink-200 py-2 rounded-xl text-xs font-bold transition">
+                              🎧 Salvar para Ouvir
+                            </button>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 )}
@@ -2070,55 +2265,68 @@ export default function VetWorkspaceBeatrizV26() {
             </div>
           )}
 
+          {/* 7 TIPOS DE MENSAGENS DE APOIO PROFUNDAS (ABA DE CONDOLÊNCIAS) */}
           {activeTab === 'condolencias' && (
-            <div className="max-w-3xl mx-auto space-y-6">
+            <div className="max-w-4xl mx-auto space-y-6">
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
                 <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
                   <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><HeartHandshake className="w-6 h-6" /></div>
                   <div>
-                    <h2 className="text-base font-extrabold text-pink-950">Biblioteca de Mensagens de Apoio Humanizadas & Profundas</h2>
+                    <h2 className="text-base font-extrabold text-pink-950">Biblioteca com 7 Mensagens de Apoio Humanizadas & Profundas 🕊️</h2>
                     <p className="text-xs text-pink-500 font-medium">Textos extensos, tocantes e repletos de empatia para tutores em momentos de luto</p>
                   </div>
                 </div>
 
-                <form onSubmit={handleGenerateCondolence} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs font-bold text-stone-700 block mb-1">Nome do Tutor(a)</label>
-                      <input type="text" placeholder="Ex: Maria" value={condolenceTutor} onChange={(e) => setCondolenceTutor(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-stone-700 block mb-1">Nome do Pet</label>
-                      <input type="text" placeholder="Ex: Mel" value={condolencePet} onChange={(e) => setCondolencePet(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
-                    </div>
-                  </div>
+                <div className="space-y-6">
+                  {CONDOLENCE_MESSAGES.map((item) => {
+                    const currentInputs = condolenceTutorInputs[item.id] || { tutor: '', pet: '' }
+                    const isCopied = copiedCondolenceId === item.id
+                    const customizedText = item.text
+                      .replace(/\[Tutor\(a\)\]/g, currentInputs.tutor.trim() || '[Tutor(a)]')
+                      .replace(/\[Pet\]/g, currentInputs.pet.trim() || '[Pet]')
 
-                  <div>
-                    <label className="text-xs font-bold text-stone-700 block mb-1">Tom e Perspectiva Emocional</label>
-                    <select value={condolenceTone} onChange={(e) => setCondolenceTone(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
-                      <option value="acolhedor_profundo">🕊️ Acolhimento Profundo & Vínculo Eterno (Extenso e tocante)</option>
-                      <option value="gratidao_legado">✨ Foco na Gratidão e na Vida Feliz que o Pet Teve</option>
-                      <option value="perda_subita">💔 Para Casos de Partida Súbita ou Inesperada</option>
-                      <option value="respoito_silencio">🌿 Validação do Luto e Respeito ao Silêncio</option>
-                    </select>
-                  </div>
+                    return (
+                      <div key={item.id} className="bg-pink-50/40 border border-pink-200 p-6 rounded-2xl space-y-4 shadow-2xs">
+                        <h3 className="text-sm font-extrabold text-pink-950">{item.title}</h3>
 
-                  <button type="submit" className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
-                    <Sparkles className="w-4 h-4" /> Gerar Mensagem Emocionante
-                  </button>
-                </form>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-white p-3.5 rounded-xl border border-pink-100">
+                          <div>
+                            <label className="text-[10px] font-bold text-stone-500 block mb-1">Nome do Tutor(a)</label>
+                            <input 
+                              type="text" 
+                              placeholder="Ex: Maria" 
+                              value={currentInputs.tutor} 
+                              onChange={(e) => setCondolenceTutorInputs({ ...condolenceTutorInputs, [item.id]: { ...currentInputs, tutor: e.target.value } })} 
+                              className="w-full bg-pink-50/50 border border-pink-200 rounded-lg px-3 py-1.5 text-xs text-pink-950 focus:outline-none" 
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-stone-500 block mb-1">Nome do Pet</label>
+                            <input 
+                              type="text" 
+                              placeholder="Ex: Mel" 
+                              value={currentInputs.pet} 
+                              onChange={(e) => setCondolenceTutorInputs({ ...condolenceTutorInputs, [item.id]: { ...currentInputs, pet: e.target.value } })} 
+                              className="w-full bg-pink-50/50 border border-pink-200 rounded-lg px-3 py-1.5 text-xs text-pink-950 focus:outline-none" 
+                            />
+                          </div>
+                        </div>
 
-                {generatedCondolence && (
-                  <div className="space-y-3 pt-4 border-t border-pink-100">
-                    <label className="text-xs font-bold text-pink-900 block">Mensagem Pronta para Copiar e Enviar no WhatsApp:</label>
-                    <div className="bg-pink-50/80 border border-pink-200 p-6 rounded-2xl text-xs leading-relaxed text-stone-800 whitespace-pre-line font-normal shadow-2xs">
-                      {generatedCondolence}
-                    </div>
-                    <button onClick={() => { navigator.clipboard.writeText(generatedCondolence); alert('Mensagem copiada para a área de transferência!'); }} className="bg-stone-800 hover:bg-stone-900 text-white px-4 py-2 rounded-xl text-xs font-bold transition">
-                      📋 Copiar Mensagem Completa
-                    </button>
-                  </div>
-                )}
+                        <div className="bg-white border border-pink-200 p-4 rounded-xl text-xs leading-relaxed text-stone-800 whitespace-pre-line font-normal">
+                          {customizedText}
+                        </div>
+
+                        <button 
+                          onClick={() => handleCopyCondolence(item)}
+                          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer ${isCopied ? 'bg-emerald-600 text-white' : 'bg-stone-800 hover:bg-stone-900 text-white'}`}
+                        >
+                          {isCopied ? <CheckCircle2 className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                          {isCopied ? 'Mensagem Copiada com Sucesso!' : '📋 Copiar Mensagem Completa'}
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </div>
           )}
@@ -2283,15 +2491,15 @@ export default function VetWorkspaceBeatrizV26() {
                       <div className="grid grid-cols-3 gap-2">
                         <div>
                           <label className="text-[10px] font-bold text-stone-600 block mb-1">Dose (mg/kg)</label>
-                          <input type="number" step="0.01" value={calcDosage} onChange={(e) => setCalcDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <input type="number" step="0.01" value={calcDosage} onChange={(e) => setCalcDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-stone-600 block mb-1">Conc. (mg/ml)</label>
-                          <input type="number" step="0.01" value={calcConcentration} onChange={(e) => setCalcConcentration(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <input type="number" step="0.01" value={calcConcentration} onChange={(e) => setCalcConcentration(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-stone-600 block mb-1">Comp. (mg)</label>
-                          <input type="number" step="0.1" placeholder="Ex: 20" value={calcPillMg} onChange={(e) => setCalcPillMg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <input type="number" step="0.1" placeholder="Ex: 20" value={calcPillMg} onChange={(e) => setCalcPillMg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                       </div>
 
@@ -2591,32 +2799,59 @@ export default function VetWorkspaceBeatrizV26() {
             <div className="max-w-4xl mx-auto space-y-6">
               <h2 className="text-xl font-extrabold text-pink-950">Controle Financeiro & Gráficos</h2>
               
-              {/* CAMPO DE EDIÇÃO DIRETA DE RENDA BASE / EXTRA */}
+              {/* CAMPO DE EDIÇÃO SEGURA DE RENDA (BOTÃO COM CLIQUE EXPLÍCITO) */}
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-3">
-                <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Editar Renda Base / Extra ("Por Fora")</h3>
-                <div className="flex flex-col sm:flex-row items-center gap-3">
-                  <input 
-                    type="number" 
-                    step="0.01" 
-                    value={tempIncomeInput} 
-                    onChange={(e) => setTempIncomeInput(e.target.value)} 
-                    className="w-full sm:w-64 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
-                    placeholder="Ex: 3500.00"
-                  />
-                  <button 
-                    type="button" 
-                    onClick={() => {
-                      const val = parseFloat(tempIncomeInput)
-                      if (!isNaN(val)) {
-                        setMonthlyIncome(val)
-                        alert('Renda base atualizada com sucesso!')
-                      }
-                    }} 
-                    className="w-full sm:w-auto bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
-                  >
-                    💾 Atualizar Renda do Mês
-                  </button>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Renda Base / Extra ("Por Fora")</h3>
+                  {!isEditingIncome && (
+                    <button 
+                      onClick={() => { setIsEditingIncome(true); setTempIncomeInput(monthlyIncome.toString()); }}
+                      className="text-xs font-bold text-pink-600 hover:underline bg-pink-50 px-3 py-1 rounded-lg border border-pink-200 cursor-pointer"
+                    >
+                      ✏️ Editar Renda
+                    </button>
+                  )}
                 </div>
+
+                {isEditingIncome ? (
+                  <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      value={tempIncomeInput} 
+                      onChange={(e) => setTempIncomeInput(e.target.value)} 
+                      className="w-full sm:w-64 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
+                      placeholder="Ex: 3500.00"
+                    />
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          const val = parseFloat(tempIncomeInput)
+                          if (!isNaN(val)) {
+                            setMonthlyIncome(val)
+                            setIsEditingIncome(false)
+                            alert('Renda base atualizada com sucesso!')
+                          }
+                        }} 
+                        className="flex-1 sm:flex-none bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+                      >
+                        💾 Salvar
+                      </button>
+                      <button 
+                        type="button" 
+                        onClick={() => setIsEditingIncome(false)} 
+                        className="flex-1 sm:flex-none bg-stone-100 hover:bg-stone-200 text-stone-700 px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-xl font-extrabold text-emerald-600">
+                    R$ {monthlyIncome.toFixed(2)}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
