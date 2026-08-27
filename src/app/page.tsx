@@ -269,7 +269,7 @@ export default function VetWorkspaceBeatrizV26() {
 
   const [condolenceTutor, setCondolenceTutor] = useState('')
   const [condolencePet, setCondolencePet] = useState('')
-  const [condolenceTone, setCondolenceTone] = useState<string>('acolhedor')
+  const [condolenceTone, setCondolenceTone] = useState<string>('acolhedor_escuta')
   const [generatedCondolence, setGeneratedCondolence] = useState('')
 
   const currentChatSession = chatSessions.find(s => s.id === currentChatId) || chatSessions[0]
@@ -346,44 +346,188 @@ export default function VetWorkspaceBeatrizV26() {
     setChatInput(templateText)
   }
 
+  // BIBLIOTECA AMPLIADA COM 45 MENSAGENS HUMANIZADAS E EMOCIONALMENTE RICAS
   const handleGenerateCondolence = (e: React.FormEvent) => {
     e.preventDefault()
     if (!condolenceTutor.trim() || !condolencePet.trim()) return
 
+    const t = condolenceTutor.trim()
+    const p = condolencePet.trim()
     let text = ''
+
     switch (condolenceTone) {
-      case 'acolhedor':
-        text = `Oi, ${condolenceTutor}. É com o coração apertado que te escrevo. Eu sei que nenhuma palavra neste momento é capaz de preencher o vazio que o(a) ${condolencePet} deixa, mas eu precisava te dizer que foi uma honra ter cruzado o caminho dele(a). Ele(a) foi extremamente amado(a), cuidado(a) e teve ao lado dele(a) a melhor família que poderia existir. Guarde no coração a alegria que ele(a) espalhou. Um abraço muito forte e sinta-se abraçado(a) por toda a nossa equipe.`
+      // ACOLHIMENTO
+      case 'acolhedor_escuta':
+        text = `Oi, ${t}. Só queria te lembrar que estou aqui, com escuta atenta para o que você precisar neste momento, seja para conversar sobre o(a) ${p} ou em absoluto silêncio.`
         break
-      case 'luta_longa':
-        text = `Oi, ${condolenceTutor}. Demorei para te mandar mensagem porque a dor da despedida é imensa, mas o(a) ${condolencePet} lutou bravamente até o último segundo. Ele(a) foi um verdadeiro guerreiro(a), e você esteve firme ao lado dele(a) em cada etapa dessa jornada difícil. Agora, ele(a) descansou em paz, livre de qualquer dor, levando consigo todo o amor do mundo que você dedicou. Fique com a certeza de que você fez absolutamente tudo o que era possível. Estou aqui para o que você precisar.`
+      case 'acolhedor_silencio':
+        text = `${t}, sei que há momentos em que as palavras parecem insuficientes. Quero apenas que saiba que sua dor pelo(a) ${p} é profundamente respeitada por mim e por toda a nossa equipe.`
         break
-      case 'profundo':
-        text = `Oi, ${condolenceTutor}. A partida do(a) ${condolencePet} deixa um silêncio muito forte na rotina, mas a verdade é que vidas como a dele(a) não passam pelas nossas vidas por acaso; elas nos transformam para sempre. O amor que vocês construíram é eterno e transcende a ausência física. Que o tempo traga um pouco de conforto e que fiquem apenas as lembranças das tardes felizes, dos olhares cúmplices e de todo o carinho compartilhado. Meus mais sinceros sentimentos.`
+      case 'acolhedor_abrigo':
+        text = `Olá, ${t}. Abrir mão da presença física do(a) ${p} deixa um vazio imenso. Quero que você encontre um pingo de conforto sabendo que o lar que você deu a ele(a) foi o melhor refúgio do mundo.`
         break
-      case 'curto_respeitoso':
-        text = `Oi, ${condolenceTutor}, aqui é a Dra. Beatriz. Só queria te enviar um abraço bien apertado e dizer que sinto muito pela partida do(a) ${condolencePet}. Ele(a) foi muito especial e marcou muito a todos nós. Fique com Deus e conte comigo para o que precisar.`
+
+      // FORÇA
+      case 'forca_nao_precisa_ser_forte':
+        text = `${t}, você não precisa carregar o peso de parecer forte o tempo inteiro. O(A) ${p} conheceu o seu lado mais humano, e está tudo bem desabar e sentir o peso dessa ausência.`
         break
-      case 'idoso_gratidao':
-        text = `Oi, ${condolenceTutor}. O(A) ${condolencePet} teve uma vida longa, linda e repleta de amor ao seu lado. Você cuidou dele(a) com uma dedicação admirável do primeiro ao último dia de sua velhice. Sei que a saudade vai ser imensa, mas que privilégio foi poder compartilhar tantos anos de companheirismo com ele(a). Um abraço carinhoso e muita força nesse momento.`
+      case 'forca_coragem_cuidado':
+        text = `Oi, ${t}. Acompanhei de perto o quanto foi exigido de você. Cuidar de um animal em momentos delicados exige uma coragem imensa, e você demonstrou isso por ${p} em cada detalhe.`
         break
-      case 'perda_repentina':
-        text = `Oi, ${condolenceTutor}. Estou sem palavras para expressar o quanto sinto pela perda tão repentina do(a) ${condolencePet}. A dor de uma partida sem aviso é dilacerante, mas quero que saiba que ele(a) partiu sabendo o quanto era querido(a) por você. Se precisar desabafar ou de qualquer apoio, minha porta e meu coração estão abertos.`
+      case 'forca_passo_lento':
+        text = `${t}, vá no seu ritmo. A rotina sem o(a) ${p} muda de uma hora para outra, e dar um passo de cada vez, por mais lento que pareça, já é um ato de grande resistência.`
         break
-      case 'filhote_precoce':
-        text = `Oi, ${condolenceTutor}. A partida do(a) ${condolencePet} de forma tão precoce dói na alma de um jeito inexplicável. Ele(a) era apenas uma luz que passou rápido por aqui, mas deixou uma marca profunda e inesquecível em nossas vidas. Que você encontre amparo nas lembranças doces e no carinho imenso que recebeu dela(e). Meus sentimentos mais profundos.`
+
+      // ESPERANÇA
+      case 'esperanca_passo_a_passo':
+        text = `Oi, ${t}. Quando o cenário parece incerto com o(a) ${p}, o segredo é não tentar abraçar o futuro inteiro. Vamos focar no hoje, um dia de cada vez, caminhando lado a lado.`
         break
-      case 'acolhimento_espiritual':
-        text = `Oi, ${condolenceTutor}. Acredito de verdade que os animais que amamos nunca nos deixam por completo; o espírito deles passa a morar em um cantinho protegido do nosso coração. O(A) ${condolencePet} cumpriu a missão dela(e) com louvor: te ensinou a amar incondicionalmente. Que ele(a) descanse em paz e que você sinta esse abraço invisível de conforto hoje.`
+      case 'esperanca_respiro':
+        text = `${t}, mesmo em meio às dificuldades com o(a) ${p}, reserve um instante para respirar e lembrar da força que vocês construíram juntos. Estou aqui para apoiar cada decisão.`
         break
-      case 'parceiro_de_jornada':
-        text = `Oi, ${condolenceTutor}. O(A) ${condolencePet} não era apenas um pet, era seu companheiro de todas as horas, seu confidente e parte da sua história. Perder uma presença tão constante muda os nossos dias, mas o legado de lealdade que ele(a) deixa é eterno. Estou com você nessa dor e desejo muita paz para o seu coração.`
+      case 'esperanca_caminho_seguro':
+        text = `Olá, ${t}. Sei que a apreensão é grande em relação aos próximos dias do(a) ${p}. Vamos avaliar cada etapa com calma e critério, sem pressa e com total transparência.`
         break
-      case 'apoio_clinico_humano':
-        text = `Oi, ${condolenceTutor}. Acompanhei de perto o quanto você se dedicou, lutou e fez por ele(a). Quero que você tire da sua mente qualquer sentimento de culpa e guarde apenas o orgulho de ter sido o melhor tutor(a) que o(a) ${condolencePet} poderia ter escolhido na vida. Ele(a) foi muito feliz ao seu lado. Um abraço cheio de respeito e admiração pelo seu cuidado.`
+
+      // CONFORTO
+      case 'conforto_rotina':
+        text = `${t}, o silêncio que o(a) ${p} deixa nos cantos da casa é a parte mais difícil de assimilar. Que com o tempo esse silêncio dê lugar à suavidade das lembranças boas.`
+        break
+      case 'conforto_abrigo_interno':
+        text = `Oi, ${t}. Tudo o que você viveu com o(a) ${p} pertence a um lugar seguro dentro de você. Nenhuma ausência física é capaz de apagar a marca que ele(a) deixou na sua vida.`
+        break
+      case 'conforto_descanso_merecido':
+        text = `${t}, depois de tanta luta e dedicação ao lado do(a) ${p}, que o coração encontre um pouco de serenidade sabendo que ele(a) descansou em paz e sem dor.`
+        break
+
+      // CARINHO
+      case 'carinho_lembranca_doce':
+        text = `Oi, ${t}. Lembrei do jeitinho particular do(a) ${p} hoje. São essas pequenas manias e surpresas diárias que fazem a saudade ser grande, mas também cheia de significado.`
+        break
+      case 'carinho_olhar_cumplice':
+        text = `${t}, a conexão que você tinha com o(a) ${p} dispensava palavras. Bastava um olhar para saberem exatamente o que o outro estava sentindo. Guarde isso com carinho.`
+        break
+      case 'carinho_abrigo_afeto':
+        text = `Olá, ${t}. O afeto verdadeiro que você dedicou ao(à) ${p} transformou a vida dele(a) em uma história de pura sorte e felicidade. Um abraço bem apertado em você.`
+        break
+
+      // VÍNCULO
+      case 'vinculo_eterno_historia':
+        text = `${t}, vidas como a do(a) ${p} não passam pelas nossas rotinas por acaso; elas redefinem a nossa forma de ver o mundo. O vínculo de vocês é parte definitiva de quem você é.`
+        break
+      case 'vinculo_marca_profunda':
+        text = `Oi, ${t}. A intensidade da dor que você sente agora pelo(a) ${p} é o reflexo exato da imensidão do amor e da cumplicidade que existiu entre vocês.`
+        break
+      case 'vinculo_historia_compartilhada':
+        text = `${t}, cada fase que você passou ao lado do(a) ${p} construiu um capítulo de uma história única, que o tempo nenhum é capaz de apagar ou alterar.`
+        break
+
+      // GRATIDÃO
+      case 'gratidao_escolha':
+        text = `Oi, ${t}. Pensei muito em vocês hoje. Que privilégio mútuo foi o(a) ${p} ter cruzado o seu caminho e encontrado em você a melhor companhia que poderia existir.`
+        break
+      case 'gratidao_dedicacao_tutor':
+        text = `${t}, quero te agradecer pela entrega incondicional ao cuidar do(a) ${p}. Sua dedicação foi exemplar do primeiro ao último instante.`
+        break
+      case 'gratidao_parceria_longa':
+        text = `Olá, ${t}. Olhando para a trajetória do(a) ${p} ao seu lado, o que fica é uma imensa gratidão por cada tarde tranquila e cada momento de alegria compartilhada.`
+        break
+
+      // RECONHECIMENTO
+      case 'reconhecimento_esforco_clinico':
+        text = `${t}, acompanhei de perto o seu empenho. Você fez absolutamente tudo o que estava ao seu alcance pelo(a) ${p}, com uma lucidez e um amor admiráveis.`
+        break
+      case 'reconhecimento_atencao_detalhes':
+        text = `Oi, ${t}. Quero reconhecer o quanto você foi atento(a) aos mínimos detalhes da saúde do(a) ${p}. Sua observação fez toda a diferença na qualidade de vida dele(a).`
+        break
+      case 'reconhecimento_zelo_diario':
+        text = `${t}, o cuidado diário que você manteve com o(a) ${p} exige uma doação de energia e carinho que poucas pessoas compreendem. Meu respeito total a você.`
+        break
+
+      // COMPANHEIRISMO
+      case 'companheirismo_parceiro_horas':
+        text = `Oi, ${t}. O(A) ${p} era muito mais do que um pet; era seu confidente silencioso nas horas calmas e nas tempestades. É natural que o espaço dele(a) pareça gigantesco agora.`
+        break
+      case 'companheirismo_passos_juntos':
+        text = `${t}, caminhar ao lado do(a) ${p} todos esses anos moldou o seu dia a dia. Que você consiga encontrar conforto nas memórias dessa parceria leal e constante.`
+        break
+      case 'companheirismo_presenca_fiel':
+        text = `Olá, ${t}. A fidelidade do(a) ${p} foi um dos presentes mais bonitos que você recebeu na vida. Essa presença vai continuar ecoando nos seus dias.`
+        break
+
+      // PRESENÇA
+      case 'presenca_aqui_e_agora':
+        text = `Oi, ${t}. Em momentos delicados com o(a) ${p}, a melhor resposta é o aqui e agora. Estar presente, oferecendo seu carinho, é tudo o que ele(a) precisa e reconhece.`
+        break
+      case 'presenca_abrigo_seguro':
+        text = `${t}, para o(a) ${p}, o lugar mais seguro do universo sempre foi estar perto de você. Essa certeza ninguém pode tirar de nenhum dos dois.`
+        break
+      case 'presenca_silenciosa':
+        text = `Olá, ${t}. Apenas estar ao lado do(a) ${p}, compartilhando a respiração e o calor, é a forma mais profunda de dizer o quanto ele(a) é amado(a) e importante.`
+        break
+
+      // MEMÓRIAS
+      case 'memorias_tardes_felizes':
+        text = `Oi, ${t}. Com o passar dos dias, que as lembranças das tardes felizes ao lado do(a) ${p} comecem a suplantar a dor da ausência física. Ele(a) viveu muito bem.`
+        break
+      case 'memorias_jeito_unico':
+        text = `${t}, cada animal tem uma assinatura única na nossa alma. O jeitinho do(a) ${p} de olhar, pedir carinho ou esperar na porta vai ficar gravado para sempre.`
+        break
+      case 'memorias_historica_afetiva':
+        text = `Olá, ${t}. Construir uma vida inteira de memórias afetivas com o(a) ${p} é um privilégio que deixa raízes profundas na nossa história.`
+        break
+
+      // CUIDADO
+      case 'cuidado_pequenos_gestos':
+        text = `Oi, ${t}. O amor verdadeiro se esconde nos detalhes: no ajuste do remédio, no carinho na cabeça, na atenção redobrada. Você deu isso ao(à) ${p} todos os dias.`
+        break
+      case 'cuidado_atencioso_paciencia':
+        text = `${t}, cuidar de quem a gente ama em momentos de fragilidade exige uma paciência infinita. Você foi impecável no zelo pelo(a) ${p}.`
+        break
+      case 'cuidado_abrigo_dedicacao':
+        text = `Olá, ${t}. Saiba que cada gesto de cuidado que você teve com o(a) ${p} moldou uma rotina de respeito e dignidade até o último segundo.`
+        break
+
+      // CORAGEM
+      case 'coragem_enfrentar_fase_dificil':
+        text = `Oi, ${t}. Enfrentar os altos e baixos do tratamento do(a) ${p} exigiu de você uma coragem que nem sabia que tinha. Tenha orgulho da sua postura.`
+        break
+      case 'coragem_decisoes_dificeis':
+        text = `${t}, tomar decisões difíceis por amor é o ato mais corajoso e altruísta que um tutor pode realizar pelo(a) ${p}. Estou com você nessa convicção.`
+        break
+      case 'coragem_passo_firme':
+        text = `Olá, ${t}. Nos dias em que a energia faltar, lembre-se de que você já foi extremamente forte e dedicado(a) ao(à) ${p}. Permita-se descansar.`
+        break
+
+      // AMOR
+      case 'amor_delicado_sem_exageros':
+        text = `Oi, ${t}. O que você e o(a) ${p} construíram foi sólido, real e construído dia após dia na convivência simples e verdadeira.`
+        break
+      case 'amor_presenca_constante':
+        text = `${t}, o afeto que o(a) ${p} sentia por você era a coisa mais pura e sem segundas intenções deste mundo. Leve essa certeza guardada no peito.`
+        break
+
+      // TEMPO COMPARTILHADO & OUTROS
+      case 'tempo_compartilhado_longa_jornada':
+        text = `Oi, ${t}. Compartilhar tantos anos de vida com o(a) ${p} moldou a sua rotina de um jeito inesquecível. Que a saudade venha acompanhada de orgulho da história de vocês.`
+        break
+      case 'momentos_dificeis_dor_valida':
+        text = `${t}, sinto muito pela fase difícil que você está enfrentando com o(a) ${p}. A dor que você carrega é a prova cabal de uma ligação verdadeira e insubstituível.`
+        break
+      case 'incerteza_passo_curto':
+        text = `Oi, ${t}. Sei que o momento atual com o(a) ${p} traz dúvidas e ansiedade. Vamos dar um passo de cada vez, focando no que traz conforto agora, sem antecipar o futuro.`
+        break
+      case 'alivio_descanso_merecido':
+        text = `${t}, após um período de tanta exaustão e desgaste ao lado do(a) ${p}, que você consiga encontrar um respiro e a paz necessária para recomeçar.`
+        break
+      case 'recomeco_novo_ritmo':
+        text = `Oi, ${t}. O recomeço após a perda do(a) ${p} é um processo solitário e delicado. Dê tempo ao tempo e seja gentil com você mesma(o) em cada dia que se inicia.`
+        break
+      case 'apoio_clinico_livre_de_culpa':
+        text = `${t}, tire qualquer vestígio de culpa da sua mente. Você foi o melhor tutor que o(a) ${p} poderia ter escolhido na vida. Descanse o coração.`
         break
       default:
-        text = `Oi, ${condolenceTutor}. É com o coração apertado que te escrevo. Sinto muito pela perda do(a) ${condolencePet}. Ele(a) foi muito amado(a) e deixou uma marca linda em nossas vidas. Fique bem.`
+        text = `Oi, ${t}. É com o coração apertado que te escrevo. Sinto muito por este momento com o(a) ${p}. Ele(a) foi muito amado(a) e marcou muito a todos nós. Conte comigo.`
     }
     setGeneratedCondolence(text)
   }
@@ -1512,8 +1656,8 @@ export default function VetWorkspaceBeatrizV26() {
                 <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
                   <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><HeartHandshake className="w-6 h-6" /></div>
                   <div>
-                    <h2 className="text-base font-extrabold text-pink-950">Gerador de Mensagem de Apoio (Condolências)</h2>
-                    <p className="text-xs text-pink-500 font-medium">10 opções de textos altamente humanizados, profundos e sensíveis para tutores em luto</p>
+                    <h2 className="text-base font-extrabold text-pink-950">Biblioteca de Mensagens de Apoio Humanizadas (45 Opções)</h2>
+                    <p className="text-xs text-pink-500 font-medium">Abordagens profundas, empáticas e livres de clichês para tutores em diferentes momentos</p>
                   </div>
                 </div>
 
@@ -1530,18 +1674,81 @@ export default function VetWorkspaceBeatrizV26() {
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold text-stone-700 block mb-1">Tom / Contexto da Mensagem (10 Opções)</label>
+                    <label className="text-xs font-bold text-stone-700 block mb-1">Perspectiva Emocional / Tom (45 Opções na Biblioteca)</label>
                     <select value={condolenceTone} onChange={(e) => setCondolenceTone(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
-                      <option value="acolhedor">1. Acolhedor e Sensível (Foco na gratidão e amor)</option>
-                      <option value="luta_longa">2. Após Longa Batalha / Doença Crônica (Foco na coragem)</option>
-                      <option value="profundo">3. Profundo e Reflexivo (Transformação e vínculo eterno)</option>
-                      <option value="curto_respeitoso">4. Curto, Respeitoso e Direto ao Ponto</option>
-                      <option value="idoso_gratidao">5. Pet Idoso / Longa Vida (Celebração da velhice bem cuidada)</option>
-                      <option value="perda_repentina">6. Perda Repentina / Acidente (Apoio em choque súbito)</option>
-                      <option value="filhote_precoce">7. Partida Precoce / Filhote (Dor do vazio repentino)</option>
-                      <option value="acolhimento_espiritual">8. Acolhimento Espiritual e Suave (Missão cumprida)</option>
-                      <option value="parceiro_de_jornada">9. Foco no Companheirismo (Amigo fiel e confidente)</option>
-                      <option value="apoio_clinico_humano">10. Apoio Clínico Humano (Alívio de culpa e exaltação do tutor)</option>
+                      <optgroup label="🕊️ Acolhimento">
+                        <option value="acolhedor_escuta">1. Acolhimento simples com escuta atenta</option>
+                        <option value="acolhedor_silencio">2. Validação do respeito ao silêncio e à dor</option>
+                        <option value="acolhedor_abrigo">3. O lar como refúgio seguro de amor</option>
+                      </optgroup>
+                      <optgroup label="💪 Força">
+                        <option value="forca_nao_precisa_ser_forte">4. Retirando o peso de ter que parecer forte</option>
+                        <option value="forca_coragem_cuidado">5. Reconhecendo a coragem de cuidar até o fim</option>
+                        <option value="forca_passo_lento">6. Respeitando o ritmo de cada dia</option>
+                      </optgroup>
+                      <optgroup label="🌱 Esperança">
+                        <option value="esperanca_passo_a_passo">7. Foco no presente, um dia de cada vez</option>
+                        <option value="esperanca_respiro">8. Momento de respiro em meio à incerteza</option>
+                        <option value="esperanca_caminho_seguro">9. Avaliação calma e sem pressa das próximas etapas</option>
+                      </optgroup>
+                      <optgroup label="☕ Conforto">
+                        <option value="conforto_rotina">10. A mudança no silêncio da rotina diária</option>
+                        <option value="conforto_abrigo_interno">11. A memória guardada em lugar seguro</option>
+                        <option value="conforto_descanso_merecido">12. Serenidade após o término da luta</option>
+                      </optgroup>
+                      <optgroup label="✨ Carinho">
+                        <option value="carinho_lembranca_doce">13. Resgatando as manias e o jeitinho particular</option>
+                        <option value="carinho_olhar_cumplice">14. Os olhares que dispensavam palavras</option>
+                        <option value="carinho_abrigo_afeto">15. A sorte de ter cruzado o caminho</option>
+                      </optgroup>
+                      <optgroup label="🌿 Vínculo">
+                        <option value="vinculo_eterno_historia">16. Vínculo que redefine nossa forma de ver o mundo</option>
+                        <option value="vinculo_marca_profunda">17. A intensidade da dor como prova da imensidão do amor</option>
+                        <option value="vinculo_historia_compartilhada">18. Capítulos de uma história única</option>
+                      </optgroup>
+                      <optgroup label="🙏 Gratidão">
+                        <option value="gratidao_escolha">19. O privilégio mútuo da escolha</option>
+                        <option value="gratidao_dedicacao_tutor">20. Agradecendo pela entrega incondicional</option>
+                        <option value="gratidao_parceria_longa">21. Gratidão pelas tardes tranquilas compartilhadas</option>
+                      </optgroup>
+                      <optgroup label="🩺 Reconhecimento">
+                        <option value="reconhecimento_esforco_clinico">22. Reconhecendo o esmero e a dedicação em casa</option>
+                        <option value="reconhecimento_atencao_detalhes">23. Valorizando quem percebia cada detalhe</option>
+                        <option value="reconhecimento_zelo_diario">24. O respeito ao zelo diário e à energia dedicada</option>
+                      </optgroup>
+                      <optgroup label="🤝 Companheirismo">
+                        <option value="companheirismo_parceiro_horas">25. O pet como confidente nas horas calmas</option>
+                        <option value="companheirismo_passos_juntos">26. Caminhar lado a lado moldando o dia a dia</option>
+                        <option value="companheirismo_presenca_fiel">27. A fidelidade como um dos maiores presentes</option>
+                      </optgroup>
+                      <optgroup label="🐾 Presença">
+                        <option value="presenca_aqui_e_agora">28. O valor de estar presente no aqui e agora</option>
+                        <option value="presenca_abrigo_seguro">29. O porto seguro de estar perto de você</option>
+                        <option value="presenca_silenciosa">30. Compartilhar a respiração e o calor</option>
+                      </optgroup>
+                      <optgroup label="📖 Memórias">
+                        <option value="memorias_tardes_felizes">31. A suavidade das tardes felizes superando a ausência</option>
+                        <option value="memorias_jeito_unico">32. A assinatura única deixada na alma</option>
+                        <option value="memorias_historica_afetiva">33. Raízes profundas na história afetiva</option>
+                      </optgroup>
+                      <optgroup label="🤲 Cuidado">
+                        <option value="cuidado_pequenos_gestos">34. A grandeza nos pequenos gestos cotidianos</option>
+                        <option value="cuidado_atencioso_paciencia">35. A paciência infinita nos momentos de fragilidade</option>
+                        <option value="cuidado_abrigo_dedicacao">36. Rotina de respeito e dignidade até o fim</option>
+                      </optgroup>
+                      <optgroup label="⚡ Coragem">
+                        <option value="coragem_enfrentar_fase_dificil">37. A coragem de enfrentar os altos e baixos</option>
+                        <option value="coragem_decisoes_dificeis">38. O ato amoroso de tomar decisões difíceis</option>
+                        <option value="coragem_passo_firme">39. A permissão para descansar quando a energia falta</option>
+                      </optgroup>
+                      <optgroup label="❤️ Amor & Outras Perspectivas">
+                        <option value="amor_delicado_sem_exageros">40. O afeto construído na convivência simples</option>
+                        <option value="amor_presenca_constante">41. A pureza de um carinho sem segundas intenções</option>
+                        <option value="tempo_compartilhado_longa_jornada">42. Anos de vida compartilhados com orgulho</option>
+                        <option value="momentos_dificeis_dor_valida">43. Validando a dor como reflexo de uma ligação verdadeira</option>
+                        <option value="recomeco_novo_ritmo">44. A delicadeza e o tempo necessário no recomeço</option>
+                        <option value="apoio_clinico_livre_de_culpa">45. Alívio de culpa e exaltação da dedicação tutelar</option>
+                      </optgroup>
                     </select>
                   </div>
 
