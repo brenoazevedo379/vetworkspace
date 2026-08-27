@@ -246,6 +246,7 @@ export default function VetWorkspaceBeatrizV26() {
 
   const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'bsa' | 'ia' | 'condolencias' | 'tarefas' | 'calendario' | 'financas' | 'wishlist' | 'clinicas' | 'pessoal'>('painel')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [isPersonalSidebarOpen, setIsPersonalSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Sincronizado')
 
   const todayObj = new Date()
@@ -424,7 +425,7 @@ export default function VetWorkspaceBeatrizV26() {
 
   const [condolenceTutor, setCondolenceTutor] = useState('')
   const [condolencePet, setCondolencePet] = useState('')
-  const [condolenceTone, setCondolenceTone] = useState<string>('acolhedor_escuta')
+  const [condolenceTone, setCondolenceTone] = useState<string>('acolhedor_profundo')
   const [generatedCondolence, setGeneratedCondolence] = useState('')
 
   const currentChatSession = chatSessions.find(s => s.id === currentChatId) || chatSessions[0]
@@ -507,7 +508,20 @@ export default function VetWorkspaceBeatrizV26() {
 
     const t = condolenceTutor.trim()
     const p = condolencePet.trim()
-    let text = `Oi, ${t}. Só queria te lembrar que estou aqui, com escuta atenta para o que você precisar neste momento, seja para conversar sobre o(a) ${p} ou em absoluto silêncio.`
+    
+    let text = ''
+    if (condolenceTone === 'acolhedor_profundo') {
+      text = `Querido(a) ${t},\n\nSinto muito, do fundo do meu coração, pela partida do(a) ${p}. Sei que nenhuma palavra neste momento é capaz de preencher o vazio que ele(a) deixa, porque o amor que vocês construíram foi imenso e verdadeiro.\n\nO(A) ${p} foi muito mais do que um animal de estimação; foi um companheiro leal, um confidente nos dias difíceis e uma fonte constante de alegria pura. Quero que você saiba que acompanhei o quanto você lutou e cuidou dele(a) com toda a dedicação do mundo.\n\nO luto é o preço que pagamos por termos amado profundamente, e a saudade é a prova de que o vínculo de vocês jamais será apagado. Se precisar conversar, chorar ou apenas ficar em silêncio, minha escuta e meu abraço estão inteiramente à sua disposição.`
+    } else if (condolenceTone === 'gratidao_legado') {
+      text = `Oi, ${t}.\n\nHoje o dia amanheceu mais silencioso com a partida do(a) ${p}, mas a verdade é que a passagem dele(a) pela sua vida foi um verdadeiro presente. Olhando para trás, fica a certeza de que ele(a) teve uma vida repleta de amor, de carinho genuíno e de um cuidado que poucos animais têm a sorte de receber.\n\nAs lembranças dos momentos felizes, das brincadeiras e do olhar cheio de confiança do(a) ${p} vão permanecer guardadas para sempre no seu coração. Que você encontre conforto na paz de saber que você fez absolutamente tudo o que estava ao seu alcance para dar a ele(a) uma vida maravilhosa.\n\nEstou aqui com você, para o que precisar.`
+    } else if (condolenceTone === 'perda_subita') {
+      text = `Meu abraço mais sincero e apertado para você, ${t}.\n\nA perda do(a) ${p} de forma tão repentina deixa qualquer um sem chão e com o coração em pedaços. É perfeitamente normal sentir essa dor lancinante e esse sentimento de injustiça.\n\nPor favor, seja gentil com você mesmo(a) nestes próximos dias. O amor que unia vocês não desaparece com a ausência física; ele se transforma em saudade eterna e em gratidão por cada segundo compartilhado. Conte comigo para te apoiar em qualquer coisa que precisar.`
+    } else if (condolenceTone === 'respeito_silencio') {
+      text = `Olá, ${t}.\n\nSó queria te enviar esta mensagem para lembrar que estou aqui pensando em você e no(a) ${p}. Sei que a dor do luto é um caminho solitário e pesado, e que muitas vezes faltam palavras.\n\nNão se cobre para ser forte agora. Permita-se sentir, chorar e guardar o luto no seu tempo. O(A) ${p} teve a sorte de ter você como família, e o laço de vocês é eterno. Estou à disposição para o que você precisar, seja para desabafar ou em absoluto silêncio.`
+    } else {
+      text = `Querido(a) ${t},\n\nO(A) ${p} deixou uma marca inesquecível em nossas vidas e, principalmente, na sua. A dor da despedida é o reflexo exato da intensidade do amor que existia entre vocês.\n\nQue você consiga encontrar conforto nas lembranças bonitas e na certeza de que ele(a) foi profundamente amado(a) até o último instante. Meu abraço mais fraterno e solidário neste momento difícil.`
+    }
+
     setGeneratedCondolence(text)
   }
 
@@ -695,6 +709,8 @@ export default function VetWorkspaceBeatrizV26() {
     return 0.00
   })
 
+  const [tempIncomeInput, setTempIncomeInput] = useState<string>(monthlyIncome.toString())
+
   const [finances, setFinances] = useState<FinancialItem[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vet_finances_v18')
@@ -707,8 +723,6 @@ export default function VetWorkspaceBeatrizV26() {
   const [finCategory, setFinCategory] = useState('Cartão de Crédito')
   const [finCustomCategory, setFinCustomCategory] = useState('')
   const [finAmount, setFinAmount] = useState('')
-  const [editingIncome, setEditingIncome] = useState(false)
-  const [tempIncome, setTempIncome] = useState('0')
 
   const [tasks, setTasks] = useState<TaskItem[]>(() => {
     if (typeof window !== 'undefined') {
@@ -754,7 +768,11 @@ export default function VetWorkspaceBeatrizV26() {
           if (d.items) { setItems(d.items); localStorage.setItem('vet_items_v19', JSON.stringify(d.items)); }
           if (d.patients) { setPatients(d.patients); localStorage.setItem('vet_patients_v18', JSON.stringify(d.patients)); }
           if (d.customDrugs) { setCustomDrugs(d.customDrugs); localStorage.setItem('vet_custom_drugs_v26', JSON.stringify(d.customDrugs)); }
-          if (d.monthlyIncome !== undefined) { setMonthlyIncome(d.monthlyIncome); localStorage.setItem('vet_income_v18', d.monthlyIncome.toString()); }
+          if (d.monthlyIncome !== undefined) { 
+            setMonthlyIncome(d.monthlyIncome); 
+            setTempIncomeInput(d.monthlyIncome.toString());
+            localStorage.setItem('vet_income_v18', d.monthlyIncome.toString()); 
+          }
           if (d.finances) { setFinances(d.finances); localStorage.setItem('vet_finances_v18', JSON.stringify(d.finances)); }
           if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v18', JSON.stringify(d.tasks)); }
           if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v18', JSON.stringify(d.events)); }
@@ -788,7 +806,11 @@ export default function VetWorkspaceBeatrizV26() {
             if (d.items) { setItems(d.items); localStorage.setItem('vet_items_v19', JSON.stringify(d.items)); }
             if (d.patients) { setPatients(d.patients); localStorage.setItem('vet_patients_v18', JSON.stringify(d.patients)); }
             if (d.customDrugs) { setCustomDrugs(d.customDrugs); localStorage.setItem('vet_custom_drugs_v26', JSON.stringify(d.customDrugs)); }
-            if (d.monthlyIncome !== undefined) { setMonthlyIncome(d.monthlyIncome); localStorage.setItem('vet_income_v18', d.monthlyIncome.toString()); }
+            if (d.monthlyIncome !== undefined) { 
+              setMonthlyIncome(d.monthlyIncome); 
+              setTempIncomeInput(d.monthlyIncome.toString());
+              localStorage.setItem('vet_income_v18', d.monthlyIncome.toString()); 
+            }
             if (d.finances) { setFinances(d.finances); localStorage.setItem('vet_finances_v18', JSON.stringify(d.finances)); }
             if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v18', JSON.stringify(d.tasks)); }
             if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v18', JSON.stringify(d.events)); }
@@ -906,7 +928,7 @@ export default function VetWorkspaceBeatrizV26() {
   }
 
   const totalGastos = finances.reduce((acc, f) => acc + f.amount, 0)
-  const saldoRestante = monthlyIncome - totalGastos
+  const saldoRestante = (monthlyIncome + totalShiftsAmount) - totalGastos
 
   const handleAddFinancial = (e: React.FormEvent) => {
     e.preventDefault()
@@ -1200,10 +1222,57 @@ export default function VetWorkspaceBeatrizV26() {
             </button>
           </div>
 
+          {/* ESPAÇO PESSOAL DA BIA (COM SUBPASTAS NA LATERAL) */}
           <div className="pt-1">
-            <button onClick={() => setActiveTab('pessoal')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'pessoal' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
-              <Heart className="w-4 h-4 text-pink-500" /> Espaço Pessoal da Bia ✨
-            </button>
+            <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-pink-50/60 hover:bg-pink-100/70 text-pink-950 cursor-pointer border border-pink-100 font-semibold transition" onClick={() => setIsPersonalSidebarOpen(!isPersonalSidebarOpen)}>
+              <div className="flex items-center gap-2.5 truncate">
+                <Heart className="w-4 h-4 text-pink-500 fill-pink-200 shrink-0" />
+                <span className="truncate">Espaço Pessoal de Bia</span>
+              </div>
+              <button className="text-pink-500 shrink-0">
+                {isPersonalSidebarOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              </button>
+            </div>
+            
+            {isPersonalSidebarOpen && (
+              <div className="pl-3 pr-1 space-y-1 my-1 border-l border-pink-200 ml-2">
+                <div 
+                  onClick={() => { setActiveTab('pessoal'); setPersonalSubTab('skincare'); }}
+                  className={`flex items-center gap-2 px-2.5 py-2 rounded-xl cursor-pointer text-xs transition ${activeTab === 'pessoal' && personalSubTab === 'skincare' ? 'bg-pink-500 text-white font-extrabold shadow-xs' : 'text-stone-700 hover:bg-pink-50'}`}
+                >
+                  <Sparkle className="w-3.5 h-3.5 text-pink-500 shrink-0" />
+                  <span className="truncate">Skincare & Beleza</span>
+                </div>
+                <div 
+                  onClick={() => { setActiveTab('pessoal'); setPersonalSubTab('wishlist'); }}
+                  className={`flex items-center gap-2 px-2.5 py-2 rounded-xl cursor-pointer text-xs transition ${activeTab === 'pessoal' && personalSubTab === 'wishlist' ? 'bg-pink-500 text-white font-extrabold shadow-xs' : 'text-stone-700 hover:bg-pink-50'}`}
+                >
+                  <Gift className="w-3.5 h-3.5 text-pink-500 shrink-0" />
+                  <span className="truncate">Wishlist de Mimos</span>
+                </div>
+                <div 
+                  onClick={() => { setActiveTab('pessoal'); setPersonalSubTab('descompressao'); }}
+                  className={`flex items-center gap-2 px-2.5 py-2 rounded-xl cursor-pointer text-xs transition ${activeTab === 'pessoal' && personalSubTab === 'descompressao' ? 'bg-pink-500 text-white font-extrabold shadow-xs' : 'text-stone-700 hover:bg-pink-50'}`}
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-pink-500 shrink-0" />
+                  <span className="truncate">Séries, Filmes & Leituras</span>
+                </div>
+                <div 
+                  onClick={() => { setActiveTab('pessoal'); setPersonalSubTab('jogos'); }}
+                  className={`flex items-center gap-2 px-2.5 py-2 rounded-xl cursor-pointer text-xs transition ${activeTab === 'pessoal' && personalSubTab === 'jogos' ? 'bg-pink-500 text-white font-extrabold shadow-xs' : 'text-stone-700 hover:bg-pink-50'}`}
+                >
+                  <Gamepad2 className="w-3.5 h-3.5 text-pink-500 shrink-0" />
+                  <span className="truncate">Jogos & Recomendações</span>
+                </div>
+                <div 
+                  onClick={() => { setActiveTab('pessoal'); setPersonalSubTab('locais'); }}
+                  className={`flex items-center gap-2 px-2.5 py-2 rounded-xl cursor-pointer text-xs transition ${activeTab === 'pessoal' && personalSubTab === 'locais' ? 'bg-pink-500 text-white font-extrabold shadow-xs' : 'text-stone-700 hover:bg-pink-50'}`}
+                >
+                  <Coffee className="w-3.5 h-3.5 text-pink-500 shrink-0" />
+                  <span className="truncate">Locais & Cafés (Salvador)</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="pt-2 border-t border-pink-100/60 mt-2">
@@ -1530,14 +1599,14 @@ export default function VetWorkspaceBeatrizV26() {
             </div>
           )}
 
-          {/* ESPAÇO PESSOAL DA BEATRIZ (ESTILO SUBPASTAS + RECOMENDAÇÕES INTELIGENTES) */}
+          {/* ESPAÇO PESSOAL DA BEATRIZ (ABAS INTERNAS) */}
           {activeTab === 'pessoal' && (
             <div className="max-w-5xl mx-auto space-y-6">
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
                 <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
                   <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Heart className="w-6 h-6 fill-pink-200" /></div>
                   <div>
-                    <h2 className="text-base font-extrabold text-pink-950">Espaço Pessoal da Dra. Beatriz ✨</h2>
+                    <h2 className="text-base font-extrabold text-pink-950">Espaço Pessoal de Bia ✨</h2>
                     <p className="text-xs text-pink-500 font-medium">Cantinho de autocuidado, mimos, lazer e recomendações inteligentes</p>
                   </div>
                 </div>
@@ -2007,8 +2076,8 @@ export default function VetWorkspaceBeatrizV26() {
                 <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
                   <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><HeartHandshake className="w-6 h-6" /></div>
                   <div>
-                    <h2 className="text-base font-extrabold text-pink-950">Biblioteca de Mensagens de Apoio Humanizadas (45 Opções)</h2>
-                    <p className="text-xs text-pink-500 font-medium">Abordagens profundas, empáticas e livres de clichês para tutores em diferentes momentos</p>
+                    <h2 className="text-base font-extrabold text-pink-950">Biblioteca de Mensagens de Apoio Humanizadas & Profundas</h2>
+                    <p className="text-xs text-pink-500 font-medium">Textos extensos, tocantes e repletos de empatia para tutores em momentos de luto</p>
                   </div>
                 </div>
 
@@ -2025,28 +2094,28 @@ export default function VetWorkspaceBeatrizV26() {
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold text-stone-700 block mb-1">Perspectiva Emocional / Tom (45 Opções na Biblioteca)</label>
+                    <label className="text-xs font-bold text-stone-700 block mb-1">Tom e Perspectiva Emocional</label>
                     <select value={condolenceTone} onChange={(e) => setCondolenceTone(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
-                      <optgroup label="🕊️ Acolhimento">
-                        <option value="acolhedor_escuta">1. Acolhimento simples com escuta atenta</option>
-                        <option value="acolhedor_silencio">2. Validação do respeito ao silêncio e à dor</option>
-                      </optgroup>
+                      <option value="acolhedor_profundo">🕊️ Acolhimento Profundo & Vínculo Eterno (Extenso e tocante)</option>
+                      <option value="gratidao_legado">✨ Foco na Gratidão e na Vida Feliz que o Pet Teve</option>
+                      <option value="perda_subita">💔 Para Casos de Partida Súbita ou Inesperada</option>
+                      <option value="respoito_silencio">🌿 Validação do Luto e Respeito ao Silêncio</option>
                     </select>
                   </div>
 
                   <button type="submit" className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
-                    <Sparkles className="w-4 h-4" /> Gerar Mensagem Humanizada
+                    <Sparkles className="w-4 h-4" /> Gerar Mensagem Emocionante
                   </button>
                 </form>
 
                 {generatedCondolence && (
                   <div className="space-y-3 pt-4 border-t border-pink-100">
                     <label className="text-xs font-bold text-pink-900 block">Mensagem Pronta para Copiar e Enviar no WhatsApp:</label>
-                    <div className="bg-pink-50/80 border border-pink-200 p-5 rounded-2xl text-xs leading-relaxed text-stone-800 whitespace-pre-line font-normal shadow-2xs">
+                    <div className="bg-pink-50/80 border border-pink-200 p-6 rounded-2xl text-xs leading-relaxed text-stone-800 whitespace-pre-line font-normal shadow-2xs">
                       {generatedCondolence}
                     </div>
                     <button onClick={() => { navigator.clipboard.writeText(generatedCondolence); alert('Mensagem copiada para a área de transferência!'); }} className="bg-stone-800 hover:bg-stone-900 text-white px-4 py-2 rounded-xl text-xs font-bold transition">
-                      📋 Copiar Mensagem
+                      📋 Copiar Mensagem Completa
                     </button>
                   </div>
                 )}
@@ -2521,6 +2590,35 @@ export default function VetWorkspaceBeatrizV26() {
           {activeTab === 'financas' && (
             <div className="max-w-4xl mx-auto space-y-6">
               <h2 className="text-xl font-extrabold text-pink-950">Controle Financeiro & Gráficos</h2>
+              
+              {/* CAMPO DE EDIÇÃO DIRETA DE RENDA BASE / EXTRA */}
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-3">
+                <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Editar Renda Base / Extra ("Por Fora")</h3>
+                <div className="flex flex-col sm:flex-row items-center gap-3">
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    value={tempIncomeInput} 
+                    onChange={(e) => setTempIncomeInput(e.target.value)} 
+                    className="w-full sm:w-64 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
+                    placeholder="Ex: 3500.00"
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      const val = parseFloat(tempIncomeInput)
+                      if (!isNaN(val)) {
+                        setMonthlyIncome(val)
+                        alert('Renda base atualizada com sucesso!')
+                      }
+                    }} 
+                    className="w-full sm:w-auto bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+                  >
+                    💾 Atualizar Renda do Mês
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
                   <span className="text-xs font-bold text-stone-400">Renda Total do Mês (Base + Plantões)</span>
@@ -2536,8 +2634,8 @@ export default function VetWorkspaceBeatrizV26() {
 
                 <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs">
                   <span className="text-xs font-bold text-stone-400">Saldo Restante</span>
-                  <div className={`text-2xl font-extrabold mt-2 ${((monthlyIncome + totalShiftsAmount) - totalGastos) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    R$ {((monthlyIncome + totalShiftsAmount) - totalGastos).toFixed(2)}
+                  <div className={`text-2xl font-extrabold mt-2 ${saldoRestante >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    R$ {saldoRestante.toFixed(2)}
                   </div>
                 </div>
               </div>
