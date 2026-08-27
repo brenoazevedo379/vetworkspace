@@ -48,9 +48,9 @@ import {
   CheckCircle2,
   RefreshCw,
   Headphones,
-  Grid,
   Edit3,
-  X
+  X,
+  Upload
 } from 'lucide-react'
 import WishlistTab from '@/components/WishlistTab'
 
@@ -301,7 +301,7 @@ const CONDOLENCE_MESSAGES = [
   {
     id: 'c7',
     title: '🌟 Força, Memória e Legado de Amor',
-    text: `Oi, [Tutor(a)].\n\Hoje o vazio deixado pelo(a) [Pet] é enorme, mas a história linda que vocês escreveram juntos é ainda maior. O amor verdadeiro não tem fim; ele apenas se transforma em saudade e em lembranças que aquecem o coração nos dias difíceis.\n\nDesejo que você tenha muita força e serenidade para lidar com este momento de transição. Lembre-se de que o(A) [Pet] foi imensamente feliz ao seu lado. Estou com você para o que precisar.`
+    text: `Oi, [Tutor(a)].\n\nHoje o vazio deixado pelo(a) [Pet] é enorme, mas a história linda que vocês escreveram juntos é ainda maior. O amor verdadeiro não tem fim; ele apenas se transforma em saudade e em lembranças que aquecem o coração nos dias difíceis.\n\nDesejo que você tenha muita força e serenidade para lidar com este momento de transição. Lembre-se de que o(A) [Pet] foi imensamente feliz ao seu lado. Estou com você para o que precisar.`
   }
 ]
 
@@ -335,6 +335,7 @@ export default function VetWorkspaceBeatrizV26() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const shiftPhotoInputRef = useRef<HTMLInputElement>(null)
+  const petPhotoInputRef = useRef<HTMLInputElement>(null)
 
   const [studySubTab, setStudySubTab] = useState<'resumo' | 'diferenciais' | 'pontos'>('resumo')
 
@@ -365,12 +366,16 @@ export default function VetWorkspaceBeatrizV26() {
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return [
-      { id: 'c-1', name: 'Popular Sete Portas', defaultRate: 200 },
-      { id: 'c-2', name: 'Clínica Veterinária Vida', defaultRate: 250 },
-      { id: 'c-3', name: 'Plantão Vet Centro', defaultRate: 220 },
-      { id: 'c-4', name: 'Hospital Pet Salvador', defaultRate: 300 }
+      { id: 'c-1', name: 'Clínica 1', defaultRate: 200 },
+      { id: 'c-2', name: 'Clínica 2', defaultRate: 250 },
+      { id: 'c-3', name: 'Clínica 3', defaultRate: 220 },
+      { id: 'c-4', name: 'Clínica 4', defaultRate: 300 }
     ]
   })
+
+  const [editingClinicId, setEditingClinicId] = useState<string | null>(null)
+  const [editClinicNameInput, setEditClinicNameInput] = useState('')
+  const [editClinicRateInput, setEditClinicRateInput] = useState('')
 
   const [shifts, setShifts] = useState<ShiftRecord[]>(() => {
     if (typeof window !== 'undefined') {
@@ -387,7 +392,7 @@ export default function VetWorkspaceBeatrizV26() {
   const [shiftDetails, setShiftDetails] = useState('')
   const [isShiftAiLoading, setIsShiftAiLoading] = useState(false)
 
-  const [personalSubTab, setPersonalSubTab] = useState<'skincare' | 'wishlist' | 'descompressao' | 'jogos' | 'locais' | 'palavras' | 'podcasts'>('skincare')
+  const [personalSubTab, setPersonalSubTab] = useState<'skincare' | 'wishlist' | 'descompressao' | 'jogos' | 'locais' | 'podcasts'>('skincare')
   
   const [skincareDone, setSkincareDone] = useState<{ [key: string]: boolean }>(() => {
     if (typeof window !== 'undefined') {
@@ -409,29 +414,6 @@ export default function VetWorkspaceBeatrizV26() {
   const [gameIndex, setGameIndex] = useState(0)
   const [cafeIndex, setCafeIndex] = useState(0)
   const [podcastIndex, setPodcastIndex] = useState(0)
-
-  // PALAVRAS CRUZADAS FUNCIONAL (5x5 GRID COM DICAS E VALIDAÇÃO)
-  // Solution matrix for a 5x5 crossword:
-  // V E T E R (Horiz 1: VETER)
-  // A   U     (Vert 1: CAO - wait let's make a clear crossword grid)
-  // Let's define solution grid 4x4:
-  // Row 0: C A O _ (1. Horizontal: Animal que mia/latido? Let's do: V E T _)
-  // Let's make an intuitive 4x4 crossword:
-  // [0,0]='V', [0,1]='E', [0,2]='T' (H1: VET - Profissional de saúde animal)
-  // [0,0]='V', [1,0]='A', [2,0]='C', [3,0]='O' (V1: VACO? No, V A C A -> Vaca!)
-  // Let's design a 4x4 crossword puzzle with explicit solution:
-  // H1 (Row 0): C A O (3) -> wait, let's use standard words:
-  // Word 1 (Horizontal, Row 0): V E T (3 letters) -> [0,0]='V', [0,1]='E', [0,2]='T'
-  // Word 2 (Vertical, Col 0): V A C A (4 letters) -> [0,0]='V', [1,0]='A', [2,0]='C', [3,0]='A'
-  // Word 3 (Horizontal, Row 2): C A O (3 letters) -> [2,0]='C', [2,1]='A', [2,2]='O'
-  const crosswordSolution: { [key: string]: string } = {
-    '0-0': 'V', '0-1': 'E', '0-2': 'T',
-    '1-0': 'A',
-    '2-0': 'C', '2-1': 'A', '2-2': 'O',
-    '3-0': 'A'
-  }
-  const [cwAnswers, setCwAnswers] = useState<{ [key: string]: string }>({})
-  const [cwResultMsg, setCwResultMsg] = useState<string | null>(null)
 
   const [personalPets, setPersonalPets] = useState<PersonalPet[]>(() => {
     if (typeof window !== 'undefined') {
@@ -462,6 +444,15 @@ export default function VetWorkspaceBeatrizV26() {
     setNewPetBiaTribute('')
     setNewPetBiaPhotoUrl('')
     setNewPetBiaMemorial(false)
+  }
+
+  const handlePetPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+    const file = files[0]
+    const fileUrl = URL.createObjectURL(file)
+    setNewPetBiaPhotoUrl(fileUrl)
+    e.target.value = ''
   }
 
   const handleShiftPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -501,8 +492,6 @@ export default function VetWorkspaceBeatrizV26() {
 
   const totalShiftsAmount = shifts.reduce((acc, s) => acc + s.baseRate + s.commission, 0)
 
-  const [bsaWeightKg, setBsaWeightKg] = useState('')
-  const [bsaSpecies, setBsaSpecies] = useState<'cao' | 'gato'>('cao')
   const [selectedOncoDrugName, setSelectedOncoDrugName] = useState<string>('Doxorrubicina')
   const [oncoCustomDosage, setOncoCustomDosage] = useState<string>('30')
   const [oncoCustomConc, setOncoCustomConc] = useState<string>('2')
@@ -773,7 +762,6 @@ export default function VetWorkspaceBeatrizV26() {
   const [newDrugConc, setNewDrugConc] = useState('')
   const [newDrugMaxDays, setNewDrugMaxDays] = useState('5')
 
-  // FINANCE RENDER INCOME SAFE EDIT STATES
   const [monthlyIncome, setMonthlyIncome] = useState<number>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vet_income_v18')
@@ -796,11 +784,9 @@ export default function VetWorkspaceBeatrizV26() {
     return []
   })
 
-  // ESTADOS PARA EDITAR UMA DESPESA EXISTENTE
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null)
   const [editDescInput, setEditDescInput] = useState('')
   const [editAmountInput, setEditAmountInput] = useState('')
-  const [editCategoryInput, setEditCategoryInput] = useState('')
 
   const [finDesc, setFinDesc] = useState('')
   const [finCategory, setFinCategory] = useState('Cartão de Crédito')
@@ -1292,7 +1278,7 @@ export default function VetWorkspaceBeatrizV26() {
 
           <div className="pt-2 border-t border-pink-100/60 mt-2">
             <button onClick={() => setActiveTab('clinicas')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'clinicas' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
-              <Stethoscope className="w-4 h-4" /> Clínicas & Plantões (4 Clínicas) 🏥
+              <Stethoscope className="w-4 h-4" /> Clínicas & Plantões 🏥
             </button>
           </div>
 
@@ -1343,13 +1329,6 @@ export default function VetWorkspaceBeatrizV26() {
                 >
                   <Coffee className="w-3.5 h-3.5 text-pink-500 shrink-0" />
                   <span className="truncate">Locais & Cafés (Salvador)</span>
-                </div>
-                <div 
-                  onClick={() => { setActiveTab('pessoal'); setPersonalSubTab('palavras'); }}
-                  className={`flex items-center gap-2 px-2.5 py-2 rounded-xl cursor-pointer text-xs transition ${activeTab === 'pessoal' && personalSubTab === 'palavras' ? 'bg-pink-500 text-white font-extrabold shadow-xs' : 'text-stone-700 hover:bg-pink-50'}`}
-                >
-                  <Grid className="w-3.5 h-3.5 text-pink-500 shrink-0" />
-                  <span className="truncate">Palavras Cruzadas</span>
                 </div>
                 <div 
                   onClick={() => { setActiveTab('pessoal'); setPersonalSubTab('podcasts'); }}
@@ -1484,7 +1463,7 @@ export default function VetWorkspaceBeatrizV26() {
                 </div>
                 <div onClick={() => setActiveTab('clinicas')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
                   <div>
-                    <span className="text-xs font-semibold text-pink-400">Plantões (4 Clínicas)</span>
+                    <span className="text-xs font-semibold text-pink-400">Plantões Cadastrados</span>
                     <div className="text-2xl font-extrabold text-pink-950 mt-1">{shifts.length} Registrados</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-pink-500"><Stethoscope className="w-5 h-5" /></div>
@@ -1506,13 +1485,27 @@ export default function VetWorkspaceBeatrizV26() {
                       <Heart className="w-4 h-4 text-pink-500 fill-pink-200" /> Cantinho Especial & Mural de Homenagem aos Pets
                     </div>
                     <h2 className="text-xl font-extrabold text-pink-950 mt-1">A Família de Quatro Patas da Dra. Beatriz (Atuais e Eternos)</h2>
-                    <p className="text-xs text-stone-500 mt-0.5">Um espaço amplo e afetuoso para guardar as fotos, lembranças e homenagens de quem marcou e marca a vida de vocês.</p>
+                    <p className="text-xs text-stone-500 mt-0.5">Cadastre seus pets enviando uma foto real do arquivo do seu computador ou informando o link.</p>
                   </div>
+
+                  <input type="file" ref={petPhotoInputRef} onChange={handlePetPhotoUpload} className="hidden" accept=".png,.jpg,.jpeg" />
 
                   <form onSubmit={handleAddPersonalPet} className="flex flex-wrap items-center gap-2 bg-pink-50/60 p-3 rounded-2xl border border-pink-200">
                     <input type="text" placeholder="Nome do Pet" value={newPetBiaName} onChange={(e) => setNewPetBiaName(e.target.value)} className="bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs font-medium text-pink-950 focus:outline-none w-32" required />
                     <input type="text" placeholder="Homenagem / Descrição" value={newPetBiaTribute} onChange={(e) => setNewPetBiaTribute(e.target.value)} className="bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs font-medium text-pink-950 focus:outline-none w-44" />
-                    <input type="text" placeholder="URL da Foto (ou link de imagem)" value={newPetBiaPhotoUrl} onChange={(e) => setNewPetBiaPhotoUrl(e.target.value)} className="bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs font-medium text-pink-950 focus:outline-none w-40" />
+                    
+                    <div className="flex items-center gap-1">
+                      <input type="text" placeholder="URL da Foto ou faça upload" value={newPetBiaPhotoUrl} onChange={(e) => setNewPetBiaPhotoUrl(e.target.value)} className="bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs font-medium text-pink-950 focus:outline-none w-36" />
+                      <button 
+                        type="button" 
+                        onClick={() => petPhotoInputRef.current?.click()} 
+                        className="bg-pink-100 hover:bg-pink-200 text-pink-800 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer"
+                        title="Enviar foto do computador"
+                      >
+                        <Upload className="w-3.5 h-3.5" /> Foto
+                      </button>
+                    </div>
+
                     <label className="flex items-center gap-1 text-[11px] font-bold text-stone-700 cursor-pointer">
                       <input type="checkbox" checked={newPetBiaMemorial} onChange={(e) => setNewPetBiaMemorial(e.target.checked)} className="accent-pink-500 w-3.5 h-3.5" /> Memorial 🕊️
                     </label>
@@ -1528,7 +1521,7 @@ export default function VetWorkspaceBeatrizV26() {
                       <Cat className="w-8 h-8" />
                     </div>
                     <h3 className="text-sm font-bold text-pink-950">Seu mural está aguardando as primeiras fotos!</h3>
-                    <p className="text-xs text-stone-500 max-w-md mx-auto">Cadastre acima os pets atuais da casa e também aqueles que já partiram mas continuam guardados com todo carinho no coração.</p>
+                    <p className="text-xs text-stone-500 max-w-md mx-auto">Use o botão de upload para enviar fotos reais dos seus bichinhos ou adicione os pets que já partiram.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -1568,14 +1561,75 @@ export default function VetWorkspaceBeatrizV26() {
                 <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
                   <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Stethoscope className="w-6 h-6" /></div>
                   <div>
-                    <h2 className="text-base font-extrabold text-pink-950">Gestão de Plantões & Comissões (4 Clínicas)</h2>
-                    <p className="text-xs text-pink-500 font-medium">Controle de diárias, comissões por procedimentos e leitura inteligente de fechamento por IA</p>
+                    <h2 className="text-base font-extrabold text-pink-950">Gestão de Plantões & Alteração de Nomes das Clínicas</h2>
+                    <p className="text-xs text-pink-500 font-medium">Renomeie as clínicas para os nomes reais que você atende, controle diárias, comissões e leitura por IA</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Bloco para renomear as clínicas */}
+                <div className="bg-pink-50/60 border border-pink-200 p-5 rounded-2xl space-y-3">
+                  <h3 className="text-xs font-bold text-pink-950 uppercase tracking-wider">Configurar Nomes e Diárias Padrão das Clínicas</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {clinics.map(c => {
+                      const isEditing = editingClinicId === c.id
+                      return (
+                        <div key={c.id} className="bg-white border border-pink-200 p-3.5 rounded-xl flex items-center justify-between shadow-2xs text-xs">
+                          {isEditing ? (
+                            <div className="flex items-center gap-2 flex-1">
+                              <input 
+                                type="text" 
+                                value={editClinicNameInput} 
+                                onChange={(e) => setEditClinicNameInput(e.target.value)} 
+                                className="bg-pink-50 border border-pink-200 rounded-lg px-2.5 py-1 text-xs text-pink-950 font-bold flex-1"
+                                placeholder="Nome real da clínica"
+                              />
+                              <input 
+                                type="number" 
+                                value={editClinicRateInput} 
+                                onChange={(e) => setEditClinicRateInput(e.target.value)} 
+                                className="bg-pink-50 border border-pink-200 rounded-lg px-2 py-1 text-xs text-pink-950 w-20"
+                                placeholder="Diária R$"
+                              />
+                              <button 
+                                onClick={() => {
+                                  const rateVal = parseFloat(editClinicRateInput)
+                                  if (editClinicNameInput.trim() && !isNaN(rateVal)) {
+                                    setClinics(clinics.map(item => item.id === c.id ? { ...item, name: editClinicNameInput.trim(), defaultRate: rateVal } : item))
+                                    setEditingClinicId(null)
+                                  }
+                                }} 
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded-lg font-bold"
+                              >
+                                Salvar
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <div>
+                                <span className="font-extrabold text-pink-950 text-sm">🏥 {c.name}</span>
+                                <div className="text-[10px] text-stone-500">Diária Padrão: R$ {c.defaultRate}</div>
+                              </div>
+                              <button 
+                                onClick={() => {
+                                  setEditingClinicId(c.id)
+                                  setEditClinicNameInput(c.name)
+                                  setEditClinicRateInput(c.defaultRate.toString())
+                                }}
+                                className="bg-pink-50 hover:bg-pink-100 text-pink-700 px-3 py-1.5 rounded-lg font-bold border border-pink-200 flex items-center gap-1 cursor-pointer"
+                              >
+                                <Edit3 className="w-3 h-3" /> Renomear
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                   <div className="space-y-4">
-                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Registrar Plantão ou Fechamento</h3>
+                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Registrar Plantão</h3>
                      
                     <input type="file" ref={shiftPhotoInputRef} onChange={handleShiftPhotoUpload} className="hidden" accept=".png,.jpg,.jpeg" />
 
@@ -1583,9 +1637,6 @@ export default function VetWorkspaceBeatrizV26() {
                       <span className="text-xs font-extrabold text-pink-950 flex items-center gap-1.5">
                         <Camera className="w-4 h-4 text-pink-500" /> Leitura Automática de Fechamento por Foto (IA)
                       </span>
-                      <p className="text-[11px] text-stone-600 leading-relaxed">
-                        Terminou o plantão? Tire um print da tela do sistema da clínica ou foto do relatório de procedimentos. A IA lê e preenche os valores sozinha!
-                      </p>
                       <button 
                         type="button" 
                         onClick={() => shiftPhotoInputRef.current?.click()}
@@ -1600,7 +1651,15 @@ export default function VetWorkspaceBeatrizV26() {
                     <form onSubmit={handleAddShift} className="space-y-3">
                       <div>
                         <label className="text-xs font-bold text-stone-700 block mb-1">Clínica</label>
-                        <select value={selectedShiftClinicId} onChange={(e) => setSelectedShiftClinicId(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                        <select 
+                          value={selectedShiftClinicId} 
+                          onChange={(e) => {
+                            setSelectedShiftClinicId(e.target.value)
+                            const found = clinics.find(c => c.id === e.target.value)
+                            if (found) setShiftBaseRate(found.defaultRate.toString())
+                          }} 
+                          className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
+                        >
                           {clinics.map(c => (
                             <option key={c.id} value={c.id}>🏥 {c.name} (Base: R$ {c.defaultRate})</option>
                           ))}
@@ -1644,12 +1703,11 @@ export default function VetWorkspaceBeatrizV26() {
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Consolidado Geral das 4 Clínicas</h3>
+                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Consolidado Geral das Clínicas</h3>
                     <div className="bg-pink-50 border border-pink-200 p-5 rounded-2xl space-y-4">
                       <div>
                         <span className="text-[10px] font-bold text-pink-600 uppercase">Total Bruto Acumulado (Diárias + Comissões)</span>
                         <div className="text-3xl font-extrabold text-pink-950 mt-1">R$ {totalShiftsAmount.toFixed(2)}</div>
-                        <p className="text-[11px] text-stone-500 mt-1">Este valor alimenta automaticamente a Renda do Mês no painel financeiro.</p>
                       </div>
 
                       <div className="pt-3 border-t border-pink-200/60 space-y-2">
@@ -1696,6 +1754,7 @@ export default function VetWorkspaceBeatrizV26() {
                   </div>
                 </div>
 
+                {/* ABAS DO ESPAÇO PESSOAL (SEM PALAVRAS CRUZADAS) */}
                 <div className="flex flex-wrap items-center gap-2 border-b border-pink-100 pb-3">
                   <button onClick={() => setPersonalSubTab('skincare')} className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 ${personalSubTab === 'skincare' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
                     <Sparkle className="w-3.5 h-3.5" /> Skincare
@@ -1711,9 +1770,6 @@ export default function VetWorkspaceBeatrizV26() {
                   </button>
                   <button onClick={() => setPersonalSubTab('locais')} className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 ${personalSubTab === 'locais' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
                     <Coffee className="w-3.5 h-3.5" /> Cafés (Salvador)
-                  </button>
-                  <button onClick={() => setPersonalSubTab('palavras')} className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 ${personalSubTab === 'palavras' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
-                    <Grid className="w-3.5 h-3.5" /> Palavras Cruzadas
                   </button>
                   <button onClick={() => setPersonalSubTab('podcasts')} className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 ${personalSubTab === 'podcasts' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
                     <Headphones className="w-3.5 h-3.5" /> Podcasts & True Crime
@@ -1879,96 +1935,6 @@ export default function VetWorkspaceBeatrizV26() {
                           </div>
                         )
                       })}
-                    </div>
-                  </div>
-                )}
-
-                {/* PALAVRAS CRUZADAS FUNCIONAL (COM DICAS E GRADE MAIOR) */}
-                {personalSubTab === 'palavras' && (
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-sm font-extrabold text-pink-950 flex items-center gap-2">
-                          <Grid className="w-4 h-4 text-pink-500" /> Passatempo: Palavras Cruzadas da Dra. Beatriz 🧩
-                        </h3>
-                        <p className="text-xs text-stone-500 mt-0.5">Preencha a grade interativa com base nas dicas e clique em conferir!</p>
-                      </div>
-                      <button onClick={() => { setCwAnswers({}); setCwResultMsg(null); }} className="bg-white hover:bg-pink-50 text-pink-700 border border-pink-300 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-2xs">
-                        🔄 Limpar Grade
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="md:col-span-2 bg-pink-50/50 border border-pink-200 p-6 rounded-2xl space-y-4">
-                        <div className="text-xs font-extrabold text-pink-950">Grade Interativa (4x4):</div>
-                        
-                        <div className="grid grid-cols-4 gap-2 max-w-sm mx-auto">
-                          {['0-0', '0-1', '0-2', '0-3', '1-0', '1-1', '1-2', '1-3', '2-0', '2-1', '2-2', '2-3', '3-0', '3-1', '3-2', '3-3'].map((cellKey) => {
-                            const [r, c] = cellKey.split('-').map(Number)
-                            // Células bloqueadas (pretas) para dar formato de cruzada
-                            const isBlack = (r === 1 && c > 0) || (r === 3 && c > 0) || (r === 2 && c === 3)
-                            if (isBlack) {
-                              return <div key={cellKey} className="w-12 h-12 bg-stone-800 rounded-xl"></div>
-                            }
-                            return (
-                              <div key={cellKey} className="relative">
-                                {(cellKey === '0-0' || cellKey === '2-0') && (
-                                  <span className="absolute top-0.5 left-1 text-[9px] font-bold text-pink-600 z-10">
-                                    {cellKey === '0-0' ? '1' : '2'}
-                                  </span>
-                                )}
-                                <input 
-                                  type="text"
-                                  maxLength={1}
-                                  value={cwAnswers[cellKey] || ''}
-                                  onChange={(e) => setCwAnswers({ ...cwAnswers, [cellKey]: e.target.value.toUpperCase() })}
-                                  className="w-12 h-12 bg-white border-2 border-pink-300 rounded-xl text-center text-base font-extrabold text-pink-950 uppercase focus:outline-none focus:border-pink-500 shadow-2xs pt-1"
-                                />
-                              </div>
-                            )
-                          })}
-                        </div>
-
-                        <div className="text-center pt-2">
-                          <button onClick={() => {
-                            let correct = true
-                            for (let key in crosswordSolution) {
-                              if ((cwAnswers[key] || '').toUpperCase() !== crosswordSolution[key]) {
-                                correct = false
-                                break
-                              }
-                            }
-                            if (correct) {
-                              setCwResultMsg('🎉 Parabéns! Todas as respostas estão corretas!')
-                            } else {
-                              setCwResultMsg('⚠️ Ainda há alguma letra incorreta. Revise as dicas e tente novamente!')
-                            }
-                          }} className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-2.5 rounded-xl text-xs font-bold transition shadow-md cursor-pointer">
-                            ✨ Conferir Respostas
-                          </button>
-
-                          {cwResultMsg && (
-                            <div className={`mt-3 text-xs font-bold py-2.5 px-4 rounded-xl border ${cwResultMsg.includes('Parabéns') ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
-                              {cwResultMsg}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="bg-white p-5 rounded-2xl border border-pink-200 shadow-2xs space-y-4">
-                        <div className="font-extrabold text-xs text-pink-950">📌 Dicas do Passatempo:</div>
-                        <div className="space-y-3 text-xs text-stone-700 leading-relaxed">
-                          <div>
-                            <span className="font-bold text-pink-600">1. Horizontal (3 letras):</span> Profissional de saúde animal que cuida dos pets. (Resposta: VET)
-                          </div>
-                          <div>
-                            <span className="font-bold text-pink-600">1. Vertical (4 letras):</span> Animal de grande porte que produz leite na fazenda. (Começa com V: VACA)
-                          </div>
-                          <div>
-                            <span className="font-bold text-pink-600">2. Horizontal (3 letras):</span> O melhor amigo do homem, que late. (Começa com C: CÃO)
-                          </div>
-                        </div>
-                      </div>
                     </div>
                   </div>
                 )}
@@ -2532,15 +2498,15 @@ export default function VetWorkspaceBeatrizV26() {
                       <div className="grid grid-cols-3 gap-2">
                         <div>
                           <label className="text-[10px] font-bold text-stone-600 block mb-1">Dose (mg/kg)</label>
-                          <input type="number" step="0.01" value={calcDosage} onChange={(e) => setCalcDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <input type="number" step="0.01" value={calcDosage} onChange={(e) => setCalcDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-stone-600 block mb-1">Conc. (mg/ml)</label>
-                          <input type="number" step="0.01" value={calcConcentration} onChange={(e) => setCalcConcentration(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <input type="number" step="0.01" value={calcConcentration} onChange={(e) => setCalcConcentration(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-stone-600 block mb-1">Comp. (mg)</label>
-                          <input type="number" step="0.1" placeholder="Ex: 20" value={calcPillMg} onChange={(e) => setCalcPillMg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <input type="number" step="0.1" placeholder="Ex: 20" value={calcPillMg} onChange={(e) => setCalcPillMg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                       </div>
 
@@ -3000,7 +2966,6 @@ export default function VetWorkspaceBeatrizV26() {
                                     setEditingExpenseId(f.id)
                                     setEditDescInput(f.description)
                                     setEditAmountInput(f.amount.toString())
-                                    setEditCategoryInput(f.category)
                                   }} 
                                   className="text-pink-600 hover:bg-pink-100 p-1 rounded-lg"
                                   title="Editar Despesa"
