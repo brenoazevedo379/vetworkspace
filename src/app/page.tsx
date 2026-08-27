@@ -42,8 +42,8 @@ import {
 } from 'lucide-react'
 import WishlistTab from '@/components/WishlistTab'
 
-const supabaseUrl = 'https://jzphctzxqqaucbqprpe.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp6cGhjdHp4cXFhdWNicXpwcnBlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTgxODcsImV4cCI6MjEwMzE5NDE4N30.Usk9FvW7JpxsL32go_2wTWTP2Rn3dCflzn9rUaHQA9E'
+const supabaseUrl = 'https://jzphctzxqqaucbqzprpe.supabase.co'
+const supabaseKey = 'sb_publishable_sMMvs6unzDRNFnFAyoR9iw_nLvbiePH'
 
 const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: { persistSession: false }
@@ -641,7 +641,7 @@ export default function VetWorkspaceBeatrizV26() {
   const [eventDesc, setEventDesc] = useState('')
   const [eventTime, setEventTime] = useState('08:00')
 
-  // CARREGAMENTO DIRETO DO SUPABASE NO CLIENTE (SEM PASSAR PELA VERCEL API)
+  // CARREGAMENTO DIRETO + SUPABASE REALTIME (SINCRONIZAÇÃO EM TEMPO REAL)
   useEffect(() => {
     async function fetchCloudData() {
       try {
@@ -677,9 +677,31 @@ export default function VetWorkspaceBeatrizV26() {
     }
     fetchCloudData()
 
-    const handleFocus = () => fetchCloudData()
-    window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
+    // OUVIR MUDANÇAS EM TEMPO REAL NO SUPABASE
+    const channel = supabase
+      .channel('app_data_realtime_v26')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'app_data', filter: 'id=eq.beatriz_workspace_v26' },
+        (payload: any) => {
+          if (payload.new && payload.new.data) {
+            const d = payload.new.data
+            if (d.items) { setItems(d.items); localStorage.setItem('vet_items_v19', JSON.stringify(d.items)); }
+            if (d.patients) { setPatients(d.patients); localStorage.setItem('vet_patients_v18', JSON.stringify(d.patients)); }
+            if (d.customDrugs) { setCustomDrugs(d.customDrugs); localStorage.setItem('vet_custom_drugs_v26', JSON.stringify(d.customDrugs)); }
+            if (d.monthlyIncome !== undefined) { setMonthlyIncome(d.monthlyIncome); localStorage.setItem('vet_income_v18', d.monthlyIncome.toString()); }
+            if (d.finances) { setFinances(d.finances); localStorage.setItem('vet_finances_v18', JSON.stringify(d.finances)); }
+            if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v18', JSON.stringify(d.tasks)); }
+            if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v18', JSON.stringify(d.events)); }
+            if (d.chatSessions) { setChatSessions(d.chatSessions); localStorage.setItem('vet_chat_sessions_v26', JSON.stringify(d.chatSessions)); }
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   // SALVAMENTO DIRETO NO SUPABASE PELO CLIENTE
