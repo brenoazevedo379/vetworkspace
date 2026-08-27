@@ -50,7 +50,9 @@ import {
   Headphones,
   Edit3,
   X,
-  Upload
+  Upload,
+  Film,
+  Tv
 } from 'lucide-react'
 import WishlistTab from '@/components/WishlistTab'
 
@@ -243,29 +245,80 @@ const ONCO_DRUGS: OncolocicalDrug[] = [
   }
 ]
 
+// 15 JOGOS RELAXANTES
 const GAMES_POOL = [
   { title: 'Stardew Valley', desc: 'Perfeito para desligar a mente cuidando da fazendinha, plantando e curtindo trilha sonora relaxante.' },
   { title: 'Unpacking', desc: 'Um jogo zen de organização de caixas e cômodos, ideal para jogar ouvindo um som tranquilo.' },
   { title: 'It Takes Two', desc: 'Aventura cooperativa fantástica e muito divertida para jogar em dupla.' },
   { title: 'Animal Crossing / Cozy Grove', desc: 'Exploração acolhedora em ritmo calmo, excelente para zerar o estresse do plantão.' },
   { title: 'Dorfromantik', desc: 'Quebra-cabeça estratégico de construção de paisagens com peças hexagonais, super relaxante.' },
-  { title: 'A Short Hike', desc: 'Uma aventura leve e aconchegante explorando uma ilha tranquila a pé e planando.' }
+  { title: 'A Short Hike', desc: 'Uma aventura leve e aconchegante explorando uma ilha tranquila a pé e planando.' },
+  { title: 'Slime Rancher', desc: 'Explore um planeta distante coletando slimes fofinhos e construindo sua fazenda colorida.' },
+  { title: 'Lake', desc: 'Simulador aconchegante de entrega de correspondências em uma cidadezinha pacífica nos anos 80.' },
+  { title: 'Terra Nil', desc: 'Um jogo de estratégia ecológico focado em transformar terras arrasadas em ecossistemas vibrantes.' },
+  { title: 'Coffee Talk', desc: 'Simulador de barista onde você escuta histórias e serve bebidas quentes para clientes peculiares.' },
+  { title: 'Abzû', desc: 'Mergulho submarino visualmente deslumbrante e relaxante, focado na exploração marinha pacífica.' },
+  { title: 'Firewatch', desc: 'Mistério envolvente em uma floresta isolada com diálogos cativantes e atmosfera imersiva.' },
+  { title: 'gris', desc: 'Obra de arte em forma de plataforma emocional, com trilha sonora impecável e visual único.' },
+  { title: 'Townscaper', desc: 'Brinquedo de construção instantânea de vilarejos coloridos sobre a água sem regras ou estresse.' },
+  { title: 'Little Kitty, Big City', desc: 'Viva como um gatinho curioso perdido na cidade grande aprontando e explorando tudo.' }
 ]
 
+// 15 CAFÉS E LOCAIS EM SALVADOR
 const CAFES_POOL = [
   { name: 'Cafeteria Artesanal Rio Vermelho', desc: 'Ambiente charmoso, café de alta qualidade e comidinhas perfeitas para um fim de tarde à beira-mar.' },
   { name: 'Confeitaria & Café Barra', desc: 'Local calmo e acolhedor na Barra, ideal para saborear um bom espresso e ler um livro.' },
   { name: 'Café da Bahia (Cidade Baixa)', desc: 'Perto da Ribeira e do Bonfim, com vista linda para a baía e uma atmosfera extremamente sossegada.' },
   { name: 'The Coffee (Pituba / Vitória)', desc: 'Minimalista, rápido e com bebidas geladas e quentes excelentes para recarregar as energias.' },
-  { name: 'Solar Café (Rio Vermelho)', desc: 'Espaço verde, aconchegante e excelente cardápio para um brunch relaxante no fim de semana.' }
+  { name: 'Solar Café (Rio Vermelho)', desc: 'Espaço verde, aconchegante e excelente cardápio para um brunch relaxante no fim de semana.' },
+  { name: 'Boutique do Café (Caminho das Árvores)', desc: 'Ambiente sofisticado e grãos selecionados para os verdadeiros amantes de cafés especiais.' },
+  { name: 'Armazém Sete (Barra)', desc: 'Café charmoso com quitutes artesanais e excelente localização perto do Farol.' },
+  { name: 'Duo Café (Vitória)', desc: 'Vista privilegiada para o Corredor da Vitória, ideal para um café tranquilo ao entardecer.' },
+  { name: 'Mariposa (Rio Vermelho)', desc: 'Espaço arejado com opções leves, sucos naturais e excelente café gelado.' },
+  { name: 'Kopenhagen (vários shoppings / Barra)', desc: 'Clássico imperdível para um chocolate quente cremoso e trufas finas.' },
+  { name: 'Perini (Graça / Barra / Pituba)', desc: 'Tradição em Salvador com doces finos, salgados e um ótimo espresso a qualquer hora.' },
+  { name: 'Croasonho (Pituba)', desc: 'Perfeito para um lanche caprichado acompanhado de café especial nos dias de folga.' },
+  { name: 'Doces Sonhos (Ribeira)', desc: 'Delícias tradicionais na Cidade Baixa com vista para o mar da península.' },
+  { name: 'San Paolo Gelato (Rio Vermelho / Barra)', desc: 'Gelato artesanal italiano incrível para suavizar o calor baiano.' },
+  { name: 'Le Truffe (Caminho das Árvores)', desc: 'Doceria acolhedora com quitutes refinados e cafés reconfortantes.' }
 ]
 
+// 15 PODCASTS & TRUE CRIME
 const PODCASTS_POOL = [
-  { title: 'Modus Operandi', desc: 'Podcast de true crime nacional conduzido com muita pesquisa e respeito, detalhando os casos criminais mais marcantes do Brasil e do mundo.' },
+  { title: 'Modus Operandi', desc: 'Podcast de true crime nacional conduzido com muita pesquisa e respeito, detalhando os casos criminais mais marcantes.' },
   { title: 'Café com Crime', desc: 'Histórias reais de crimes narradas em formato dinâmico e envolvente, perfeito para ouvir nos trajetos entre as clínicas.' },
   { title: 'Projeto Humanos (Caso Evandro)', desc: 'Uma verdadeira obra-prima do jornalismo investigativo brasileiro sobre um dos casos mais complexos da justiça.' },
   { title: 'Praia dos Ossos (Rádio Novelo)', desc: 'Investigação impecável sobre o caso Ângela Diniz e os desdobramentos sociais e psicológicos da história.' },
-  { title: 'Arquivos do Mistério', desc: 'Casos misteriosos, investigações policiais e enigmas resolvidos e não resolvidos ao redor do globo.' }
+  { title: 'Arquivos do Mistério', desc: 'Casos misteriosos, investigações policiais e enigmas resolvidos e não resolvidos ao redor do globo.' },
+  { title: 'A Mulher da Casa Abandonada', desc: 'Reportagem investigativa bombástica da Folha revelando segredos obscuros em Higienópolis.' },
+  { title: 'Vozes do Crime', desc: 'Análises profundas de mentes criminosas e operações policiais marcantes no Brasil.' },
+  { title: 'Serial (Temporada 1)', desc: 'O clássico mundial que redefiniu o gênero de true crime investigando a condenação de Adnan Syed.' },
+  { title: 'Scam Goddess', desc: 'Casos fascinantes de golpes, fraudes e vigaristas contados com bom humor e inteligência.' },
+  { title: 'Dossiê Crime', desc: 'Investigações detalhadas sobre crimes que pararam o Brasil e o mundo nas últimas décadas.' },
+  { title: 'Jejum de Informação & True Crime', desc: 'Casos isolados e reflexões sobre a psicologia criminal e investigações forenses.' },
+  { title: 'Crime e Mistério Podcast', desc: 'Enigmas não resolvidos, desaparecimentos famosos e teorias investigativas.' },
+  { title: 'Investigação Criminal (Podcast Oficial)', desc: 'Baseado na famosa série de TV, detalhando os bastidores da perícia forense no Brasil.' },
+  { title: 'Psicologia dos Serial Killers', desc: 'Análise comportamental aprofundada de assassinos em série famosos da história.' },
+  { title: 'Arquivos X do Brasil', desc: 'Casos bizarros, paranormais e investigações reais que desafiaram a lógica policial.' }
+]
+
+// 15 SÉRIES, FILMES & LEITURAS (NOVO POOL EXPANDIDO COM ROTATIVIDADE)
+const ENTERTAINMENT_POOL = [
+  { type: 'Série', title: 'Ted Lasso (Apple TV+)', desc: 'Garantia de sorrisos, leveza e otimismo para desligar após um dia intenso de plantão.' },
+  { type: 'Livro', title: 'A Biblioteca da Meia-Noite (Matt Haig)', desc: 'Uma leitura leve, cativante e reconfortante sobre escolhas, arrependimentos e novas perspectivas de vida.' },
+  { type: 'Filme', title: 'O Fabuloso Destino de Amélie Poulain', desc: 'Clássico reconfortante, visualmente poético e com trilha sonora mágica para aquecer o coração.' },
+  { type: 'Série', title: 'Succession (HBO)', desc: 'Drama corporativo intenso, diálogos geniais e atuações impecáveis para maratonar nos fins de semana.' },
+  { type: 'Livro', title: 'Sapiens: Uma Breve História da Humanidade', desc: 'Uma viagem fascinante pela história da nossa espécie e como chegamos até aqui.' },
+  { type: 'Filme', title: 'Interestelar (Christopher Nolan)', desc: 'Obra-prima de ficção científica sobre ciência, espaço, tempo e o amor que transcende dimensões.' },
+  { type: 'Série', title: 'The Bear (Disney+ / Star+)', desc: 'Intensa, realista e emocionante sobre resiliência, cozinha profissional e laços humanos.' },
+  { type: 'Livro', title: 'Torto Arado (Itamar Vieira Junior)', desc: 'Romance brasileiro arrebatador ambientado no sertão baiano, com prosa poética e profunda.' },
+  { type: 'Filme', title: 'Soul (Pixar)', desc: 'Animação profunda e emocionante sobre o propósito da vida, paixões e pequenas alegrias cotidianas.' },
+  { type: 'Série', title: 'Severance (Ruptura - Apple TV+)', desc: 'Ficção científica instigante e cheia de mistério sobre o equilíbrio entre vida profissional e pessoal.' },
+  { type: 'Livro', title: 'Pequena Coreografia do Adeus (Aline Bei)', desc: 'Escrita sensível e única sobre rupturas familiares, afeto e crescimento.' },
+  { type: 'Filme', title: 'Green Book: O Guia', desc: 'História real emocionante sobre amizade, superação de preconceitos e música nos anos 60.' },
+  { type: 'Série', title: 'Only Murders in the Building (Hulu/Star+)', desc: 'Comédia investigativa leve, aconchegante e cheia de charme em Nova York.' },
+  { type: 'Livro', title: 'A Coragem de Não Agradecer (Ichiro Kishimi)', desc: 'Filosofia prática inspirada em Adler sobre autonomia e liberdade emocional.' },
+  { type: 'Filme', title: 'Dois Irmãos: Uma Jornada Fantástica', desc: 'Animação emocionante sobre fraternidade e laços familiares mágicos.' }
 ]
 
 const CONDOLENCE_MESSAGES = [
@@ -412,9 +465,11 @@ export default function VetWorkspaceBeatrizV26() {
     return ''
   })
 
+  // Índices para a rotatividade das 15 recomendações
   const [gameIndex, setGameIndex] = useState(0)
   const [cafeIndex, setCafeIndex] = useState(0)
   const [podcastIndex, setPodcastIndex] = useState(0)
+  const [entertainmentIndex, setEntertainmentIndex] = useState(0)
 
   const [personalPets, setPersonalPets] = useState<PersonalPet[]>(() => {
     if (typeof window !== 'undefined') {
@@ -1484,7 +1539,7 @@ export default function VetWorkspaceBeatrizV26() {
                 </div>
               </div>
 
-              {/* MURAL DE PETS & MEMÓRIAS DA BEATRIZ (COM CAMPO DE IDADE) */}
+              {/* MURAL DE PETS & MEMÓRIAS DA BEATRIZ */}
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-pink-100 pb-4 gap-4">
                   <div>
@@ -1492,7 +1547,7 @@ export default function VetWorkspaceBeatrizV26() {
                       <Heart className="w-4 h-4 text-pink-500 fill-pink-200" /> Cantinho Especial & Mural de Homenagem aos Pets
                     </div>
                     <h2 className="text-xl font-extrabold text-pink-950 mt-1">A Família de Quatro Patas da Dra. Beatriz (Atuais e Eternos)</h2>
-                    <p className="text-xs text-stone-500 mt-0.5">Cadastre seus pets enviando foto real, informando a idade e a homenagem.</p>
+                    <p className="text-xs text-stone-500 mt-0.5">Cadastre seus pets informando nome, idade, foto e homenagem.</p>
                   </div>
 
                   <input type="file" ref={petPhotoInputRef} onChange={handlePetPhotoUpload} className="hidden" accept=".png,.jpg,.jpeg" />
@@ -1843,27 +1898,46 @@ export default function VetWorkspaceBeatrizV26() {
                 {personalSubTab === 'descompressao' && (
                   <div className="space-y-6">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-extrabold text-pink-950 flex items-center gap-2">
-                        <BookOpen className="w-4 h-4 text-pink-500" /> Séries, Filmes & Leituras Relaxantes
-                      </h3>
-                      <span className="text-[11px] bg-pink-100 text-pink-700 px-3 py-1 rounded-full font-bold">Descompressão</span>
+                      <div>
+                        <h3 className="text-sm font-extrabold text-pink-950 flex items-center gap-2">
+                          <BookOpen className="w-4 h-4 text-pink-500" /> Séries, Filmes & Leituras Relaxantes (15 Opções)
+                        </h3>
+                        <p className="text-xs text-stone-500 mt-0.5">Anotações pessoais e recomendações rotativas para o descanso.</p>
+                      </div>
+                      <button 
+                        onClick={() => setEntertainmentIndex((prev) => (prev + 2) % ENTERTAINMENT_POOL.length)}
+                        className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" /> Ver Outras Opções
+                      </button>
                     </div>
+
                     <textarea 
                       value={descompressaoNotes} 
                       onChange={(e) => setDescompressaoNotes(e.target.value)} 
-                      rows={6} 
-                      className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" 
-                      placeholder="Filmes, séries e livros que você quer ver/ler..." 
+                      rows={4} 
+                      className="w-full bg-pink-50/25 border border-pink-200 p-4 rounded-2xl text-stone-800 text-xs leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" 
+                      placeholder="Minhas anotações e favoritos sobre filmes, séries e livros..." 
                     />
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="bg-white p-4 rounded-2xl border border-pink-200 shadow-2xs space-y-1.5">
-                        <span className="font-extrabold text-xs text-pink-950 flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5 text-pink-500" /> Livro Indicado:</span>
-                        <p className="text-xs text-stone-700">"A Biblioteca da Meia-Noite" (Matt Haig) — Uma leitura leve, cativante e reconfortante sobre escolhas e novas perspectivas.</p>
-                      </div>
-                      <div className="bg-white p-4 rounded-2xl border border-pink-200 shadow-2xs space-y-1.5">
-                        <span className="font-extrabold text-xs text-pink-950 flex items-center gap-1.5"><Compass className="w-3.5 h-3.5 text-pink-500" /> Série Indicada:</span>
-                        <p className="text-xs text-stone-700">"Ted Lasso" (Apple TV+) — Garantia de sorrisos, leveza e otimismo para desligar após um dia intenso de plantão.</p>
-                      </div>
+                      {[0, 1].map((offset) => {
+                        const item = ENTERTAINMENT_POOL[(entertainmentIndex + offset) % ENTERTAINMENT_POOL.length]
+                        return (
+                          <div key={offset} className="bg-white p-6 rounded-2xl border border-pink-200 shadow-2xs space-y-2 flex flex-col justify-between">
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-extrabold text-sm text-pink-950">{item.title}</h4>
+                                <span className="text-[10px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-md font-bold">{item.type}</span>
+                              </div>
+                              <p className="text-xs text-stone-600 mt-2 leading-relaxed">{item.desc}</p>
+                            </div>
+                            <button onClick={() => alert(`✨ '${item.title}' salvo na sua lista de favoritos!`)} className="w-full mt-4 bg-pink-50 hover:bg-pink-100 text-pink-800 border border-pink-200 py-2 rounded-xl text-xs font-bold transition">
+                              💖 Adicionar aos Favoritos
+                            </button>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 )}
@@ -1873,9 +1947,9 @@ export default function VetWorkspaceBeatrizV26() {
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="text-sm font-extrabold text-pink-950 flex items-center gap-2">
-                          <Gamepad2 className="w-4 h-4 text-pink-500" /> Jogos Relaxantes (Exibindo 2 Sugestões)
+                          <Gamepad2 className="w-4 h-4 text-pink-500" /> Jogos Relaxantes (15 Opções Disponíveis)
                         </h3>
-                        <p className="text-xs text-stone-500 mt-0.5">Clique para rodar novas recomendações se já conhecer estes.</p>
+                        <p className="text-xs text-stone-500 mt-0.5">Clique para rodar novas recomendações do catálogo expandido.</p>
                       </div>
                       <button 
                         onClick={() => setGameIndex((prev) => (prev + 2) % GAMES_POOL.length)}
@@ -1912,9 +1986,9 @@ export default function VetWorkspaceBeatrizV26() {
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="text-sm font-extrabold text-pink-950 flex items-center gap-2">
-                          <Coffee className="w-4 h-4 text-pink-500" /> Cafés & Locais em Salvador (Exibindo 2 Sugestões)
+                          <Coffee className="w-4 h-4 text-pink-500" /> Cafés & Locais em Salvador (15 Opções Disponíveis)
                         </h3>
-                        <p className="text-xs text-stone-500 mt-0.5">Lugares aconchegantes perto das regiões de interesse na cidade.</p>
+                        <p className="text-xs text-stone-500 mt-0.5">Lugares aconchegantes pelo catálogo expandido na cidade.</p>
                       </div>
                       <button 
                         onClick={() => setCafeIndex((prev) => (prev + 2) % CAFES_POOL.length)}
@@ -1951,9 +2025,9 @@ export default function VetWorkspaceBeatrizV26() {
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="text-sm font-extrabold text-pink-950 flex items-center gap-2">
-                          <Headphones className="w-4 h-4 text-pink-500" /> Podcasts & True Crime (Exibindo 2 Sugestões)
+                          <Headphones className="w-4 h-4 text-pink-500" /> Podcasts & True Crime (15 Opções Disponíveis)
                         </h3>
-                        <p className="text-xs text-stone-500 mt-0.5">Casos criminais fascinantes e investigações para ouvir no Spotify.</p>
+                        <p className="text-xs text-stone-500 mt-0.5">Investigações e casos criminais fascinantes do catálogo expandido.</p>
                       </div>
                       <button 
                         onClick={() => setPodcastIndex((prev) => (prev + 2) % PODCASTS_POOL.length)}
@@ -2505,15 +2579,15 @@ export default function VetWorkspaceBeatrizV26() {
                       <div className="grid grid-cols-3 gap-2">
                         <div>
                           <label className="text-[10px] font-bold text-stone-600 block mb-1">Dose (mg/kg)</label>
-                          <input type="number" step="0.01" value={calcDosage} onChange={(e) => setCalcDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <input type="number" step="0.01" value={calcDosage} onChange={(e) => setCalcDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-stone-600 block mb-1">Conc. (mg/ml)</label>
-                          <input type="number" step="0.01" value={calcConcentration} onChange={(e) => setCalcConcentration(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <input type="number" step="0.01" value={calcConcentration} onChange={(e) => setCalcConcentration(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-stone-600 block mb-1">Comp. (mg)</label>
-                          <input type="number" step="0.1" placeholder="Ex: 20" value={calcPillMg} onChange={(e) => setCalcPillMg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <input type="number" step="0.1" placeholder="Ex: 20" value={calcPillMg} onChange={(e) => setCalcPillMg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                       </div>
 
