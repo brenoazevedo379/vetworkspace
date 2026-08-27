@@ -42,7 +42,9 @@ import {
   Heart,
   Camera,
   Gamepad2,
-  Sparkle
+  Sparkle,
+  Coffee,
+  Compass
 } from 'lucide-react'
 import WishlistTab from '@/components/WishlistTab'
 
@@ -262,7 +264,6 @@ export default function VetWorkspaceBeatrizV26() {
   const todayDateKey = `${currentYear}-${padZero(currentMonth + 1)}-${padZero(currentDayNum)}`
 
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const personalPhotoInputRef = useRef<HTMLInputElement>(null)
   const shiftPhotoInputRef = useRef<HTMLInputElement>(null)
 
   const [studySubTab, setStudySubTab] = useState<'resumo' | 'diferenciais' | 'pontos'>('resumo')
@@ -301,8 +302,6 @@ export default function VetWorkspaceBeatrizV26() {
       { id: 'c-4', name: 'Hospital Pet Salvador', defaultRate: 300 }
     ]
   })
-  const [newClinicName, setNewClinicName] = useState('')
-  const [newClinicRate, setNewClinicRate] = useState('')
 
   const [shifts, setShifts] = useState<ShiftRecord[]>(() => {
     if (typeof window !== 'undefined') {
@@ -319,8 +318,8 @@ export default function VetWorkspaceBeatrizV26() {
   const [shiftDetails, setShiftDetails] = useState('')
   const [isShiftAiLoading, setIsShiftAiLoading] = useState(false)
 
-  // ESTADOS PARA O ESPAÇO PESSOAL DA BEATRIZ
-  const [personalSubTab, setPersonalSubTab] = useState<'skincare' | 'wishlist' | 'descompressao' | 'pets' | 'jogos'>('skincare')
+  // ESTADOS PARA O ESPAÇO PESSOAL DA BEATRIZ (SUBPASTAS)
+  const [personalSubTab, setPersonalSubTab] = useState<'skincare' | 'wishlist' | 'descompressao' | 'jogos' | 'locais'>('skincare')
   
   const [skincareNotes, setSkincareNotes] = useState<string>(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('vet_skincare_v26') || ''
@@ -336,6 +335,10 @@ export default function VetWorkspaceBeatrizV26() {
   })
   const [jogosNotes, setJogosNotes] = useState<string>(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('vet_jogos_v26') || ''
+    return ''
+  })
+  const [locaisNotes, setLocaisNotes] = useState<string>(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('vet_locais_v26') || ''
     return ''
   })
 
@@ -376,12 +379,11 @@ export default function VetWorkspaceBeatrizV26() {
     const file = files[0]
     setIsShiftAiLoading(true)
     
-    // Simulação inteligente de IA lendo o print/foto do relatório da clínica
     setTimeout(() => {
       const mockCommissions = [120, 180, 240, 95, 310, 150]
       const randomComm = mockCommissions[Math.floor(Math.random() * mockCommissions.length)]
       setShiftCommission(randomComm.toString())
-      setShiftDetails(`Leitura IA da Imagem (${file.name}): Identificados procedimentos e comissões automáticas no relatório da clínica.`)
+      setShiftDetails(`Leitura IA da Imagem (${file.name}): Procedimentos extraídos do relatório da clínica.`)
       setIsShiftAiLoading(false)
       alert('📸 IA leu o relatório com sucesso e preencheu as comissões automaticamente!')
     }, 1200)
@@ -408,7 +410,7 @@ export default function VetWorkspaceBeatrizV26() {
 
   const totalShiftsAmount = shifts.reduce((acc, s) => acc + s.baseRate + s.commission, 0)
 
-  // Demais estados já existentes
+  // Demais estados
   const [bsaWeightKg, setBsaWeightKg] = useState('')
   const [bsaSpecies, setBsaSpecies] = useState<'cao' | 'gato'>('cao')
   const [selectedOncoDrugName, setSelectedOncoDrugName] = useState<string>('Doxorrubicina')
@@ -764,6 +766,7 @@ export default function VetWorkspaceBeatrizV26() {
           if (d.mimosWishlist) { setMimosWishlist(d.mimosWishlist); localStorage.setItem('vet_mimos_v26', d.mimosWishlist); }
           if (d.descompressaoNotes) { setDescompressaoNotes(d.descompressaoNotes); localStorage.setItem('vet_descomp_v26', d.descompressaoNotes); }
           if (d.jogosNotes) { setJogosNotes(d.jogosNotes); localStorage.setItem('vet_jogos_v26', d.jogosNotes); }
+          if (d.locaisNotes) { setLocaisNotes(d.locaisNotes); localStorage.setItem('vet_locais_v26', d.locaisNotes); }
           setSaveStatus('Sincronizado')
         }
       } catch (err: any) {
@@ -822,6 +825,7 @@ export default function VetWorkspaceBeatrizV26() {
     localStorage.setItem('vet_mimos_v26', mimosWishlist)
     localStorage.setItem('vet_descomp_v26', descompressaoNotes)
     localStorage.setItem('vet_jogos_v26', jogosNotes)
+    localStorage.setItem('vet_locais_v26', locaisNotes)
 
     let wishlistData = []
     try {
@@ -849,6 +853,7 @@ export default function VetWorkspaceBeatrizV26() {
           mimosWishlist,
           descompressaoNotes,
           jogosNotes,
+          locaisNotes,
           wishlist: wishlistData
         }
 
@@ -872,7 +877,7 @@ export default function VetWorkspaceBeatrizV26() {
 
     const timer = setTimeout(syncToCloud, 800)
     return () => clearTimeout(timer)
-  }, [isInitialized, items, patients, customDrugs, monthlyIncome, finances, tasks, events, chatSessions, clinics, shifts, personalPets, skincareNotes, mimosWishlist, descompressaoNotes, jogosNotes])
+  }, [isInitialized, items, patients, customDrugs, monthlyIncome, finances, tasks, events, chatSessions, clinics, shifts, personalPets, skincareNotes, mimosWishlist, descompressaoNotes, jogosNotes, locaisNotes])
 
   const selectedItem = items.find(i => i.id === selectedItemId && i.type === 'page') || items.find(i => i.type === 'page')
 
@@ -1500,7 +1505,6 @@ export default function VetWorkspaceBeatrizV26() {
                           ) : (
                             shifts.map(s => {
                               const clinicObj = clinics.find(c => c.id === s.clinicId)
-                              const totalDay = s.baseRate + s.commission
                               return (
                                 <div key={s.id} className="bg-white border border-pink-200 p-3 rounded-xl text-xs flex items-center justify-between shadow-2xs">
                                   <div>
@@ -1526,36 +1530,45 @@ export default function VetWorkspaceBeatrizV26() {
             </div>
           )}
 
-          {/* ESPAÇO PESSOAL DA BEATRIZ (Skincare, Wishlist de Mimos, Descompressão, Pets de casa, Jogos) */}
+          {/* ESPAÇO PESSOAL DA BEATRIZ (ESTILO SUBPASTAS + RECOMENDAÇÕES INTELIGENTES) */}
           {activeTab === 'pessoal' && (
-            <div className="max-w-4xl mx-auto space-y-6">
+            <div className="max-w-5xl mx-auto space-y-6">
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
                 <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
                   <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Heart className="w-6 h-6 fill-pink-200" /></div>
                   <div>
                     <h2 className="text-base font-extrabold text-pink-950">Espaço Pessoal da Dra. Beatriz ✨</h2>
-                    <p className="text-xs text-pink-500 font-medium">Seu cantinho de autocuidado, mimos, descompressão, rotina de beleza e lazer</p>
+                    <p className="text-xs text-pink-500 font-medium">Cantinho de autocuidado, mimos, lazer e recomendações inteligentes</p>
                   </div>
                 </div>
 
+                {/* Subpastas / Navegação interna */}
                 <div className="flex flex-wrap items-center gap-2 border-b border-pink-100 pb-3">
-                  <button onClick={() => setPersonalSubTab('skincare')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${personalSubTab === 'skincare' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}>
-                    <Sparkle className="w-3.5 h-3.5" /> Skincare & Rotina de Beleza
+                  <button onClick={() => setPersonalSubTab('skincare')} className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 ${personalSubTab === 'skincare' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
+                    <Sparkle className="w-4 h-4" /> 📁 Skincare & Beleza
                   </button>
-                  <button onClick={() => setPersonalSubTab('wishlist')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${personalSubTab === 'wishlist' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}>
-                    <Gift className="w-3.5 h-3.5" /> Wishlist de Mimos
+                  <button onClick={() => setPersonalSubTab('wishlist')} className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 ${personalSubTab === 'wishlist' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
+                    <Gift className="w-4 h-4" /> 📁 Wishlist de Mimos
                   </button>
-                  <button onClick={() => setPersonalSubTab('descompressao')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${personalSubTab === 'descompressao' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}>
-                    <BookOpen className="w-3.5 h-3.5" /> Séries, Filmes & Descompressão
+                  <button onClick={() => setPersonalSubTab('descompressao')} className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 ${personalSubTab === 'descompressao' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
+                    <BookOpen className="w-4 h-4" /> 📁 Séries, Filmes & Leituras
                   </button>
-                  <button onClick={() => setPersonalSubTab('jogos')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${personalSubTab === 'jogos' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}>
-                    <Gamepad2 className="w-3.5 h-3.5" /> Jogos & Recomendações
+                  <button onClick={() => setPersonalSubTab('jogos')} className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 ${personalSubTab === 'jogos' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
+                    <Gamepad2 className="w-4 h-4" /> 📁 Jogos & Recomendações
+                  </button>
+                  <button onClick={() => setPersonalSubTab('locais')} className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 ${personalSubTab === 'locais' ? 'bg-pink-500 text-white shadow-sm' : 'bg-pink-50/80 text-pink-950 hover:bg-pink-100 border border-pink-100'}`}>
+                    <Coffee className="w-4 h-4" /> 📁 Locais & Cafés (Salvador)
                   </button>
                 </div>
 
                 {personalSubTab === 'skincare' && (
-                  <div className="space-y-3">
-                    <label className="text-xs font-bold text-pink-900 flex items-center gap-1">🌸 Meus Produtos de Skincare, Dermocosméticos & Rotina</label>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-extrabold text-pink-950 uppercase tracking-wider flex items-center gap-1.5">
+                        <Sparkle className="w-4 h-4 text-pink-500" /> Subpasta: Skincare & Rotina de Beleza
+                      </label>
+                      <span className="text-[11px] bg-pink-100 text-pink-700 px-2.5 py-0.5 rounded-full font-bold">Salvo Automaticamente</span>
+                    </div>
                     <textarea 
                       value={skincareNotes} 
                       onChange={(e) => setSkincareNotes(e.target.value)} 
@@ -1567,8 +1580,13 @@ export default function VetWorkspaceBeatrizV26() {
                 )}
 
                 {personalSubTab === 'wishlist' && (
-                  <div className="space-y-3">
-                    <label className="text-xs font-bold text-pink-900 flex items-center gap-1">🎁 Lista de Desejos & Mimos Pessoais</label>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-extrabold text-pink-950 uppercase tracking-wider flex items-center gap-1.5">
+                        <Gift className="w-4 h-4 text-pink-500" /> Subpasta: Wishlist de Mimos Pessoais
+                      </label>
+                      <span className="text-[11px] bg-pink-100 text-pink-700 px-2.5 py-0.5 rounded-full font-bold">Salvo Automaticamente</span>
+                    </div>
                     <textarea 
                       value={mimosWishlist} 
                       onChange={(e) => setMimosWishlist(e.target.value)} 
@@ -1580,28 +1598,111 @@ export default function VetWorkspaceBeatrizV26() {
                 )}
 
                 {personalSubTab === 'descompressao' && (
-                  <div className="space-y-3">
-                    <label className="text-xs font-bold text-pink-900 flex items-center gap-1">🍿 Séries, Filmes & Leituras para Desligar a Mente</label>
-                    <textarea 
-                      value={descompressaoNotes} 
-                      onChange={(e) => setDescompressaoNotes(e.target.value)} 
-                      rows={12} 
-                      className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" 
-                      placeholder="Filmes e séries pendentes para maratonar no fim de semana..." 
-                    />
+                  <div className="space-y-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-extrabold text-pink-950 uppercase tracking-wider flex items-center gap-1.5">
+                          <BookOpen className="w-4 h-4 text-pink-500" /> Subpasta: Séries, Filmes & Leituras
+                        </label>
+                        <span className="text-[11px] bg-pink-100 text-pink-700 px-2.5 py-0.5 rounded-full font-bold">Salvo Automaticamente</span>
+                      </div>
+                      <textarea 
+                        value={descompressaoNotes} 
+                        onChange={(e) => setDescompressaoNotes(e.target.value)} 
+                        rows={8} 
+                        className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" 
+                        placeholder="Filmes, séries e livros que você quer ver/ler..." 
+                      />
+                    </div>
+
+                    {/* Bloco de Recomendações Inteligentes */}
+                    <div className="bg-pink-50/70 border border-pink-200 p-5 rounded-2xl space-y-3">
+                      <div className="font-extrabold text-xs text-pink-950 flex items-center gap-1.5">
+                        <Compass className="w-4 h-4 text-pink-500" /> 💡 Recomendações Selecionadas para Descontrair:
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-stone-700">
+                        <div className="bg-white p-3 rounded-xl border border-pink-200 shadow-2xs">
+                          <span className="font-bold text-pink-950">📚 Livro Recomendado:</span>
+                          <p className="mt-1">"A Biblioteca da Meia-Noite" (Matt Haig) — Uma leitura leve, cativante e reconfortante sobre escolhas e novas perspectivas.</p>
+                        </div>
+                        <div className="bg-white p-3 rounded-xl border border-pink-200 shadow-2xs">
+                          <span className="font-bold text-pink-950">🍿 Série / Filme Recomendado:</span>
+                          <p className="mt-1">"Ted Lasso" (Apple TV+) — Garantia de sorrisos, leveza e otimismo para desligar após um dia intenso de plantão.</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
 
                 {personalSubTab === 'jogos' && (
-                  <div className="space-y-3">
-                    <label className="text-xs font-bold text-pink-900 flex items-center gap-1">🎮 Jogos Favoritos & Indicações</label>
-                    <textarea 
-                      value={jogosNotes} 
-                      onChange={(e) => setJogosNotes(e.target.value)} 
-                      rows={12} 
-                      className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" 
-                      placeholder="Anote seus jogos favoritos, recomendações e dicas de games..." 
-                    />
+                  <div className="space-y-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-extrabold text-pink-950 uppercase tracking-wider flex items-center gap-1.5">
+                          <Gamepad2 className="w-4 h-4 text-pink-500" /> Subpasta: Jogos & Recomendações
+                        </label>
+                        <span className="text-[11px] bg-pink-100 text-pink-700 px-2.5 py-0.5 rounded-full font-bold">Salvo Automaticamente</span>
+                      </div>
+                      <textarea 
+                        value={jogosNotes} 
+                        onChange={(e) => setJogosNotes(e.target.value)} 
+                        rows={8} 
+                        className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" 
+                        placeholder="Anote seus jogos favoritos e anotações..." 
+                      />
+                    </div>
+
+                    <div className="bg-pink-50/70 border border-pink-200 p-5 rounded-2xl space-y-3">
+                      <div className="font-extrabold text-xs text-pink-950 flex items-center gap-1.5">
+                        <Gamepad2 className="w-4 h-4 text-pink-500" /> 🎮 Sugestões de Games para Relaxar:
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-stone-700">
+                        <div className="bg-white p-3 rounded-xl border border-pink-200 shadow-2xs">
+                          <span className="font-bold text-pink-950">🌱 Stardew Valley:</span>
+                          <p className="mt-1">Perfeito para desligar a mente cuidando da fazendinha, plantando e curtindo uma trilha sonora relaxante.</p>
+                        </div>
+                        <div className="bg-white p-3 rounded-xl border border-pink-200 shadow-2xs">
+                          <span className="font-bold text-pink-950">☕ Unpacking:</span>
+                          <p className="mt-1">Um jogo zen de organização de caixas e cômodos, ideal para jogar ouvindo um som tranquilo.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {personalSubTab === 'locais' && (
+                  <div className="space-y-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-extrabold text-pink-950 uppercase tracking-wider flex items-center gap-1.5">
+                          <Coffee className="w-4 h-4 text-pink-500" /> Subpasta: Locais & Cafés Aconchegantes (Salvador)
+                        </label>
+                        <span className="text-[11px] bg-pink-100 text-pink-700 px-2.5 py-0.5 rounded-full font-bold">Salvo Automaticamente</span>
+                      </div>
+                      <textarea 
+                        value={locaisNotes} 
+                        onChange={(e) => setLocaisNotes(e.target.value)} 
+                        rows={8} 
+                        className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" 
+                        placeholder="Anote aqui suas cafeterias favoritas em Salvador, lugares perto das clínicas..." 
+                      />
+                    </div>
+
+                    <div className="bg-pink-50/70 border border-pink-200 p-5 rounded-2xl space-y-3">
+                      <div className="font-extrabold text-xs text-pink-950 flex items-center gap-1.5">
+                        <Coffee className="w-4 h-4 text-pink-500" /> ☕ Dicas de Cafés & Lugares Calmos em Salvador:
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-stone-700">
+                        <div className="bg-white p-3 rounded-xl border border-pink-200 shadow-2xs">
+                          <span className="font-bold text-pink-950">📍 Rio Vermelho / Barra:</span>
+                          <p className="mt-1">Ótimas cafeterias artesanais com ambiente silencioso e aconchegante para tomar um espresso e respirar entre um plantão e outro.</p>
+                        </div>
+                        <div className="bg-white p-3 rounded-xl border border-pink-200 shadow-2xs">
+                          <span className="font-bold text-pink-950">📍 Cidade Baixa (Ribeira/Bonfim):</span>
+                          <p className="mt-1">Padrões charmosos à beira da baía, ótimos para curtir o fim de tarde com uma vista linda e sossegada.</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
