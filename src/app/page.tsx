@@ -44,15 +44,12 @@ import {
   Gamepad2,
   Sparkle,
   Coffee,
-  Compass,
   CheckCircle2,
   RefreshCw,
   Headphones,
   Edit3,
   X,
-  Upload,
-  Film,
-  Tv
+  Upload
 } from 'lucide-react'
 import WishlistTab from '@/components/WishlistTab'
 
@@ -245,7 +242,6 @@ const ONCO_DRUGS: OncolocicalDrug[] = [
   }
 ]
 
-// 15 JOGOS RELAXANTES
 const GAMES_POOL = [
   { title: 'Stardew Valley', desc: 'Perfeito para desligar a mente cuidando da fazendinha, plantando e curtindo trilha sonora relaxante.' },
   { title: 'Unpacking', desc: 'Um jogo zen de organização de caixas e cômodos, ideal para jogar ouvindo um som tranquilo.' },
@@ -264,7 +260,6 @@ const GAMES_POOL = [
   { title: 'Little Kitty, Big City', desc: 'Viva como um gatinho curioso perdido na cidade grande aprontando e explorando tudo.' }
 ]
 
-// 15 CAFÉS E LOCAIS EM SALVADOR
 const CAFES_POOL = [
   { name: 'Cafeteria Artesanal Rio Vermelho', desc: 'Ambiente charmoso, café de alta qualidade e comidinhas perfeitas para um fim de tarde à beira-mar.' },
   { name: 'Confeitaria & Café Barra', desc: 'Local calmo e acolhedor na Barra, ideal para saborear um bom espresso e ler um livro.' },
@@ -283,7 +278,6 @@ const CAFES_POOL = [
   { name: 'Le Truffe (Caminho das Árvores)', desc: 'Doceria acolhedora com quitutes refinados e cafés reconfortantes.' }
 ]
 
-// 15 PODCASTS & TRUE CRIME
 const PODCASTS_POOL = [
   { title: 'Modus Operandi', desc: 'Podcast de true crime nacional conduzido com muita pesquisa e respeito, detalhando os casos criminais mais marcantes.' },
   { title: 'Café com Crime', desc: 'Histórias reais de crimes narradas em formato dinâmico e envolvente, perfeito para ouvir nos trajetos entre as clínicas.' },
@@ -299,10 +293,9 @@ const PODCASTS_POOL = [
   { title: 'Crime e Mistério Podcast', desc: 'Enigmas não resolvidos, desaparecimentos famosos e teorias investigativas.' },
   { title: 'Investigação Criminal (Podcast Oficial)', desc: 'Baseado na famosa série de TV, detalhando os bastidores da perícia forense no Brasil.' },
   { title: 'Psicologia dos Serial Killers', desc: 'Análise comportamental aprofundada de assassinos em série famosos da história.' },
-  { title: 'Arquivos X do Brasil', desc: 'Casos bizarros, paranormais e investigações reais que desafiaram a lógica policial.' }
+  { title: 'Arquivos X do Brasil', desc: 'Casos bizarros, paranormalidade e investigações reais que desafiaram a lógica policial.' }
 ]
 
-// 15 SÉRIES, FILMES & LEITURAS (NOVO POOL EXPANDIDO COM ROTATIVIDADE)
 const ENTERTAINMENT_POOL = [
   { type: 'Série', title: 'Ted Lasso (Apple TV+)', desc: 'Garantia de sorrisos, leveza e otimismo para desligar após um dia intenso de plantão.' },
   { type: 'Livro', title: 'A Biblioteca da Meia-Noite (Matt Haig)', desc: 'Uma leitura leve, cativante e reconfortante sobre escolhas, arrependimentos e novas perspectivas de vida.' },
@@ -359,7 +352,7 @@ const CONDOLENCE_MESSAGES = [
   }
 ]
 
-export default function VetWorkspaceBeatrizV26() {
+export default function VetWorkspaceBeatrizV27() {
   const [isMounted, setIsMounted] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
 
@@ -395,7 +388,7 @@ export default function VetWorkspaceBeatrizV26() {
 
   const [chatSessions, setChatSessions] = useState<ChatSession[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_chat_sessions_v26')
+      const saved = localStorage.getItem('vet_chat_sessions_v27')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return [
@@ -416,7 +409,7 @@ export default function VetWorkspaceBeatrizV26() {
 
   const [clinics, setClinics] = useState<ClinicItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_clinics_v26')
+      const saved = localStorage.getItem('vet_clinics_v27')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return [
@@ -433,7 +426,7 @@ export default function VetWorkspaceBeatrizV26() {
 
   const [shifts, setShifts] = useState<ShiftRecord[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_shifts_v26')
+      const saved = localStorage.getItem('vet_shifts_v27')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return []
@@ -450,22 +443,21 @@ export default function VetWorkspaceBeatrizV26() {
   
   const [skincareDone, setSkincareDone] = useState<{ [key: string]: boolean }>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_skincare_checked_v26')
+      const saved = localStorage.getItem('vet_skincare_checked_v27')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return {}
   })
 
   const [mimosWishlist, setMimosWishlist] = useState<string>(() => {
-    if (typeof window !== 'undefined') return localStorage.getItem('vet_mimos_v26') || ''
+    if (typeof window !== 'undefined') return localStorage.getItem('vet_mimos_v27') || ''
     return ''
   })
   const [descompressaoNotes, setDescompressaoNotes] = useState<string>(() => {
-    if (typeof window !== 'undefined') return localStorage.getItem('vet_descomp_v26') || ''
+    if (typeof window !== 'undefined') return localStorage.getItem('vet_descomp_v27') || ''
     return ''
   })
 
-  // Índices para a rotatividade das 15 recomendações
   const [gameIndex, setGameIndex] = useState(0)
   const [cafeIndex, setCafeIndex] = useState(0)
   const [podcastIndex, setPodcastIndex] = useState(0)
@@ -473,7 +465,7 @@ export default function VetWorkspaceBeatrizV26() {
 
   const [personalPets, setPersonalPets] = useState<PersonalPet[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_personal_pets_v26')
+      const saved = localStorage.getItem('vet_personal_pets_v27')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return []
@@ -651,23 +643,35 @@ export default function VetWorkspaceBeatrizV26() {
     setChatInput(templateText)
   }
 
+  // ESTRUTURA INICIAL COM FORMULÁRIO DE RECEITAS E SUBPASTAS PRÉ-CRIADAS
   const [items, setItems] = useState<DocumentItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_items_v19')
+      const saved = localStorage.getItem('vet_items_v27')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return [
       { id: 'f-pos', title: 'Pós-graduação & Residência', parentId: null, type: 'folder', isOpen: true },
       { id: 'p-1', title: 'Módulos e Aulas Teóricas', parentId: 'f-pos', type: 'page', content: '', differential: '', notes: '', attachments: [] },
+      
       { id: 'f-receitas', title: 'Formulário de Receitas', parentId: null, type: 'folder', isOpen: true },
-      { id: 'p-rec-1', title: 'Modelo de Receita Simples', parentId: 'f-receitas', type: 'page', content: '', differential: '', notes: '', attachments: [] }
+      { id: 'f-rec-dermato', title: 'Dermatologia & Otologia', parentId: 'f-receitas', type: 'folder', isOpen: true },
+      { id: 'p-rec-1', title: 'Prescrição Apoquel / Cytopoint', parentId: 'f-rec-dermato', type: 'page', content: 'Protocolo de Controle de Prurido e DADP...', differential: '', notes: '', attachments: [] },
+      
+      { id: 'f-rec-gastro', title: 'Gastroenterologia & Antieméticos', parentId: 'f-receitas', type: 'folder', isOpen: true },
+      { id: 'p-rec-2', title: 'Receita Cerenia + Omeprazol + Probiótico', parentId: 'f-rec-gastro', type: 'page', content: 'Proteção gástrica e antiemético pós-vômito...', differential: '', notes: '', attachments: [] },
+      
+      { id: 'f-rec-controlled', title: 'Controle Especial & Psicotrópicos', parentId: 'f-receitas', type: 'folder', isOpen: true },
+      { id: 'p-rec-3', title: 'Termo / Notificação Receita B2 - Gabapentina/Tramadol', parentId: 'f-rec-controlled', type: 'page', content: 'Modelo de Prescrição Controlada...', differential: '', notes: '', attachments: [] },
+      
+      { id: 'f-rec-manipulated', title: 'Fórmulas Manipuladas', parentId: 'f-receitas', type: 'folder', isOpen: true },
+      { id: 'p-rec-4', title: 'Pasta Palatável / Xarope Felino', parentId: 'f-rec-manipulated', type: 'page', content: 'Fórmula em veículo palatável sabor peixe/frango...', differential: '', notes: '', attachments: [] }
     ]
   })
   const [selectedItemId, setSelectedItemId] = useState<string>('p-1')
 
   const [patients, setPatients] = useState<PatientRecord[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_patients_v18')
+      const saved = localStorage.getItem('vet_patients_v27')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return []
@@ -775,7 +779,7 @@ export default function VetWorkspaceBeatrizV26() {
   const [calcMode, setCalcMode] = useState<'dose' | 'fluido'>('dose')
   const [customDrugs, setCustomDrugs] = useState<VetDrug[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_custom_drugs_v26')
+      const saved = localStorage.getItem('vet_custom_drugs_v27')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return INITIAL_DRUGS
@@ -828,7 +832,7 @@ export default function VetWorkspaceBeatrizV26() {
 
   const [monthlyIncome, setMonthlyIncome] = useState<number>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_income_v18')
+      const saved = localStorage.getItem('vet_income_v27')
       if (saved) {
         const parsed = parseFloat(saved)
         if (!isNaN(parsed)) return parsed
@@ -842,7 +846,7 @@ export default function VetWorkspaceBeatrizV26() {
 
   const [finances, setFinances] = useState<FinancialItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_finances_v18')
+      const saved = localStorage.getItem('vet_finances_v27')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return []
@@ -859,7 +863,7 @@ export default function VetWorkspaceBeatrizV26() {
 
   const [tasks, setTasks] = useState<TaskItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_tasks_v18')
+      const saved = localStorage.getItem('vet_tasks_v27')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return []
@@ -871,7 +875,7 @@ export default function VetWorkspaceBeatrizV26() {
 
   const [events, setEvents] = useState<CalendarEvent[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_events_v18')
+      const saved = localStorage.getItem('vet_events_v27')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return []
@@ -887,7 +891,7 @@ export default function VetWorkspaceBeatrizV26() {
         const { data, error } = await supabase
           .from('app_data')
           .select('data')
-          .eq('id', 'beatriz_workspace_v26')
+          .eq('id', 'beatriz_workspace_v27')
           .maybeSingle()
 
         if (error) {
@@ -897,23 +901,23 @@ export default function VetWorkspaceBeatrizV26() {
 
         if (data && data.data) {
           const d = data.data
-          if (d.items) { setItems(d.items); localStorage.setItem('vet_items_v19', JSON.stringify(d.items)); }
-          if (d.patients) { setPatients(d.patients); localStorage.setItem('vet_patients_v18', JSON.stringify(d.patients)); }
-          if (d.customDrugs) { setCustomDrugs(d.customDrugs); localStorage.setItem('vet_custom_drugs_v26', JSON.stringify(d.customDrugs)); }
+          if (d.items) { setItems(d.items); localStorage.setItem('vet_items_v27', JSON.stringify(d.items)); }
+          if (d.patients) { setPatients(d.patients); localStorage.setItem('vet_patients_v27', JSON.stringify(d.patients)); }
+          if (d.customDrugs) { setCustomDrugs(d.customDrugs); localStorage.setItem('vet_custom_drugs_v27', JSON.stringify(d.customDrugs)); }
           if (d.monthlyIncome !== undefined) { 
             setMonthlyIncome(d.monthlyIncome); 
-            localStorage.setItem('vet_income_v18', d.monthlyIncome.toString()); 
+            localStorage.setItem('vet_income_v27', d.monthlyIncome.toString()); 
           }
-          if (d.finances) { setFinances(d.finances); localStorage.setItem('vet_finances_v18', JSON.stringify(d.finances)); }
-          if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v18', JSON.stringify(d.tasks)); }
-          if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v18', JSON.stringify(d.events)); }
-          if (d.chatSessions) { setChatSessions(d.chatSessions); localStorage.setItem('vet_chat_sessions_v26', JSON.stringify(d.chatSessions)); }
-          if (d.clinics) { setClinics(d.clinics); localStorage.setItem('vet_clinics_v26', JSON.stringify(d.clinics)); }
-          if (d.shifts) { setShifts(d.shifts); localStorage.setItem('vet_shifts_v26', JSON.stringify(d.shifts)); }
-          if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v26', JSON.stringify(d.personalPets)); }
-          if (d.skincareDone) { setSkincareDone(d.skincareDone); localStorage.setItem('vet_skincare_checked_v26', JSON.stringify(d.skincareDone)); }
-          if (d.mimosWishlist) { setMimosWishlist(d.mimosWishlist); localStorage.setItem('vet_mimos_v26', d.mimosWishlist); }
-          if (d.descompressaoNotes) { setDescompressaoNotes(d.descompressaoNotes); localStorage.setItem('vet_descomp_v26', d.descompressaoNotes); }
+          if (d.finances) { setFinances(d.finances); localStorage.setItem('vet_finances_v27', JSON.stringify(d.finances)); }
+          if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v27', JSON.stringify(d.tasks)); }
+          if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v27', JSON.stringify(d.events)); }
+          if (d.chatSessions) { setChatSessions(d.chatSessions); localStorage.setItem('vet_chat_sessions_v27', JSON.stringify(d.chatSessions)); }
+          if (d.clinics) { setClinics(d.clinics); localStorage.setItem('vet_clinics_v27', JSON.stringify(d.clinics)); }
+          if (d.shifts) { setShifts(d.shifts); localStorage.setItem('vet_shifts_v27', JSON.stringify(d.shifts)); }
+          if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v27', JSON.stringify(d.personalPets)); }
+          if (d.skincareDone) { setSkincareDone(d.skincareDone); localStorage.setItem('vet_skincare_checked_v27', JSON.stringify(d.skincareDone)); }
+          if (d.mimosWishlist) { setMimosWishlist(d.mimosWishlist); localStorage.setItem('vet_mimos_v27', d.mimosWishlist); }
+          if (d.descompressaoNotes) { setDescompressaoNotes(d.descompressaoNotes); localStorage.setItem('vet_descomp_v27', d.descompressaoNotes); }
           setSaveStatus('Sincronizado')
         }
       } catch (err: any) {
@@ -925,28 +929,28 @@ export default function VetWorkspaceBeatrizV26() {
     fetchCloudData()
 
     const channel = supabase
-      .channel('app_data_realtime_v26')
+      .channel('app_data_realtime_v27')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'app_data', filter: 'id=eq.beatriz_workspace_v26' },
+        { event: '*', schema: 'public', table: 'app_data', filter: 'id=eq.beatriz_workspace_v27' },
         (payload: any) => {
           if (payload.new && payload.new.data) {
             const d = payload.new.data
-            if (d.items) { setItems(d.items); localStorage.setItem('vet_items_v19', JSON.stringify(d.items)); }
-            if (d.patients) { setPatients(d.patients); localStorage.setItem('vet_patients_v18', JSON.stringify(d.patients)); }
-            if (d.customDrugs) { setCustomDrugs(d.customDrugs); localStorage.setItem('vet_custom_drugs_v26', JSON.stringify(d.customDrugs)); }
+            if (d.items) { setItems(d.items); localStorage.setItem('vet_items_v27', JSON.stringify(d.items)); }
+            if (d.patients) { setPatients(d.patients); localStorage.setItem('vet_patients_v27', JSON.stringify(d.patients)); }
+            if (d.customDrugs) { setCustomDrugs(d.customDrugs); localStorage.setItem('vet_custom_drugs_v27', JSON.stringify(d.customDrugs)); }
             if (d.monthlyIncome !== undefined) { 
               setMonthlyIncome(d.monthlyIncome); 
-              localStorage.setItem('vet_income_v18', d.monthlyIncome.toString()); 
+              localStorage.setItem('vet_income_v27', d.monthlyIncome.toString()); 
             }
-            if (d.finances) { setFinances(d.finances); localStorage.setItem('vet_finances_v18', JSON.stringify(d.finances)); }
-            if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v18', JSON.stringify(d.tasks)); }
-            if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v18', JSON.stringify(d.events)); }
-            if (d.chatSessions) { setChatSessions(d.chatSessions); localStorage.setItem('vet_chat_sessions_v26', JSON.stringify(d.chatSessions)); }
-            if (d.clinics) { setClinics(d.clinics); localStorage.setItem('vet_clinics_v26', JSON.stringify(d.clinics)); }
-            if (d.shifts) { setShifts(d.shifts); localStorage.setItem('vet_shifts_v26', JSON.stringify(d.shifts)); }
-            if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v26', JSON.stringify(d.personalPets)); }
-            if (d.skincareDone) { setSkincareDone(d.skincareDone); localStorage.setItem('vet_skincare_checked_v26', JSON.stringify(d.skincareDone)); }
+            if (d.finances) { setFinances(d.finances); localStorage.setItem('vet_finances_v27', JSON.stringify(d.finances)); }
+            if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v27', JSON.stringify(d.tasks)); }
+            if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v27', JSON.stringify(d.events)); }
+            if (d.chatSessions) { setChatSessions(d.chatSessions); localStorage.setItem('vet_chat_sessions_v27', JSON.stringify(d.chatSessions)); }
+            if (d.clinics) { setClinics(d.clinics); localStorage.setItem('vet_clinics_v27', JSON.stringify(d.clinics)); }
+            if (d.shifts) { setShifts(d.shifts); localStorage.setItem('vet_shifts_v27', JSON.stringify(d.shifts)); }
+            if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v27', JSON.stringify(d.personalPets)); }
+            if (d.skincareDone) { setSkincareDone(d.skincareDone); localStorage.setItem('vet_skincare_checked_v27', JSON.stringify(d.skincareDone)); }
           }
         }
       )
@@ -960,20 +964,20 @@ export default function VetWorkspaceBeatrizV26() {
   useEffect(() => {
     if (!isMounted || !isInitialized) return
 
-    localStorage.setItem('vet_items_v19', JSON.stringify(items))
-    localStorage.setItem('vet_patients_v18', JSON.stringify(patients))
-    localStorage.setItem('vet_custom_drugs_v26', JSON.stringify(customDrugs))
-    localStorage.setItem('vet_income_v18', monthlyIncome.toString())
-    localStorage.setItem('vet_finances_v18', JSON.stringify(finances))
-    localStorage.setItem('vet_tasks_v18', JSON.stringify(tasks))
-    localStorage.setItem('vet_events_v18', JSON.stringify(events))
-    localStorage.setItem('vet_chat_sessions_v26', JSON.stringify(chatSessions))
-    localStorage.setItem('vet_clinics_v26', JSON.stringify(clinics))
-    localStorage.setItem('vet_shifts_v26', JSON.stringify(shifts))
-    localStorage.setItem('vet_personal_pets_v26', JSON.stringify(personalPets))
-    localStorage.setItem('vet_skincare_checked_v26', JSON.stringify(skincareDone))
-    localStorage.setItem('vet_mimos_v26', mimosWishlist)
-    localStorage.setItem('vet_descomp_v26', descompressaoNotes)
+    localStorage.setItem('vet_items_v27', JSON.stringify(items))
+    localStorage.setItem('vet_patients_v27', JSON.stringify(patients))
+    localStorage.setItem('vet_custom_drugs_v27', JSON.stringify(customDrugs))
+    localStorage.setItem('vet_income_v27', monthlyIncome.toString())
+    localStorage.setItem('vet_finances_v27', JSON.stringify(finances))
+    localStorage.setItem('vet_tasks_v27', JSON.stringify(tasks))
+    localStorage.setItem('vet_events_v27', JSON.stringify(events))
+    localStorage.setItem('vet_chat_sessions_v27', JSON.stringify(chatSessions))
+    localStorage.setItem('vet_clinics_v27', JSON.stringify(clinics))
+    localStorage.setItem('vet_shifts_v27', JSON.stringify(shifts))
+    localStorage.setItem('vet_personal_pets_v27', JSON.stringify(personalPets))
+    localStorage.setItem('vet_skincare_checked_v27', JSON.stringify(skincareDone))
+    localStorage.setItem('vet_mimos_v27', mimosWishlist)
+    localStorage.setItem('vet_descomp_v27', descompressaoNotes)
 
     let wishlistData = []
     try {
@@ -1006,7 +1010,7 @@ export default function VetWorkspaceBeatrizV26() {
         const { error } = await supabase
           .from('app_data')
           .upsert({
-            id: 'beatriz_workspace_v26',
+            id: 'beatriz_workspace_v27',
             data: payload,
             updated_at: new Date().toISOString()
           }, { onConflict: 'id' })
@@ -1152,7 +1156,7 @@ export default function VetWorkspaceBeatrizV26() {
   }
 
   const handleAddFolder = (parentId: string | null) => {
-    const title = prompt('Nome da nova pasta:')
+    const title = prompt('Nome da nova pasta ou subpasta:')
     if (!title) return
     const newFolder: DocumentItem = {
       id: 'folder-' + Date.now(),
@@ -1165,7 +1169,7 @@ export default function VetWorkspaceBeatrizV26() {
   }
 
   const handleAddPage = (parentId: string | null) => {
-    const title = prompt('Nome da nova página de estudo:')
+    const title = prompt('Nome da nova página ou receita:')
     if (!title) return
     const newPage: DocumentItem = {
       id: 'page-' + Date.now(),
@@ -1208,18 +1212,24 @@ export default function VetWorkspaceBeatrizV26() {
           if (item.type === 'folder') {
             return (
               <div key={item.id} className="space-y-1 pt-1">
-                <div className="flex items-center justify-between group px-2.5 py-1.5 rounded-xl bg-pink-50/40 hover:bg-pink-100/70 text-pink-950 cursor-pointer border border-pink-100">
+                <div className="flex items-center justify-between group px-2.5 py-1.5 rounded-xl bg-pink-50/50 hover:bg-pink-100/80 text-pink-950 cursor-pointer border border-pink-100">
                   <div className="flex items-center gap-2 truncate" onClick={() => toggleFolder(item.id)}>
                     <button className="text-pink-500">
                       {item.isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                     </button>
-                    <Folder className="w-4 h-4 text-pink-500 fill-pink-200" />
+                    <Folder className="w-4 h-4 text-pink-500 fill-pink-200 shrink-0" />
                     <span className="font-extrabold text-xs truncate">{item.title}</span>
                   </div>
-                  <div className="hidden group-hover:flex items-center gap-1.5">
-                    <button title="Adicionar Subpasta" onClick={() => handleAddFolder(item.id)} className="p-1 text-pink-600 hover:text-pink-950 bg-white rounded-lg shadow-2xs"><FolderPlus className="w-3.5 h-3.5" /></button>
-                    <button title="Adicionar Página" onClick={() => handleAddPage(item.id)} className="p-1 text-pink-600 hover:text-pink-950 bg-white rounded-lg shadow-2xs"><Plus className="w-3.5 h-3.5" /></button>
-                    <button title="Excluir Pasta" onClick={() => deleteItem(item.id)} className="p-1 text-stone-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <div className="hidden group-hover:flex items-center gap-1.5 shrink-0">
+                    <button title="Adicionar Subpasta Dentro Esta Pasta" onClick={() => handleAddFolder(item.id)} className="p-1 text-pink-600 hover:text-pink-950 bg-white rounded-lg shadow-2xs font-bold text-[10px] flex items-center gap-0.5">
+                      <FolderPlus className="w-3.5 h-3.5" />
+                    </button>
+                    <button title="Adicionar Receita / Página" onClick={() => handleAddPage(item.id)} className="p-1 text-pink-600 hover:text-pink-950 bg-white rounded-lg shadow-2xs">
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                    <button title="Excluir Pasta" onClick={() => deleteItem(item.id)} className="p-1 text-stone-400 hover:text-red-500">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
                 {item.isOpen && (
@@ -1234,7 +1244,7 @@ export default function VetWorkspaceBeatrizV26() {
             return (
               <div key={item.id} className={`flex items-center justify-between group px-3 py-2 rounded-xl cursor-pointer transition shadow-2xs ${isSelected ? 'bg-pink-500 text-white font-extrabold shadow-sm' : 'bg-white/80 text-pink-950 hover:bg-pink-50 border border-pink-100'}`} onClick={() => { setSelectedItemId(item.id); setActiveTab('estudos'); }}>
                 <div className="flex items-center gap-2.5 truncate">
-                  <FileText className={`w-4 h-4 ${isSelected ? 'text-white' : 'text-pink-500'}`} />
+                  <FileText className={`w-4 h-4 shrink-0 ${isSelected ? 'text-white' : 'text-pink-500'}`} />
                   <span className="text-xs truncate">{item.title}</span>
                 </div>
                 <button title="Excluir Página" onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className={`opacity-0 group-hover:opacity-100 p-1 ${isSelected ? 'text-white/80 hover:text-white' : 'text-stone-400 hover:text-red-500'}`}>
@@ -1341,7 +1351,7 @@ export default function VetWorkspaceBeatrizV26() {
             
           <div className="pt-2 pb-1 border-t border-pink-100/60 mt-2">
             <div className="flex items-center justify-between px-3 pt-2 text-[11px] font-bold text-pink-900 uppercase tracking-wider">
-              <span>📚 Estudos & Pós</span>
+              <span>📚 Estudos, Receitas & Pastas</span>
               <div className="flex items-center gap-1">
                 <button title="Nova Pasta Raiz" onClick={() => handleAddFolder(null)} className="p-1 rounded hover:bg-pink-100 text-pink-600"><FolderPlus className="w-3.5 h-3.5" /></button>
                 <button title="Nova Página Raiz" onClick={() => handleAddPage(null)} className="p-1 rounded hover:bg-pink-100 text-pink-600"><Plus className="w-3.5 h-3.5" /></button>
@@ -1643,7 +1653,6 @@ export default function VetWorkspaceBeatrizV26() {
                   </div>
                 </div>
 
-                {/* Bloco para renomear as clínicas */}
                 <div className="bg-pink-50/60 border border-pink-200 p-5 rounded-2xl space-y-3">
                   <h3 className="text-xs font-bold text-pink-950 uppercase tracking-wider">Configurar Nomes e Diárias Padrão das Clínicas</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2081,14 +2090,14 @@ export default function VetWorkspaceBeatrizV26() {
               <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-pink-100 pb-5 gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 text-[11px] font-extrabold text-pink-500 uppercase tracking-wider mb-1">
-                    <BookOpen className="w-3.5 h-3.5" /> Módulo Acadêmico / Pós-Graduação (Tela Completa)
+                    <BookOpen className="w-3.5 h-3.5" /> Módulo de Cadernos & Receitas (Editor)
                   </div>
                   <input 
                     type="text" 
                     value={selectedItem.title}
                     onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, title: e.target.value } : i))}
                     className="w-full bg-transparent text-2xl lg:text-3xl font-extrabold text-pink-950 focus:outline-none placeholder-pink-200"
-                    placeholder="Título do Estudo ou Matéria..."
+                    placeholder="Título da Página ou Receita..."
                   />
                 </div>
                 <div className="flex items-center gap-2.5">
@@ -2123,31 +2132,31 @@ export default function VetWorkspaceBeatrizV26() {
 
               <div className="flex items-center gap-2 border-b border-pink-100 pb-3">
                 <button onClick={() => setStudySubTab('resumo')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${studySubTab === 'resumo' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}>
-                  <FileText className="w-3.5 h-3.5" /> Resumo Teórico & Aulas
+                  <FileText className="w-3.5 h-3.5" /> Prescrição & Conteúdo
                 </button>
                 <button onClick={() => setStudySubTab('diferenciais')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${studySubTab === 'diferenciais' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}>
                   <Layers className="w-3.5 h-3.5" /> Diagnósticos Diferenciais
                 </button>
                 <button onClick={() => setStudySubTab('pontos')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${studySubTab === 'pontos' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}>
-                  <Bookmark className="w-3.5 h-3.5" /> Pontos de Atenção / Prova
+                  <Bookmark className="w-3.5 h-3.5" /> Observações & Posologia
                 </button>
               </div>
 
               {studySubTab === 'resumo' && (
                 <div className="space-y-3">
-                  <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><FileText className="w-3.5 h-3.5 text-pink-500" /> Resumo e Anotações da Matéria</label>
-                  <textarea value={selectedItem.content || ''} onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, content: e.target.value } : i))} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" placeholder="Digite aqui as explicações, fisiopatologia, posologias..." />
+                  <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><FileText className="w-3.5 h-3.5 text-pink-500" /> Prescrição ou Conteúdo Principal</label>
+                  <textarea value={selectedItem.content || ''} onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, content: e.target.value } : i))} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" placeholder="Escreva a receita, doses ou resumo da matéria..." />
                 </div>
               )}
               {studySubTab === 'diferenciais' && (
                 <div className="space-y-3">
-                  <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><Layers className="w-3.5 h-3.5 text-pink-500" /> Diagnósticos Diferenciais por Sistema</label>
+                  <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><Layers className="w-3.5 h-3.5 text-pink-500" /> Diagnósticos Diferenciais / Opções</label>
                   <textarea value={selectedItem.differential || ''} onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, differential: e.target.value } : i))} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" placeholder="Liste aqui os diferenciais clínicos..." />
                 </div>
               )}
               {studySubTab === 'pontos' && (
                 <div className="space-y-3">
-                  <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><Bookmark className="w-3.5 h-3.5 text-pink-500" /> Alertas Críticos & Pegadinhas de Prova</label>
+                  <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><Bookmark className="w-3.5 h-3.5 text-pink-500" /> Observações, Contraindicações & Avisos ao Tutor</label>
                   <textarea value={selectedItem.notes || ''} onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, notes: e.target.value } : i))} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" placeholder="Anotações importantes..." />
                 </div>
               )}
