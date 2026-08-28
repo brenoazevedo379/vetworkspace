@@ -49,7 +49,9 @@ import {
   Headphones,
   Edit3,
   X,
-  Upload
+  Upload,
+  Eye,
+  EyeOff
 } from 'lucide-react'
 import WishlistTab from '@/components/WishlistTab'
 
@@ -364,6 +366,26 @@ export default function VetWorkspaceBeatrizV28() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isPersonalSidebarOpen, setIsPersonalSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Sincronizado')
+
+  // MODO PRIVACIDADE DE VALORES
+  const [showValues, setShowValues] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_show_values_v28')
+      if (saved !== null) return saved === 'true'
+    }
+    return true
+  })
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vet_show_values_v28', showValues.toString())
+    }
+  }, [showValues])
+
+  const maskValue = (val: number) => {
+    if (!showValues) return 'R$ •••••'
+    return `R$ ${val.toFixed(2)}`
+  }
 
   const todayObj = new Date()
   const currentYear = todayObj.getFullYear()
@@ -921,7 +943,7 @@ export default function VetWorkspaceBeatrizV28() {
         }
       } catch (err: any) {
         setSaveStatus(`Erro: ${err.message}`)
-      } finally {
+      } font-bold {
         setIsInitialized(true)
       }
     }
@@ -1521,6 +1543,16 @@ export default function VetWorkspaceBeatrizV28() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {/* BOTÃO MODO PRIVACIDADE (OCULTAR / MOSTRAR VALORES) */}
+            <button 
+              onClick={() => setShowValues(!showValues)} 
+              className="bg-white hover:bg-pink-50 text-pink-700 px-3 py-1.5 rounded-xl border border-pink-200 text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              title={showValues ? "Ocultar valores financeiros" : "Mostrar valores financeiros"}
+            >
+              {showValues ? <EyeOff className="w-3.5 h-3.5 text-pink-500" /> : <Eye className="w-3.5 h-3.5 text-pink-500" />}
+              <span>{showValues ? 'Ocultar Valores' : 'Mostrar Valores'}</span>
+            </button>
+
             <span className={`text-[11px] font-bold px-3 py-1 rounded-full border flex items-center gap-1 ${
               saveStatus.includes('Erro') 
                 ? 'bg-rose-50 text-rose-700 border-rose-300' 
@@ -1544,14 +1576,14 @@ export default function VetWorkspaceBeatrizV28() {
                 <div onClick={() => setActiveTab('financas')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
                   <div>
                     <span className="text-xs font-semibold text-pink-400">Renda do Mês</span>
-                    <div className="text-2xl font-extrabold text-emerald-600 mt-1">R$ {(monthlyIncome + totalShiftsAmount).toFixed(2)}</div>
+                    <div className="text-2xl font-extrabold text-emerald-600 mt-1">{maskValue(monthlyIncome + totalShiftsAmount)}</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600"><Wallet className="w-5 h-5" /></div>
                 </div>
                 <div onClick={() => setActiveTab('financas')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
                   <div>
                     <span className="text-xs font-semibold text-pink-400">Total de Despesas</span>
-                    <div className="text-2xl font-extrabold text-rose-500 mt-1">R$ {totalGastos.toFixed(2)}</div>
+                    <div className="text-2xl font-extrabold text-rose-500 mt-1">{maskValue(totalGastos)}</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500"><CreditCard className="w-5 h-5" /></div>
                 </div>
@@ -1701,7 +1733,7 @@ export default function VetWorkspaceBeatrizV28() {
                             <>
                               <div>
                                 <span className="font-extrabold text-pink-950 text-sm">🏥 {c.name}</span>
-                                <div className="text-[10px] text-stone-500">Diária Padrão: R$ {c.defaultRate}</div>
+                                <div className="text-[10px] text-stone-500">Diária Padrão: {maskValue(c.defaultRate)}</div>
                               </div>
                               <button 
                                 onClick={() => {
@@ -1801,7 +1833,7 @@ export default function VetWorkspaceBeatrizV28() {
                     <div className="bg-pink-50 border border-pink-200 p-5 rounded-2xl space-y-4">
                       <div>
                         <span className="text-[10px] font-bold text-pink-600 uppercase">Total Bruto Acumulado (Diárias + Comissões)</span>
-                        <div className="text-3xl font-extrabold text-pink-950 mt-1">R$ {totalShiftsAmount.toFixed(2)}</div>
+                        <div className="text-3xl font-extrabold text-pink-950 mt-1">{maskValue(totalShiftsAmount)}</div>
                       </div>
 
                       <div className="pt-3 border-t border-pink-200/60 space-y-2">
@@ -1816,7 +1848,7 @@ export default function VetWorkspaceBeatrizV28() {
                                 <div key={s.id} className="bg-white border border-pink-200 p-3 rounded-xl text-xs flex items-center justify-between shadow-2xs">
                                   <div>
                                     <div className="font-extrabold text-pink-950">{clinicObj?.name || 'Clínica'} ({s.date})</div>
-                                    <div className="text-[10px] text-stone-600">Diária: R$ {s.baseRate} + Comissões: R$ {s.commission} {s.details ? `• ${s.details}` : ''}</div>
+                                    <div className="text-[10px] text-stone-600">Diária: {maskValue(s.baseRate)} + Comissões: {maskValue(s.commission)} {s.details ? `• ${s.details}` : ''}</div>
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${s.status === 'Pago' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
@@ -2977,7 +3009,7 @@ export default function VetWorkspaceBeatrizV28() {
                   </div>
                 ) : (
                   <div className="text-xl font-extrabold text-emerald-600">
-                    R$ {monthlyIncome.toFixed(2)}
+                    {maskValue(monthlyIncome)}
                   </div>
                 )}
               </div>
@@ -2986,19 +3018,19 @@ export default function VetWorkspaceBeatrizV28() {
                 <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
                   <span className="text-xs font-bold text-stone-400">Renda Total do Mês (Base + Plantões)</span>
                   <div className="flex items-center justify-between mt-2">
-                    <div className="text-2xl font-extrabold text-emerald-600">R$ {(monthlyIncome + totalShiftsAmount).toFixed(2)}</div>
+                    <div className="text-2xl font-extrabold text-emerald-600">{maskValue(monthlyIncome + totalShiftsAmount)}</div>
                   </div>
                 </div>
 
                 <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs">
                   <span className="text-xs font-bold text-stone-400">Total de Despesas</span>
-                  <div className="text-2xl font-extrabold text-rose-500 mt-2">R$ {totalGastos.toFixed(2)}</div>
+                  <div className="text-2xl font-extrabold text-rose-500 mt-2">{maskValue(totalGastos)}</div>
                 </div>
 
                 <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs">
                   <span className="text-xs font-bold text-stone-400">Saldo Restante</span>
                   <div className={`text-2xl font-extrabold mt-2 ${saldoRestante >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    R$ {saldoRestante.toFixed(2)}
+                    {maskValue(saldoRestante)}
                   </div>
                 </div>
               </div>
@@ -3082,7 +3114,7 @@ export default function VetWorkspaceBeatrizV28() {
                                 <div className="text-[10px] text-stone-400 mt-0.5">{f.date}</div>
                               </div>
                               <div className="flex items-center gap-3">
-                                <span className="font-extrabold text-rose-500">R$ {f.amount.toFixed(2)}</span>
+                                <span className="font-extrabold text-rose-500">{maskValue(f.amount)}</span>
                                 <button 
                                   onClick={() => {
                                     setEditingExpenseId(f.id)
