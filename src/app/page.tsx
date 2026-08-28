@@ -51,7 +51,8 @@ import {
   X,
   Upload,
   Eye,
-  EyeOff
+  EyeOff,
+  PiggyBank
 } from 'lucide-react'
 import WishlistTab from '@/components/WishlistTab'
 
@@ -862,6 +863,19 @@ export default function VetWorkspaceBeatrizV28() {
     return 0.00
   })
 
+  // ESTADO DO COFRINHO
+  const [cofrinhoAmount, setCofrinhoAmount] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_cofrinho_v28')
+      if (saved) {
+        const parsed = parseFloat(saved)
+        if (!isNaN(parsed)) return parsed
+      }
+    }
+    return 0.00
+  })
+  const [cofrinhoInput, setCofrinhoInput] = useState<string>('')
+
   const [isEditingIncome, setIsEditingIncome] = useState(false)
   const [tempIncomeInput, setTempIncomeInput] = useState<string>('')
 
@@ -929,6 +943,10 @@ export default function VetWorkspaceBeatrizV28() {
             setMonthlyIncome(d.monthlyIncome); 
             localStorage.setItem('vet_income_v28', d.monthlyIncome.toString()); 
           }
+          if (d.cofrinhoAmount !== undefined) {
+            setCofrinhoAmount(d.cofrinhoAmount);
+            localStorage.setItem('vet_cofrinho_v28', d.cofrinhoAmount.toString());
+          }
           if (d.finances) { setFinances(d.finances); localStorage.setItem('vet_finances_v28', JSON.stringify(d.finances)); }
           if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v28', JSON.stringify(d.tasks)); }
           if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v28', JSON.stringify(d.events)); }
@@ -964,6 +982,10 @@ export default function VetWorkspaceBeatrizV28() {
               setMonthlyIncome(d.monthlyIncome); 
               localStorage.setItem('vet_income_v28', d.monthlyIncome.toString()); 
             }
+            if (d.cofrinhoAmount !== undefined) {
+              setCofrinhoAmount(d.cofrinhoAmount);
+              localStorage.setItem('vet_cofrinho_v28', d.cofrinhoAmount.toString());
+            }
             if (d.finances) { setFinances(d.finances); localStorage.setItem('vet_finances_v28', JSON.stringify(d.finances)); }
             if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v28', JSON.stringify(d.tasks)); }
             if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v28', JSON.stringify(d.events)); }
@@ -989,6 +1011,7 @@ export default function VetWorkspaceBeatrizV28() {
     localStorage.setItem('vet_patients_v28', JSON.stringify(patients))
     localStorage.setItem('vet_custom_drugs_v28', JSON.stringify(customDrugs))
     localStorage.setItem('vet_income_v28', monthlyIncome.toString())
+    localStorage.setItem('vet_cofrinho_v28', cofrinhoAmount.toString())
     localStorage.setItem('vet_finances_v28', JSON.stringify(finances))
     localStorage.setItem('vet_tasks_v28', JSON.stringify(tasks))
     localStorage.setItem('vet_events_v28', JSON.stringify(events))
@@ -1015,6 +1038,7 @@ export default function VetWorkspaceBeatrizV28() {
           patients,
           customDrugs,
           monthlyIncome,
+          cofrinhoAmount,
           finances,
           tasks,
           events,
@@ -1048,7 +1072,7 @@ export default function VetWorkspaceBeatrizV28() {
 
     const timer = setTimeout(syncToCloud, 800)
     return () => clearTimeout(timer)
-  }, [isInitialized, items, patients, customDrugs, monthlyIncome, finances, tasks, events, chatSessions, clinics, shifts, personalPets, skincareDone, mimosWishlist, descompressaoNotes])
+  }, [isInitialized, items, patients, customDrugs, monthlyIncome, cofrinhoAmount, finances, tasks, events, chatSessions, clinics, shifts, personalPets, skincareDone, mimosWishlist, descompressaoNotes])
 
   const selectedItem = items.find(i => i.id === selectedItemId && i.type === 'page') || items.find(i => i.type === 'page')
 
@@ -2958,7 +2982,19 @@ export default function VetWorkspaceBeatrizV28() {
 
           {activeTab === 'financas' && (
             <div className="max-w-4xl mx-auto space-y-6">
-              <h2 className="text-xl font-extrabold text-pink-950">Controle Financeiro & Gráficos</h2>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <h2 className="text-xl font-extrabold text-pink-950">Controle Financeiro & Gráficos</h2>
+                
+                {/* BOTÃO DE OCULTAR / MOSTRAR VALORES DENTRO DA ABA FINANÇAS */}
+                <button 
+                  onClick={() => setShowValues(!showValues)}
+                  className="flex items-center gap-2 bg-white hover:bg-pink-100 text-pink-800 px-4 py-2 rounded-xl text-xs font-bold transition border border-pink-200 cursor-pointer shadow-2xs w-fit"
+                  title={showValues ? "Ocultar valores financeiros" : "Mostrar valores financeiros"}
+                >
+                  {showValues ? <EyeOff className="w-4 h-4 text-pink-600" /> : <Eye className="w-4 h-4 text-pink-600" />}
+                  <span>{showValues ? 'Ocultar Valores' : 'Mostrar Valores'}</span>
+                </button>
+              </div>
               
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-3">
                 <div className="flex items-center justify-between">
@@ -3012,6 +3048,64 @@ export default function VetWorkspaceBeatrizV28() {
                     {maskValue(monthlyIncome)}
                   </div>
                 )}
+              </div>
+
+              {/* CARD DE COFRINHO / RESERVA */}
+              <div className="bg-gradient-to-br from-pink-50 to-pink-100/60 border border-pink-200 p-6 rounded-3xl shadow-xs space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-2xl bg-pink-500 text-white flex items-center justify-center font-bold shadow-xs">
+                      <PiggyBank className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-extrabold text-pink-950">Cofrinho & Reserva Especial</h3>
+                      <p className="text-[11px] text-pink-600 font-medium">Guarde dinheiros para emergências ou metas futuras</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] font-bold text-pink-600 uppercase">Saldo Guardado</span>
+                    <div className="text-2xl font-extrabold text-pink-950">{maskValue(cofrinhoAmount)}</div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center gap-3 pt-2 border-t border-pink-200/60">
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    placeholder="Digite o valor (R$)" 
+                    value={cofrinhoInput} 
+                    onChange={(e) => setCofrinhoInput(e.target.value)} 
+                    className="w-full sm:flex-1 bg-white border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
+                  />
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        const val = parseFloat(cofrinhoInput)
+                        if (!isNaN(val) && val > 0) {
+                          setCofrinhoAmount(prev => prev + val)
+                          setCofrinhoInput('')
+                        }
+                      }} 
+                      className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-2xs flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      ➕ Guardar
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        const val = parseFloat(cofrinhoInput)
+                        if (!isNaN(val) && val > 0) {
+                          setCofrinhoAmount(prev => Math.max(0, prev - val))
+                          setCofrinhoInput('')
+                        }
+                      }} 
+                      className="flex-1 sm:flex-none bg-rose-500 hover:bg-rose-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-2xs flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      ➖ Retirar
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
