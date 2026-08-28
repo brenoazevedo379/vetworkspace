@@ -352,7 +352,7 @@ const CONDOLENCE_MESSAGES = [
   }
 ]
 
-export default function VetWorkspaceBeatrizV27() {
+export default function VetWorkspaceBeatrizV28() {
   const [isMounted, setIsMounted] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
 
@@ -388,7 +388,7 @@ export default function VetWorkspaceBeatrizV27() {
 
   const [chatSessions, setChatSessions] = useState<ChatSession[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_chat_sessions_v27')
+      const saved = localStorage.getItem('vet_chat_sessions_v28')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return [
@@ -409,7 +409,7 @@ export default function VetWorkspaceBeatrizV27() {
 
   const [clinics, setClinics] = useState<ClinicItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_clinics_v27')
+      const saved = localStorage.getItem('vet_clinics_v28')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return [
@@ -426,7 +426,7 @@ export default function VetWorkspaceBeatrizV27() {
 
   const [shifts, setShifts] = useState<ShiftRecord[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_shifts_v27')
+      const saved = localStorage.getItem('vet_shifts_v28')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return []
@@ -443,18 +443,18 @@ export default function VetWorkspaceBeatrizV27() {
   
   const [skincareDone, setSkincareDone] = useState<{ [key: string]: boolean }>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_skincare_checked_v27')
+      const saved = localStorage.getItem('vet_skincare_checked_v28')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return {}
   })
 
   const [mimosWishlist, setMimosWishlist] = useState<string>(() => {
-    if (typeof window !== 'undefined') return localStorage.getItem('vet_mimos_v27') || ''
+    if (typeof window !== 'undefined') return localStorage.getItem('vet_mimos_v28') || ''
     return ''
   })
   const [descompressaoNotes, setDescompressaoNotes] = useState<string>(() => {
-    if (typeof window !== 'undefined') return localStorage.getItem('vet_descomp_v27') || ''
+    if (typeof window !== 'undefined') return localStorage.getItem('vet_descomp_v28') || ''
     return ''
   })
 
@@ -465,7 +465,7 @@ export default function VetWorkspaceBeatrizV27() {
 
   const [personalPets, setPersonalPets] = useState<PersonalPet[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_personal_pets_v27')
+      const saved = localStorage.getItem('vet_personal_pets_v28')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return []
@@ -643,10 +643,9 @@ export default function VetWorkspaceBeatrizV27() {
     setChatInput(templateText)
   }
 
-  // ESTRUTURA INICIAL COM FORMULÁRIO DE RECEITAS E SUBPASTAS PRÉ-CRIADAS
   const [items, setItems] = useState<DocumentItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_items_v27')
+      const saved = localStorage.getItem('vet_items_v28')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return [
@@ -671,7 +670,7 @@ export default function VetWorkspaceBeatrizV27() {
 
   const [patients, setPatients] = useState<PatientRecord[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_patients_v27')
+      const saved = localStorage.getItem('vet_patients_v28')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return []
@@ -779,7 +778,7 @@ export default function VetWorkspaceBeatrizV27() {
   const [calcMode, setCalcMode] = useState<'dose' | 'fluido'>('dose')
   const [customDrugs, setCustomDrugs] = useState<VetDrug[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_custom_drugs_v27')
+      const saved = localStorage.getItem('vet_custom_drugs_v28')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return INITIAL_DRUGS
@@ -832,7 +831,7 @@ export default function VetWorkspaceBeatrizV27() {
 
   const [monthlyIncome, setMonthlyIncome] = useState<number>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_income_v27')
+      const saved = localStorage.getItem('vet_income_v28')
       if (saved) {
         const parsed = parseFloat(saved)
         if (!isNaN(parsed)) return parsed
@@ -846,7 +845,7 @@ export default function VetWorkspaceBeatrizV27() {
 
   const [finances, setFinances] = useState<FinancialItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_finances_v27')
+      const saved = localStorage.getItem('vet_finances_v28')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return []
@@ -863,7 +862,7 @@ export default function VetWorkspaceBeatrizV27() {
 
   const [tasks, setTasks] = useState<TaskItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_tasks_v27')
+      const saved = localStorage.getItem('vet_tasks_v28')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return []
@@ -875,7 +874,7 @@ export default function VetWorkspaceBeatrizV27() {
 
   const [events, setEvents] = useState<CalendarEvent[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vet_events_v27')
+      const saved = localStorage.getItem('vet_events_v28')
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return []
@@ -891,7 +890,7 @@ export default function VetWorkspaceBeatrizV27() {
         const { data, error } = await supabase
           .from('app_data')
           .select('data')
-          .eq('id', 'beatriz_workspace_v27')
+          .eq('id', 'beatriz_workspace_v28')
           .maybeSingle()
 
         if (error) {
@@ -901,23 +900,23 @@ export default function VetWorkspaceBeatrizV27() {
 
         if (data && data.data) {
           const d = data.data
-          if (d.items) { setItems(d.items); localStorage.setItem('vet_items_v27', JSON.stringify(d.items)); }
-          if (d.patients) { setPatients(d.patients); localStorage.setItem('vet_patients_v27', JSON.stringify(d.patients)); }
-          if (d.customDrugs) { setCustomDrugs(d.customDrugs); localStorage.setItem('vet_custom_drugs_v27', JSON.stringify(d.customDrugs)); }
+          if (d.items) { setItems(d.items); localStorage.setItem('vet_items_v28', JSON.stringify(d.items)); }
+          if (d.patients) { setPatients(d.patients); localStorage.setItem('vet_patients_v28', JSON.stringify(d.patients)); }
+          if (d.customDrugs) { setCustomDrugs(d.customDrugs); localStorage.setItem('vet_custom_drugs_v28', JSON.stringify(d.customDrugs)); }
           if (d.monthlyIncome !== undefined) { 
             setMonthlyIncome(d.monthlyIncome); 
-            localStorage.setItem('vet_income_v27', d.monthlyIncome.toString()); 
+            localStorage.setItem('vet_income_v28', d.monthlyIncome.toString()); 
           }
-          if (d.finances) { setFinances(d.finances); localStorage.setItem('vet_finances_v27', JSON.stringify(d.finances)); }
-          if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v27', JSON.stringify(d.tasks)); }
-          if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v27', JSON.stringify(d.events)); }
-          if (d.chatSessions) { setChatSessions(d.chatSessions); localStorage.setItem('vet_chat_sessions_v27', JSON.stringify(d.chatSessions)); }
-          if (d.clinics) { setClinics(d.clinics); localStorage.setItem('vet_clinics_v27', JSON.stringify(d.clinics)); }
-          if (d.shifts) { setShifts(d.shifts); localStorage.setItem('vet_shifts_v27', JSON.stringify(d.shifts)); }
-          if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v27', JSON.stringify(d.personalPets)); }
-          if (d.skincareDone) { setSkincareDone(d.skincareDone); localStorage.setItem('vet_skincare_checked_v27', JSON.stringify(d.skincareDone)); }
-          if (d.mimosWishlist) { setMimosWishlist(d.mimosWishlist); localStorage.setItem('vet_mimos_v27', d.mimosWishlist); }
-          if (d.descompressaoNotes) { setDescompressaoNotes(d.descompressaoNotes); localStorage.setItem('vet_descomp_v27', d.descompressaoNotes); }
+          if (d.finances) { setFinances(d.finances); localStorage.setItem('vet_finances_v28', JSON.stringify(d.finances)); }
+          if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v28', JSON.stringify(d.tasks)); }
+          if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v28', JSON.stringify(d.events)); }
+          if (d.chatSessions) { setChatSessions(d.chatSessions); localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(d.chatSessions)); }
+          if (d.clinics) { setClinics(d.clinics); localStorage.setItem('vet_clinics_v28', JSON.stringify(d.clinics)); }
+          if (d.shifts) { setShifts(d.shifts); localStorage.setItem('vet_shifts_v28', JSON.stringify(d.shifts)); }
+          if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v28', JSON.stringify(d.personalPets)); }
+          if (d.skincareDone) { setSkincareDone(d.skincareDone); localStorage.setItem('vet_skincare_checked_v28', JSON.stringify(d.skincareDone)); }
+          if (d.mimosWishlist) { setMimosWishlist(d.mimosWishlist); localStorage.setItem('vet_mimos_v28', d.mimosWishlist); }
+          if (d.descompressaoNotes) { setDescompressaoNotes(d.descompressaoNotes); localStorage.setItem('vet_descomp_v28', d.descompressaoNotes); }
           setSaveStatus('Sincronizado')
         }
       } catch (err: any) {
@@ -929,28 +928,28 @@ export default function VetWorkspaceBeatrizV27() {
     fetchCloudData()
 
     const channel = supabase
-      .channel('app_data_realtime_v27')
+      .channel('app_data_realtime_v28')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'app_data', filter: 'id=eq.beatriz_workspace_v27' },
+        { event: '*', schema: 'public', table: 'app_data', filter: 'id=eq.beatriz_workspace_v28' },
         (payload: any) => {
           if (payload.new && payload.new.data) {
             const d = payload.new.data
-            if (d.items) { setItems(d.items); localStorage.setItem('vet_items_v27', JSON.stringify(d.items)); }
-            if (d.patients) { setPatients(d.patients); localStorage.setItem('vet_patients_v27', JSON.stringify(d.patients)); }
-            if (d.customDrugs) { setCustomDrugs(d.customDrugs); localStorage.setItem('vet_custom_drugs_v27', JSON.stringify(d.customDrugs)); }
+            if (d.items) { setItems(d.items); localStorage.setItem('vet_items_v28', JSON.stringify(d.items)); }
+            if (d.patients) { setPatients(d.patients); localStorage.setItem('vet_patients_v28', JSON.stringify(d.patients)); }
+            if (d.customDrugs) { setCustomDrugs(d.customDrugs); localStorage.setItem('vet_custom_drugs_v28', JSON.stringify(d.customDrugs)); }
             if (d.monthlyIncome !== undefined) { 
               setMonthlyIncome(d.monthlyIncome); 
-              localStorage.setItem('vet_income_v27', d.monthlyIncome.toString()); 
+              localStorage.setItem('vet_income_v28', d.monthlyIncome.toString()); 
             }
-            if (d.finances) { setFinances(d.finances); localStorage.setItem('vet_finances_v27', JSON.stringify(d.finances)); }
-            if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v27', JSON.stringify(d.tasks)); }
-            if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v27', JSON.stringify(d.events)); }
-            if (d.chatSessions) { setChatSessions(d.chatSessions); localStorage.setItem('vet_chat_sessions_v27', JSON.stringify(d.chatSessions)); }
-            if (d.clinics) { setClinics(d.clinics); localStorage.setItem('vet_clinics_v27', JSON.stringify(d.clinics)); }
-            if (d.shifts) { setShifts(d.shifts); localStorage.setItem('vet_shifts_v27', JSON.stringify(d.shifts)); }
-            if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v27', JSON.stringify(d.personalPets)); }
-            if (d.skincareDone) { setSkincareDone(d.skincareDone); localStorage.setItem('vet_skincare_checked_v27', JSON.stringify(d.skincareDone)); }
+            if (d.finances) { setFinances(d.finances); localStorage.setItem('vet_finances_v28', JSON.stringify(d.finances)); }
+            if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v28', JSON.stringify(d.tasks)); }
+            if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v28', JSON.stringify(d.events)); }
+            if (d.chatSessions) { setChatSessions(d.chatSessions); localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(d.chatSessions)); }
+            if (d.clinics) { setClinics(d.clinics); localStorage.setItem('vet_clinics_v28', JSON.stringify(d.clinics)); }
+            if (d.shifts) { setShifts(d.shifts); localStorage.setItem('vet_shifts_v28', JSON.stringify(d.shifts)); }
+            if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v28', JSON.stringify(d.personalPets)); }
+            if (d.skincareDone) { setSkincareDone(d.skincareDone); localStorage.setItem('vet_skincare_checked_v28', JSON.stringify(d.skincareDone)); }
           }
         }
       )
@@ -964,20 +963,20 @@ export default function VetWorkspaceBeatrizV27() {
   useEffect(() => {
     if (!isMounted || !isInitialized) return
 
-    localStorage.setItem('vet_items_v27', JSON.stringify(items))
-    localStorage.setItem('vet_patients_v27', JSON.stringify(patients))
-    localStorage.setItem('vet_custom_drugs_v27', JSON.stringify(customDrugs))
-    localStorage.setItem('vet_income_v27', monthlyIncome.toString())
-    localStorage.setItem('vet_finances_v27', JSON.stringify(finances))
-    localStorage.setItem('vet_tasks_v27', JSON.stringify(tasks))
-    localStorage.setItem('vet_events_v27', JSON.stringify(events))
-    localStorage.setItem('vet_chat_sessions_v27', JSON.stringify(chatSessions))
-    localStorage.setItem('vet_clinics_v27', JSON.stringify(clinics))
-    localStorage.setItem('vet_shifts_v27', JSON.stringify(shifts))
-    localStorage.setItem('vet_personal_pets_v27', JSON.stringify(personalPets))
-    localStorage.setItem('vet_skincare_checked_v27', JSON.stringify(skincareDone))
-    localStorage.setItem('vet_mimos_v27', mimosWishlist)
-    localStorage.setItem('vet_descomp_v27', descompressaoNotes)
+    localStorage.setItem('vet_items_v28', JSON.stringify(items))
+    localStorage.setItem('vet_patients_v28', JSON.stringify(patients))
+    localStorage.setItem('vet_custom_drugs_v28', JSON.stringify(customDrugs))
+    localStorage.setItem('vet_income_v28', monthlyIncome.toString())
+    localStorage.setItem('vet_finances_v28', JSON.stringify(finances))
+    localStorage.setItem('vet_tasks_v28', JSON.stringify(tasks))
+    localStorage.setItem('vet_events_v28', JSON.stringify(events))
+    localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(chatSessions))
+    localStorage.setItem('vet_clinics_v28', JSON.stringify(clinics))
+    localStorage.setItem('vet_shifts_v28', JSON.stringify(shifts))
+    localStorage.setItem('vet_personal_pets_v28', JSON.stringify(personalPets))
+    localStorage.setItem('vet_skincare_checked_v28', JSON.stringify(skincareDone))
+    localStorage.setItem('vet_mimos_v28', mimosWishlist)
+    localStorage.setItem('vet_descomp_v28', descompressaoNotes)
 
     let wishlistData = []
     try {
@@ -1010,7 +1009,7 @@ export default function VetWorkspaceBeatrizV27() {
         const { error } = await supabase
           .from('app_data')
           .upsert({
-            id: 'beatriz_workspace_v27',
+            id: 'beatriz_workspace_v28',
             data: payload,
             updated_at: new Date().toISOString()
           }, { onConflict: 'id' })
@@ -1168,6 +1167,12 @@ export default function VetWorkspaceBeatrizV27() {
     setItems([...items, newFolder])
   }
 
+  const handleRenameFolder = (id: string, currentTitle: string) => {
+    const newTitle = prompt('Novo nome para a pasta:', currentTitle)
+    if (!newTitle || !newTitle.trim()) return
+    setItems(items.map(i => i.id === id ? { ...i, title: newTitle.trim() } : i))
+  }
+
   const handleAddPage = (parentId: string | null) => {
     const title = prompt('Nome da nova página ou receita:')
     if (!title) return
@@ -1221,13 +1226,16 @@ export default function VetWorkspaceBeatrizV27() {
                     <span className="font-extrabold text-xs truncate">{item.title}</span>
                   </div>
                   <div className="hidden group-hover:flex items-center gap-1.5 shrink-0">
-                    <button title="Adicionar Subpasta Dentro Esta Pasta" onClick={() => handleAddFolder(item.id)} className="p-1 text-pink-600 hover:text-pink-950 bg-white rounded-lg shadow-2xs font-bold text-[10px] flex items-center gap-0.5">
+                    <button title="Renomear Pasta" onClick={(e) => { e.stopPropagation(); handleRenameFolder(item.id, item.title); }} className="p-1 text-pink-600 hover:text-pink-950 bg-white rounded-lg shadow-2xs">
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button title="Adicionar Subpasta Dentro Esta Pasta" onClick={(e) => { e.stopPropagation(); handleAddFolder(item.id); }} className="p-1 text-pink-600 hover:text-pink-950 bg-white rounded-lg shadow-2xs font-bold text-[10px] flex items-center gap-0.5">
                       <FolderPlus className="w-3.5 h-3.5" />
                     </button>
-                    <button title="Adicionar Receita / Página" onClick={() => handleAddPage(item.id)} className="p-1 text-pink-600 hover:text-pink-950 bg-white rounded-lg shadow-2xs">
+                    <button title="Adicionar Receita / Página" onClick={(e) => { e.stopPropagation(); handleAddPage(item.id); }} className="p-1 text-pink-600 hover:text-pink-950 bg-white rounded-lg shadow-2xs">
                       <Plus className="w-3.5 h-3.5" />
                     </button>
-                    <button title="Excluir Pasta" onClick={() => deleteItem(item.id)} className="p-1 text-stone-400 hover:text-red-500">
+                    <button title="Excluir Pasta" onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className="p-1 text-stone-400 hover:text-red-500">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
