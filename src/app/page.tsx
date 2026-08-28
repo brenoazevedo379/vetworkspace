@@ -273,7 +273,7 @@ const CAFES_POOL = [
   { name: 'Solar Café (Rio Vermelho)', desc: 'Espaço verde, aconchegante e excelente cardápio para um brunch relaxante no fim de semana.' },
   { name: 'Boutique do Café (Caminho das Árvores)', desc: 'Ambiente sofisticado e grãos selecionados para os verdadeiros amantes de cafés especiais.' },
   { name: 'Armazém Sete (Barra)', desc: 'Café charmoso com quitutes artesanais e excelente localização perto do Farol.' },
-  { name: 'Duo Café (Vitória)', desc: 'Vista privilegiada para o Corredor da Vitória, ideal para um café tranquilo ao entardecer.' },
+  { name: 'Duo Café (Vitória)', desc: 'Vista privileged para o Corredor da Vitória, ideal para um café tranquilo ao entardecer.' },
   { name: 'Mariposa (Rio Vermelho)', desc: 'Espaço arejado com opções leves, sucos naturais e excelente café gelado.' },
   { name: 'Kopenhagen (vários shoppings / Barra)', desc: 'Clássico imperdível para um chocolate quente cremoso e trufas finas.' },
   { name: 'Perini (Graça / Barra / Pituba)', desc: 'Tradição em Salvador com doces finos, salgados e um ótimo espresso a qualquer hora.' },
@@ -658,7 +658,9 @@ export default function VetWorkspaceBeatrizV26() {
     }
     return [
       { id: 'f-pos', title: 'Pós-graduação & Residência', parentId: null, type: 'folder', isOpen: true },
-      { id: 'p-1', title: 'Módulos e Aulas Teóricas', parentId: 'f-pos', type: 'page', content: '', differential: '', notes: '', attachments: [] }
+      { id: 'p-1', title: 'Módulos e Aulas Teóricas', parentId: 'f-pos', type: 'page', content: '', differential: '', notes: '', attachments: [] },
+      { id: 'f-receitas', title: 'Formulário de Receitas', parentId: null, type: 'folder', isOpen: true },
+      { id: 'p-rec-1', title: 'Modelo de Receita Simples', parentId: 'f-receitas', type: 'page', content: '', differential: '', notes: '', attachments: [] }
     ]
   })
   const [selectedItemId, setSelectedItemId] = useState<string>('p-1')
@@ -725,7 +727,7 @@ export default function VetWorkspaceBeatrizV26() {
       <body>
         <h1>Prontuário Clínico Veterinário</h1>
         <div class="subtitle">Dra. Beatriz Contreiras • VetWorkspace</div>
-         
+          
         <div class="box">
           <h3>Informações do Paciente</h3>
           <p><strong>Nome do Pet:</strong> ${p.petName}</p>
@@ -1049,6 +1051,18 @@ export default function VetWorkspaceBeatrizV26() {
     e.target.value = ''
   }
 
+  const handleRemoveAttachment = (itemId: string, attachmentId: string) => {
+    setItems(items.map(i => {
+      if (i.id === itemId) {
+        return {
+          ...i,
+          attachments: (i.attachments || []).filter(att => att.id !== attachmentId)
+        }
+      }
+      return i
+    }))
+  }
+
   const totalGastos = finances.reduce((acc, f) => acc + f.amount, 0)
   const saldoRestante = (monthlyIncome + totalShiftsAmount) - totalGastos
 
@@ -1324,7 +1338,7 @@ export default function VetWorkspaceBeatrizV26() {
           <button onClick={() => setActiveTab('painel')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'painel' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
             <LayoutDashboard className="w-4 h-4" /> Painel & Mural de Pets
           </button>
-           
+            
           <div className="pt-2 pb-1 border-t border-pink-100/60 mt-2">
             <div className="flex items-center justify-between px-3 pt-2 text-[11px] font-bold text-pink-900 uppercase tracking-wider">
               <span>📚 Estudos & Pós</span>
@@ -2089,9 +2103,19 @@ export default function VetWorkspaceBeatrizV26() {
                   <span className="text-xs font-extrabold text-pink-950">Arquivos Anexados a esta Página:</span>
                   <div className="flex flex-wrap gap-2">
                     {selectedItem.attachments.map(att => (
-                      <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" className="bg-white border border-pink-200 px-3 py-1.5 rounded-xl text-xs font-bold text-pink-700 hover:bg-pink-100 flex items-center gap-1.5 shadow-2xs">
-                        📎 {att.name} ({att.size})
-                      </a>
+                      <div key={att.id} className="bg-white border border-pink-200 px-3 py-1.5 rounded-xl text-xs font-bold text-pink-700 hover:bg-pink-100 flex items-center gap-1.5 shadow-2xs">
+                        <a href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:underline">
+                          📎 {att.name} ({att.size})
+                        </a>
+                        <button
+                          type="button"
+                          title="Excluir Anexo"
+                          onClick={() => handleRemoveAttachment(selectedItem.id, att.id)}
+                          className="text-stone-400 hover:text-red-500 p-0.5 ml-1 transition cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>
