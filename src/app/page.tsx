@@ -943,7 +943,7 @@ export default function VetWorkspaceBeatrizV28() {
         }
       } catch (err: any) {
         setSaveStatus(`Erro: ${err.message}`)
-      } font-bold {
+      } finally {
         setIsInitialized(true)
       }
     }
