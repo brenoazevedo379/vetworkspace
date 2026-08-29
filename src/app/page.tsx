@@ -52,7 +52,9 @@ import {
   Upload,
   Eye,
   EyeOff,
-  PiggyBank
+  PiggyBank,
+  Copy,
+  Check
 } from 'lucide-react'
 import WishlistTab from '@/components/WishlistTab'
 
@@ -431,6 +433,13 @@ export default function VetWorkspaceBeatrizV28() {
   const [chatInput, setChatInput] = useState('')
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [isListening, setIsListening] = useState(false)
+  const [copiedMessageIdx, setCopiedMessageIdx] = useState<number | null>(null)
+
+  const handleCopyMessageText = (text: string, idx: number) => {
+    navigator.clipboard.writeText(text)
+    setCopiedMessageIdx(idx)
+    setTimeout(() => setCopiedMessageIdx(null), 2000)
+  }
 
   const [clinics, setClinics] = useState<ClinicItem[]>(() => {
     if (typeof window !== 'undefined') {
@@ -617,7 +626,6 @@ export default function VetWorkspaceBeatrizV28() {
     }
   }
 
-  // EXCLUSÃO DE CHAT DEFINITIVA
   const deleteChatSession = (e: React.MouseEvent, id: string) => {
     e.stopPropagation()
     e.preventDefault()
@@ -996,7 +1004,6 @@ export default function VetWorkspaceBeatrizV28() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'app_data', filter: 'id=eq.beatriz_workspace_v28' },
         (payload: any) => {
-          // PROTEÇÃO INTELIGENTE DE 15 SEGUNDOS
           if (Date.now() - lastLocalMutationRef.current < 15000) {
             return
           }
@@ -1018,13 +1025,12 @@ export default function VetWorkspaceBeatrizV28() {
             if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v28', JSON.stringify(d.tasks)); }
             if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v28', JSON.stringify(d.events)); }
             
-            // SMART MERGE PARA O CHAT: NUNCA SOBRESCREVE SE O LOCAL TIVER MAIS MENSAGENS!
             if (d.chatSessions) {
               setChatSessions(prevSessions => {
                 const localTotalMsgs = prevSessions.reduce((acc, s) => acc + (s.messages?.length || 0), 0)
                 const incomingTotalMsgs = d.chatSessions.reduce((acc: number, s: any) => acc + (s.messages?.length || 0), 0)
                 if (localTotalMsgs > incomingTotalMsgs) {
-                  return prevSessions // Mantém as mensagens locais sem apagar nada!
+                  return prevSessions
                 }
                 return d.chatSessions
               })
@@ -1363,12 +1369,10 @@ export default function VetWorkspaceBeatrizV28() {
     )
   }
 
-  // ENVIO DE MENSAGENS NO CHAT PROTEGIDO SEM LIMITE
   const handleSendAiMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!chatInput.trim() || isAiLoading) return
 
-    // RENOVA A TRAVA NO ENVIO
     lastLocalMutationRef.current = Date.now()
 
     const userText = chatInput.trim()
@@ -1401,7 +1405,6 @@ export default function VetWorkspaceBeatrizV28() {
       const data = await response.json()
       const reply = data.reply || 'Não foi possível processar a resposta no momento.'
 
-      // RENOVA A TRAVA QUANDO A IA RESPONDE
       lastLocalMutationRef.current = Date.now()
 
       const finalMessages: ChatMessage[] = [
@@ -1452,7 +1455,7 @@ export default function VetWorkspaceBeatrizV28() {
   }
 
   return (
-    <div className="relative flex h-screen bg-pink-50/40 text-stone-800 font-sans overflow-hidden select-none">
+    <div className="relative flex h-screen bg-pink-50/40 text-stone-800 font-sans overflow-hidden">
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 opacity-20">
         <div className="absolute top-10 left-20 animate-bounce duration-1000 text-pink-400">
           <Cat className="w-12 h-12" />
@@ -1465,7 +1468,7 @@ export default function VetWorkspaceBeatrizV28() {
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".docx,.doc,.xlsx,.xls,.png,.jpg,.jpeg,.pdf" />
 
       {/* BARRA LATERAL */}
-      <div className={`${isSidebarOpen ? 'w-72' : 'w-0'} transition-all duration-200 bg-white/90 backdrop-blur-md border-r border-pink-100 flex flex-col z-10 overflow-hidden shadow-xs`}>
+      <div className={`${isSidebarOpen ? 'w-72' : 'w-0'} transition-all duration-200 bg-white/90 backdrop-blur-md border-r border-pink-100 flex flex-col z-10 overflow-hidden shadow-xs select-none`}>
         <div className="p-4 border-b border-pink-100 flex items-center justify-between bg-pink-50/30">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-pink-500 flex items-center justify-center text-white font-bold text-xs shadow-sm">V</div>
@@ -1639,7 +1642,7 @@ export default function VetWorkspaceBeatrizV28() {
 
       {/* CONTEÚDO PRINCIPAL */}
       <div className="flex-1 flex flex-col h-full bg-transparent z-10 overflow-hidden">
-        <div className="h-16 border-b border-pink-100/80 flex items-center justify-between px-8 bg-white/80 backdrop-blur-md shadow-xs">
+        <div className="h-16 border-b border-pink-100/80 flex items-center justify-between px-8 bg-white/80 backdrop-blur-md shadow-xs select-none">
           <div className="flex items-center gap-4">
             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-xl text-pink-600 hover:bg-pink-50 transition">
               <ChevronRight className={`w-4 h-4 transition-transform ${isSidebarOpen ? 'rotate-180' : ''}`} />
@@ -2059,7 +2062,7 @@ export default function VetWorkspaceBeatrizV28() {
                       value={mimosWishlist} 
                       onChange={(e) => { lastLocalMutationRef.current = Date.now(); setMimosWishlist(e.target.value); }} 
                       rows={12} 
-                      className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" 
+                      className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300 select-text" 
                       placeholder="Anote aqui os mimos, roupas, livros e acessórios que você quer comprar ou ganhar..." 
                     />
                   </div>
@@ -2086,7 +2089,7 @@ export default function VetWorkspaceBeatrizV28() {
                       value={descompressaoNotes} 
                       onChange={(e) => { lastLocalMutationRef.current = Date.now(); setDescompressaoNotes(e.target.value); }} 
                       rows={4} 
-                      className="w-full bg-pink-50/25 border border-pink-200 p-4 rounded-2xl text-stone-800 text-xs leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" 
+                      className="w-full bg-pink-50/25 border border-pink-200 p-4 rounded-2xl text-stone-800 text-xs leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300 select-text" 
                       placeholder="Minhas anotações e favoritos sobre filmes, séries e livros..." 
                     />
 
@@ -2292,19 +2295,19 @@ export default function VetWorkspaceBeatrizV28() {
               {studySubTab === 'resumo' && (
                 <div className="space-y-3">
                   <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><FileText className="w-3.5 h-3.5 text-pink-500" /> Prescrição ou Conteúdo Principal</label>
-                  <textarea value={selectedItem.content || ''} onChange={(e) => { lastLocalMutationRef.current = Date.now(); setItems(items.map(i => i.id === selectedItem.id ? { ...i, content: e.target.value } : i)); }} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" placeholder="Escreva a receita, doses ou resumo da matéria..." />
+                  <textarea value={selectedItem.content || ''} onChange={(e) => { lastLocalMutationRef.current = Date.now(); setItems(items.map(i => i.id === selectedItem.id ? { ...i, content: e.target.value } : i)); }} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300 select-text" placeholder="Escreva a receita, doses ou resumo da matéria..." />
                 </div>
               )}
               {studySubTab === 'diferenciais' && (
                 <div className="space-y-3">
                   <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><Layers className="w-3.5 h-3.5 text-pink-500" /> Diagnósticos Diferenciais / Opções</label>
-                  <textarea value={selectedItem.differential || ''} onChange={(e) => { lastLocalMutationRef.current = Date.now(); setItems(items.map(i => i.id === selectedItem.id ? { ...i, differential: e.target.value } : i)); }} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" placeholder="Liste aqui os diferenciais clínicos..." />
+                  <textarea value={selectedItem.differential || ''} onChange={(e) => { lastLocalMutationRef.current = Date.now(); setItems(items.map(i => i.id === selectedItem.id ? { ...i, differential: e.target.value } : i)); }} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300 select-text" placeholder="Liste aqui os diferenciais clínicos..." />
                 </div>
               )}
               {studySubTab === 'pontos' && (
                 <div className="space-y-3">
                   <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><Bookmark className="w-3.5 h-3.5 text-pink-500" /> Observações, Contraindicações & Avisos ao Tutor</label>
-                  <textarea value={selectedItem.notes || ''} onChange={(e) => { lastLocalMutationRef.current = Date.now(); setItems(items.map(i => i.id === selectedItem.id ? { ...i, notes: e.target.value } : i)); }} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" placeholder="Anotações importantes..." />
+                  <textarea value={selectedItem.notes || ''} onChange={(e) => { lastLocalMutationRef.current = Date.now(); setItems(items.map(i => i.id === selectedItem.id ? { ...i, notes: e.target.value } : i)); }} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300 select-text" placeholder="Anotações importantes..." />
                 </div>
               )}
             </div>
@@ -2312,13 +2315,13 @@ export default function VetWorkspaceBeatrizV28() {
 
           {activeTab === 'ia' && (
             <div className="max-w-4xl mx-auto h-[calc(100vh-140px)] flex flex-col bg-white/95 backdrop-blur-md border border-pink-100 rounded-3xl shadow-sm overflow-hidden">
-              <div className="p-4 border-b border-pink-100 bg-pink-50/50 flex flex-col gap-3">
+              <div className="p-4 border-b border-pink-100 bg-pink-50/50 flex flex-col gap-3 select-none">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Bot className="w-5 h-5" /></div>
                     <div>
                       <h2 className="text-sm font-extrabold text-pink-950">Copiloto IA Veterinária - {currentChatSession.title}</h2>
-                      <p className="text-[11px] text-pink-500 font-medium">Raciocínio clínico ilimitado, sem perda de histórico no mesmo chat</p>
+                      <p className="text-[11px] text-pink-500 font-medium">Raciocínio clínico ilimitado, selecione ou copie qualquer mensagem</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -2336,37 +2339,52 @@ export default function VetWorkspaceBeatrizV28() {
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                {currentChatSession.messages.map((msg, idx) => (
-                  <div key={idx} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
-                    <div className={`max-w-2xl p-4 rounded-2xl text-xs leading-relaxed whitespace-pre-line shadow-xs ${msg.sender === 'user' ? 'bg-pink-500 text-white rounded-br-xs' : 'bg-pink-50/70 border border-pink-100 text-stone-800 rounded-bl-xs'}`}>
-                      {msg.text}
-                    </div>
-
-                    {msg.sender === 'ai' && patients.length > 0 && (
-                      <div className="flex items-center gap-2 mt-1.5 pl-1">
-                        <select 
-                          id={`export-select-${idx}`}
-                          className="bg-white border border-pink-200 rounded-lg px-2 py-1 text-[10px] text-pink-950 font-medium focus:outline-none"
-                        >
-                          {patients.map(p => (
-                            <option key={p.id} value={p.id}>🐾 {p.petName} ({p.tutor})</option>
-                          ))}
-                        </select>
-                        <button 
-                          onClick={() => {
-                            const selectEl = document.getElementById(`export-select-${idx}`) as HTMLSelectElement
-                            if (selectEl) handleExportAiToPatient(msg.text, selectEl.value)
-                          }}
-                          className="bg-pink-100 hover:bg-pink-200 text-pink-800 px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 border border-pink-200 shadow-2xs cursor-pointer"
-                        >
-                          📥 Enviar para Prontuário
-                        </button>
+                {currentChatSession.messages.map((msg, idx) => {
+                  const isCopied = copiedMessageIdx === idx
+                  return (
+                    <div key={idx} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
+                      <div className={`max-w-2xl p-4 rounded-2xl text-xs leading-relaxed whitespace-pre-line shadow-xs select-text ${msg.sender === 'user' ? 'bg-pink-500 text-white rounded-br-xs' : 'bg-pink-50/70 border border-pink-100 text-stone-800 rounded-bl-xs'}`}>
+                        {msg.text}
                       </div>
-                    )}
-                  </div>
-                ))}
+
+                      <div className="flex items-center gap-2 mt-1.5 px-1">
+                        <button
+                          type="button"
+                          onClick={() => handleCopyMessageText(msg.text, idx)}
+                          className="text-[10px] font-bold text-pink-700 hover:text-pink-950 flex items-center gap-1 bg-pink-50/80 hover:bg-pink-100 px-2.5 py-1 rounded-lg border border-pink-200 transition cursor-pointer shadow-2xs select-none"
+                          title="Copiar texto da mensagem"
+                        >
+                          {isCopied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 text-pink-500" />}
+                          <span>{isCopied ? 'Copiado!' : 'Copiar Texto'}</span>
+                        </button>
+
+                        {msg.sender === 'ai' && patients.length > 0 && (
+                          <>
+                            <select 
+                              id={`export-select-${idx}`}
+                              className="bg-white border border-pink-200 rounded-lg px-2 py-1 text-[10px] text-pink-950 font-medium focus:outline-none select-none"
+                            >
+                              {patients.map(p => (
+                                <option key={p.id} value={p.id}>🐾 {p.petName} ({p.tutor})</option>
+                              ))}
+                            </select>
+                            <button 
+                              onClick={() => {
+                                const selectEl = document.getElementById(`export-select-${idx}`) as HTMLSelectElement
+                                if (selectEl) handleExportAiToPatient(msg.text, selectEl.value)
+                              }}
+                              className="bg-pink-100 hover:bg-pink-200 text-pink-800 px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 border border-pink-200 shadow-2xs cursor-pointer select-none"
+                            >
+                              📥 Enviar para Prontuário
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
                 {isAiLoading && (
-                  <div className="flex justify-start px-6">
+                  <div className="flex justify-start px-6 select-none">
                     <div className="bg-pink-50/70 border border-pink-100 p-4 rounded-2xl text-xs text-pink-600 flex items-center gap-2 animate-pulse">
                       <Sparkles className="w-4 h-4 animate-spin" /> A IA está analisando o caso clínico...
                     </div>
@@ -2374,11 +2392,11 @@ export default function VetWorkspaceBeatrizV28() {
                 )}
               </div>
 
-              <form onSubmit={handleSendAiMessage} className="p-4 border-t border-pink-100 bg-white flex gap-2 items-center">
+              <form onSubmit={handleSendAiMessage} className="p-4 border-t border-pink-100 bg-white flex gap-2 items-center select-none">
                 <button type="button" onClick={toggleListening} title={isListening ? "Ouvindo..." : "Falar por voz"} className={`p-3 rounded-xl transition flex items-center justify-center ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-pink-100 hover:bg-pink-200 text-pink-700'}`}>
                   {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                 </button>
-                <input type="text" placeholder={isListening ? "Ouvindo sua fala..." : "Digite o caso ou escolha um template acima..."} value={chatInput} onChange={(e) => setChatInput(e.target.value)} className="flex-1 bg-pink-50/50 border border-pink-200 rounded-xl px-4 py-3 text-xs text-pink-950 focus:outline-none font-medium" />
+                <input type="text" placeholder={isListening ? "Ouvindo sua fala..." : "Digite o caso ou escolha um template acima..."} value={chatInput} onChange={(e) => setChatInput(e.target.value)} className="flex-1 bg-pink-50/50 border border-pink-200 rounded-xl px-4 py-3 text-xs text-pink-950 focus:outline-none font-medium select-text" />
                 <button type="submit" disabled={isAiLoading} className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50">
                   <Send className="w-4 h-4" /> Perguntar
                 </button>
@@ -2580,7 +2598,7 @@ export default function VetWorkspaceBeatrizV28() {
                           </div>
                         </div>
 
-                        <div className="bg-white border border-pink-200 p-4 rounded-xl text-xs leading-relaxed text-stone-800 whitespace-pre-line font-normal">
+                        <div className="bg-white border border-pink-200 p-4 rounded-xl text-xs leading-relaxed text-stone-800 whitespace-pre-line font-normal select-text">
                           {customizedText}
                         </div>
 
@@ -2679,7 +2697,7 @@ export default function VetWorkspaceBeatrizV28() {
                               <input type="text" placeholder="Peso atual (ex: 12.5kg)" value={evoWeight} onChange={(e) => setEvoWeight(e.target.value)} className="bg-white border border-pink-200 rounded-lg px-3 py-2 text-xs text-stone-800 focus:outline-none" />
                               <input type="text" placeholder="Temperatura (ex: 38.8)" value={evoTemp} onChange={(e) => setEvoTemp(e.target.value)} className="bg-white border border-pink-200 rounded-lg px-3 py-2 text-xs text-stone-800 focus:outline-none" />
                             </div>
-                            <textarea placeholder="Evolução clínica, medicação aplicada, resposta..." value={evoNotes} onChange={(e) => setEvoNotes(e.target.value)} rows={2} className="w-full bg-white border border-pink-200 rounded-lg px-3 py-2 text-xs text-stone-800 focus:outline-none resize-none" required />
+                            <textarea placeholder="Evolução clínica, medicação aplicada, resposta..." value={evoNotes} onChange={(e) => setEvoNotes(e.target.value)} rows={2} className="w-full bg-white border border-pink-200 rounded-lg px-3 py-2 text-xs text-stone-800 focus:outline-none resize-none select-text" required />
                             <button type="submit" className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition">Salvar Retorno</button>
                           </form>
                         )}
@@ -2691,7 +2709,7 @@ export default function VetWorkspaceBeatrizV28() {
                                 <span>📅 {evo.date}</span>
                                 <span className="text-pink-600">Peso: {evo.weight} • Temp: {evo.temperature}</span>
                               </div>
-                              <p className="text-stone-700 pt-1">{evo.notes}</p>
+                              <p className="text-stone-700 pt-1 select-text">{evo.notes}</p>
                             </div>
                           ))}
                         </div>
@@ -2947,7 +2965,7 @@ export default function VetWorkspaceBeatrizV28() {
                     <input type="text" placeholder="O que precisa ser feito?" value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} className="md:col-span-2 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
                     <input type="text" placeholder="Categoria" value={newTaskCategory} onChange={(e) => setNewTaskCategory(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
                   </div>
-                  <textarea placeholder="Detalhes..." value={newTaskNotes} onChange={(e) => setNewTaskNotes(e.target.value)} rows={2} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium resize-none" />
+                  <textarea placeholder="Detalhes..." value={newTaskNotes} onChange={(e) => setNewTaskNotes(e.target.value)} rows={2} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium resize-none select-text" />
                   <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5 cursor-pointer"><Plus className="w-4 h-4" /> Adicionar Tarefa</button>
                 </form>
               </div>
@@ -2959,7 +2977,7 @@ export default function VetWorkspaceBeatrizV28() {
                       <div className="flex items-center gap-3">
                         <input type="checkbox" checked={t.completed} onChange={() => { lastLocalMutationRef.current = Date.now(); setTasks(tasks.map(item => item.id === t.id ? { ...item, completed: !item.completed } : item)); }} className="w-4 h-4 accent-pink-500 cursor-pointer" />
                         <div>
-                          <span className={`text-xs font-bold ${t.completed ? 'line-through text-stone-400' : 'text-pink-950'}`}>{t.text}</span>
+                          <span className={`text-xs font-bold select-text ${t.completed ? 'line-through text-stone-400' : 'text-pink-950'}`}>{t.text}</span>
                           <span className="ml-2 text-[10px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-md font-semibold">{t.category}</span>
                         </div>
                       </div>
@@ -2968,7 +2986,7 @@ export default function VetWorkspaceBeatrizV28() {
                         <button onClick={() => { lastLocalMutationRef.current = Date.now(); setTasks(tasks.filter(item => item.id !== t.id)); }} className="text-stone-400 hover:text-red-500 p-1"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </div>
-                    {t.notes && <p className="text-xs text-stone-600 pl-7">{t.notes}</p>}
+                    {t.notes && <p className="text-xs text-stone-600 pl-7 select-text">{t.notes}</p>}
                   </div>
                 ))}
               </div>
@@ -3035,7 +3053,7 @@ export default function VetWorkspaceBeatrizV28() {
                       <input type="text" placeholder="Título do Evento / Matéria" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} className="col-span-2 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
                       <input type="time" value={eventTime} onChange={(e) => setEventTime(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
                     </div>
-                    <textarea placeholder="Detalhes ou notas do compromisso..." value={eventDesc} onChange={(e) => setEventDesc(e.target.value)} rows={2} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium resize-none" />
+                    <textarea placeholder="Detalhes ou notas do compromisso..." value={eventDesc} onChange={(e) => setEventDesc(e.target.value)} rows={2} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium resize-none select-text" />
                     <button type="submit" className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md cursor-pointer">Salvar na Agenda</button>
                   </form>
                 </div>
@@ -3049,11 +3067,11 @@ export default function VetWorkspaceBeatrizV28() {
                       events.filter(ev => ev.dateKey === selectedDate).map((ev, idx) => (
                         <div key={idx} className="flex items-center justify-between bg-pink-50/40 border border-pink-100 p-3.5 rounded-2xl">
                           <div>
-                            <div className="text-xs font-bold text-pink-950 flex items-center gap-2">
+                            <div className="text-xs font-bold text-pink-950 flex items-center gap-2 select-text">
                               {ev.time && <span className="bg-pink-100 text-pink-800 px-2 py-0.5 rounded-lg text-[10px] font-extrabold">{ev.time}</span>}
                               {ev.title}
                             </div>
-                            {ev.description && <div className="text-[11px] text-stone-600 mt-0.5">{ev.description}</div>}
+                            {ev.description && <div className="text-[11px] text-stone-600 mt-0.5 select-text">{ev.description}</div>}
                           </div>
                           <button onClick={() => { lastLocalMutationRef.current = Date.now(); setEvents(events.filter(item => !(item.title === ev.title && item.dateKey === ev.dateKey))); }} className="text-stone-400 hover:text-red-500 p-1"><Trash2 className="w-4 h-4" /></button>
                         </div>
