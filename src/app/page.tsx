@@ -273,7 +273,7 @@ const CAFES_POOL = [
   { name: 'Solar Café (Rio Vermelho)', desc: 'Espaço verde, aconchegante e excelente cardápio para um brunch relaxante no fim de semana.' },
   { name: 'Boutique do Café (Caminho das Árvores)', desc: 'Ambiente sofisticado e grãos selecionados para os verdadeiros amantes de cafés especiais.' },
   { name: 'Armazém Sete (Barra)', desc: 'Café charmoso com quitutes artesanais e excelente localização perto do Farol.' },
-  { name: 'Duo Café (Vitória)', desc: 'Vista privileged para o Corredor da Vitória, ideal para um café tranquilo ao entardecer.' },
+  { name: 'Duo Café (Vitória)', desc: 'Vista privilegiada para o Corredor da Vitória, ideal para um café tranquilo ao entardecer.' },
   { name: 'Mariposa (Rio Vermelho)', desc: 'Espaço arejado com opções leves, sucos naturais e excelente café gelado.' },
   { name: 'Kopenhagen (vários shoppings / Barra)', desc: 'Clássico imperdível para um chocolate quente cremoso e trufas finas.' },
   { name: 'Perini (Graça / Barra / Pituba)', desc: 'Tradição em Salvador com doces finos, salgados e um ótimo espresso a qualquer hora.' },
@@ -1386,7 +1386,7 @@ export default function VetWorkspaceBeatrizV28() {
 
     let currentHistory: ChatMessage[] = []
 
-    setChatSessions(prevSessions => {
+    setChatSessions((prevSessions: ChatSession[]) => {
       const updated = prevSessions.map(session => {
         if (session.id === currentChatId) {
           const isDefaultTitle = session.title === 'Novo Caso Clínico' || session.title === 'Caso Clínico Inicial'
@@ -1394,7 +1394,8 @@ export default function VetWorkspaceBeatrizV28() {
             ? (userText.length > 28 ? userText.substring(0, 28) + '...' : userText)
             : session.title
 
-          const newMessages: ChatMessage[] = [...session.messages, { sender: 'user', text: userText }]
+          const userMsg: ChatMessage = { sender: 'user', text: userText }
+          const newMessages: ChatMessage[] = [...session.messages, userMsg]
           currentHistory = newMessages
 
           return {
@@ -1429,12 +1430,13 @@ export default function VetWorkspaceBeatrizV28() {
 
       lastLocalMutationRef.current = Date.now()
 
-      setChatSessions(prevSessions => {
+      setChatSessions((prevSessions: ChatSession[]) => {
         const updated = prevSessions.map(session => {
           if (session.id === currentChatId) {
+            const aiMsg: ChatMessage = { sender: 'ai', text: replyText }
             return {
               ...session,
-              messages: [...session.messages, { sender: 'ai', text: replyText }]
+              messages: [...session.messages, aiMsg]
             }
           }
           return session
@@ -1445,12 +1447,16 @@ export default function VetWorkspaceBeatrizV28() {
       })
     } catch (err: any) {
       lastLocalMutationRef.current = Date.now()
-      setChatSessions(prevSessions => {
+      setChatSessions((prevSessions: ChatSession[]) => {
         const updated = prevSessions.map(session => {
           if (session.id === currentChatId) {
+            const errorMsg: ChatMessage = { 
+              sender: 'ai', 
+              text: '⚠️ Falha na conexão ao enviar mensagem. Tente novamente.' 
+            }
             return {
               ...session,
-              messages: [...session.messages, { sender: 'ai', text: '⚠️ Falha na conexão ao enviar mensagem. Tente novamente.' }]
+              messages: [...session.messages, errorMsg]
             }
           }
           return session
@@ -2803,15 +2809,15 @@ export default function VetWorkspaceBeatrizV28() {
                       <div className="grid grid-cols-3 gap-2">
                         <div>
                           <label className="text-[10px] font-bold text-stone-600 block mb-1">Dose (mg/kg)</label>
-                          <input type="number" step="0.01" value={calcDosage} onChange={(e) => setCalcDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <input type="number" step="0.01" value={calcDosage} onChange={(e) => setCalcDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-stone-600 block mb-1">Conc. (mg/ml)</label>
-                          <input type="number" step="0.01" value={calcConcentration} onChange={(e) => setCalcConcentration(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <input type="number" step="0.01" value={calcConcentration} onChange={(e) => setCalcConcentration(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-stone-600 block mb-1">Comp. (mg)</label>
-                          <input type="number" step="0.1" placeholder="Ex: 20" value={calcPillMg} onChange={(e) => setCalcPillMg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <input type="number" step="0.1" placeholder="Ex: 20" value={calcPillMg} onChange={(e) => setCalcPillMg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                       </div>
 
