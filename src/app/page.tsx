@@ -55,7 +55,8 @@ import {
   EyeOff,
   PiggyBank,
   Copy,
-  Check
+  Check,
+  GripVertical
 } from 'lucide-react'
 import WishlistTab from '@/components/WishlistTab'
 
@@ -952,6 +953,9 @@ export default function VetWorkspaceBeatrizV28() {
   const [eventDesc, setEventDesc] = useState('')
   const [eventTime, setEventTime] = useState('08:00')
 
+  // Drag and Drop state
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+
   useEffect(() => {
     async function fetchCloudData() {
       try {
@@ -1346,12 +1350,10 @@ export default function VetWorkspaceBeatrizV28() {
 
       const targetIndex = direction === 'up' ? index - 1 : index + 1
       
-      // Swap elements in sorted array
       const temp = siblings[index]
       siblings[index] = siblings[targetIndex]
       siblings[targetIndex] = temp
 
-      // Reassign sequential orders
       siblings.forEach((sib, idx) => {
         sib.order = idx
       })
@@ -1367,6 +1369,60 @@ export default function VetWorkspaceBeatrizV28() {
     })
   }
 
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    e.stopPropagation()
+    e.dataTransfer.setData('text/plain', id)
+    setDraggedId(id)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+  }
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!draggedId || draggedId === targetId) return
+
+    lastLocalMutationRef.current = Date.now()
+    setItems(prev => {
+      const dragged = prev.find(i => i.id === draggedId)
+      const target = prev.find(i => i.id === targetId)
+      if (!dragged || !target) return prev
+
+      // Prevent dropping a folder into itself or its own descendant
+      if (dragged.type === 'folder') {
+        let curr: string | null = target.parentId
+        while (curr !== null) {
+          if (curr === dragged.id) return prev
+          const pItem = prev.find(i => i.id === curr)
+          curr = pItem ? pItem.parentId : null
+        }
+      }
+
+      const newParentId = target.parentId
+      const siblings = prev
+        .filter(i => i.parentId === newParentId && i.id !== draggedId)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+
+      const targetIndex = siblings.findIndex(i => i.id === targetId)
+      
+      const updatedSiblings = [...siblings]
+      updatedSiblings.splice(targetIndex + 1, 0, { ...dragged, parentId: newParentId })
+
+      updatedSiblings.forEach((s, idx) => {
+        s.order = idx
+      })
+
+      const siblingIds = new Set(updatedSiblings.map(s => s.id))
+      const otherItems = prev.filter(i => i.parentId !== newParentId && i.id !== draggedId)
+
+      return [...otherItems, ...updatedSiblings]
+    })
+    setDraggedId(null)
+  }
+
   const renderTree = (parentId: string | null) => {
     const children = items
       .filter(i => i.parentId === parentId)
@@ -1379,9 +1435,17 @@ export default function VetWorkspaceBeatrizV28() {
         {children.map((item, index) => {
           if (item.type === 'folder') {
             return (
-              <div key={item.id} className="space-y-1 pt-1">
-                <div className="flex items-center justify-between group px-2.5 py-1.5 rounded-xl bg-pink-50/50 hover:bg-pink-100/80 text-pink-950 cursor-pointer border border-pink-100">
+              <div 
+                key={item.id} 
+                draggable={true}
+                onDragStart={(e) => handleDragStart(e, item.id)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, item.id)}
+                className="space-y-1 pt-1"
+              >
+                <div className="flex items-center justify-between group px-2.5 py-1.5 rounded-xl bg-pink-50/50 hover:bg-pink-100/80 text-pink-950 cursor-grab active:cursor-grabbing border border-pink-100">
                   <div className="flex items-center gap-2 truncate flex-1" onClick={() => toggleFolder(item.id)}>
+                    <GripVertical className="w-3.5 h-3.5 text-pink-300 group-hover:text-pink-500 shrink-0" />
                     <button className="text-pink-500">
                       {item.isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                     </button>
@@ -1419,8 +1483,17 @@ export default function VetWorkspaceBeatrizV28() {
           } else {
             const isSelected = selectedItemId === item.id
             return (
-              <div key={item.id} className={`flex items-center justify-between group px-3 py-2 rounded-xl cursor-pointer transition shadow-2xs ${isSelected ? 'bg-pink-500 text-white font-extrabold shadow-sm' : 'bg-white/80 text-pink-950 hover:bg-pink-50 border border-pink-100'}`} onClick={() => { setSelectedItemId(item.id); setActiveTab('estudos'); }}>
+              <div 
+                key={item.id} 
+                draggable={true}
+                onDragStart={(e) => handleDragStart(e, item.id)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, item.id)}
+                className={`flex items-center justify-between group px-3 py-2 rounded-xl cursor-grab active:cursor-grabbing transition shadow-2xs ${isSelected ? 'bg-pink-500 text-white font-extrabold shadow-sm' : 'bg-white/80 text-pink-950 hover:bg-pink-50 border border-pink-100'}`} 
+                onClick={() => { setSelectedItemId(item.id); setActiveTab('estudos'); }}
+              >
                 <div className="flex items-center gap-2.5 truncate flex-1">
+                  <GripVertical className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-pink-200' : 'text-pink-300 group-hover:text-pink-500'}`} />
                   <FileText className={`w-4 h-4 shrink-0 ${isSelected ? 'text-white' : 'text-pink-500'}`} />
                   <span className="text-xs truncate">{item.title}</span>
                 </div>
