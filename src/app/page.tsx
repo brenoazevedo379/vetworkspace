@@ -11,6 +11,7 @@ import {
   Settings, 
   ChevronRight, 
   ChevronDown,
+  ChevronUp,
   Plus, 
   Trash2, 
   Sparkles, 
@@ -83,6 +84,7 @@ interface DocumentItem {
   notes?: string
   isOpen?: boolean 
   attachments?: AttachedFile[]
+  order?: number
 }
 
 interface FinancialItem {
@@ -702,21 +704,21 @@ export default function VetWorkspaceBeatrizV28() {
       if (saved) try { return JSON.parse(saved) } catch(e) {}
     }
     return [
-      { id: 'f-pos', title: 'Pós-graduação & Residência', parentId: null, type: 'folder', isOpen: true },
-      { id: 'p-1', title: 'Módulos e Aulas Teóricas', parentId: 'f-pos', type: 'page', content: '', differential: '', notes: '', attachments: [] },
+      { id: 'f-pos', title: 'Pós-graduação & Residência', parentId: null, type: 'folder', isOpen: true, order: 0 },
+      { id: 'p-1', title: 'Módulos e Aulas Teóricas', parentId: 'f-pos', type: 'page', content: '', differential: '', notes: '', attachments: [], order: 0 },
       
-      { id: 'f-receitas', title: 'Formulário de Receitas', parentId: null, type: 'folder', isOpen: true },
-      { id: 'f-rec-dermato', title: 'Dermatologia & Otologia', parentId: 'f-receitas', type: 'folder', isOpen: true },
-      { id: 'p-rec-1', title: 'Prescrição Apoquel / Cytopoint', parentId: 'f-rec-dermato', type: 'page', content: 'Protocolo de Controle de Prurido e DADP...', differential: '', notes: '', attachments: [] },
+      { id: 'f-receitas', title: 'Formulário de Receitas', parentId: null, type: 'folder', isOpen: true, order: 1 },
+      { id: 'f-rec-dermato', title: 'Dermatologia & Otologia', parentId: 'f-receitas', type: 'folder', isOpen: true, order: 0 },
+      { id: 'p-rec-1', title: 'Prescrição Apoquel / Cytopoint', parentId: 'f-rec-dermato', type: 'page', content: 'Protocolo de Controle de Prurido e DADP...', differential: '', notes: '', attachments: [], order: 0 },
       
-      { id: 'f-rec-gastro', title: 'Gastroenterologia & Antieméticos', parentId: 'f-receitas', type: 'folder', isOpen: true },
-      { id: 'p-rec-2', title: 'Receita Cerenia + Omeprazol + Probiótico', parentId: 'f-rec-gastro', type: 'page', content: 'Proteção gástrica e antiemético pós-vômito...', differential: '', notes: '', attachments: [] },
+      { id: 'f-rec-gastro', title: 'Gastroenterologia & Antieméticos', parentId: 'f-receitas', type: 'folder', isOpen: true, order: 1 },
+      { id: 'p-rec-2', title: 'Receita Cerenia + Omeprazol + Probiótico', parentId: 'f-rec-gastro', type: 'page', content: 'Proteção gástrica e antiemético pós-vômito...', differential: '', notes: '', attachments: [], order: 0 },
       
-      { id: 'f-rec-controlled', title: 'Controle Especial & Psicotrópicos', parentId: 'f-receitas', type: 'folder', isOpen: true },
-      { id: 'p-rec-3', title: 'Termo / Notificação Receita B2 - Gabapentina/Tramadol', parentId: 'f-rec-controlled', type: 'page', content: 'Modelo de Prescrição Controlada...', differential: '', notes: '', attachments: [] },
+      { id: 'f-rec-controlled', title: 'Controle Especial & Psicotrópicos', parentId: 'f-receitas', type: 'folder', isOpen: true, order: 2 },
+      { id: 'p-rec-3', title: 'Termo / Notificação Receita B2 - Gabapentina/Tramadol', parentId: 'f-rec-controlled', type: 'page', content: 'Modelo de Prescrição Controlada...', differential: '', notes: '', attachments: [], order: 0 },
       
-      { id: 'f-rec-manipulated', title: 'Fórmulas Manipuladas', parentId: 'f-receitas', type: 'folder', isOpen: true },
-      { id: 'p-rec-4', title: 'Pasta Palatável / Xarope Felino', parentId: 'f-rec-manipulated', type: 'page', content: 'Fórmula em veículo palatável sabor peixe/frango...', differential: '', notes: '', attachments: [] }
+      { id: 'f-rec-manipulated', title: 'Fórmulas Manipuladas', parentId: 'f-receitas', type: 'folder', isOpen: true, order: 3 },
+      { id: 'p-rec-4', title: 'Pasta Palatável / Xarope Felino', parentId: 'f-rec-manipulated', type: 'page', content: 'Fórmula em veículo palatável sabor peixe/frango...', differential: '', notes: '', attachments: [], order: 0 }
     ]
   })
   const [selectedItemId, setSelectedItemId] = useState<string>('p-1')
@@ -1146,16 +1148,16 @@ export default function VetWorkspaceBeatrizV28() {
     const newAtt: AttachedFile = { id: Date.now().toString(), name: fileName, type: fileType, size: fileSize, url: fileUrl }
 
     if (activeTaskForAttach) {
-      setTasks(tasks.map(t => t.id === activeTaskForAttach ? { ...t, attachments: [...(t.attachments || []), newAtt] } : t))
+      setTasks(prev => prev.map(t => t.id === activeTaskForAttach ? { ...t, attachments: [...(t.attachments || []), newAtt] } : t))
       setActiveTaskForAttach(null)
     } else if (selectedItem) {
-      setItems(items.map(i => i.id === selectedItem.id ? { ...i, attachments: [...(i.attachments || []), newAtt] } : i))
+      setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, attachments: [...(i.attachments || []), newAtt] } : i))
     }
     e.target.value = ''
   }
 
   const handleRemoveAttachment = (itemId: string, attachmentId: string) => {
-    setItems(items.map(i => {
+    setItems(prev => prev.map(i => {
       if (i.id === itemId) {
         return {
           ...i,
@@ -1262,78 +1264,137 @@ export default function VetWorkspaceBeatrizV28() {
     const title = prompt('Nome da nova pasta ou subpasta:')
     if (!title) return
     lastLocalMutationRef.current = Date.now()
-    const newFolder: DocumentItem = {
-      id: 'folder-' + Date.now(),
-      title,
-      parentId,
-      type: 'folder',
-      isOpen: true
-    }
-    setItems([...items, newFolder])
+    
+    setItems(prev => {
+      const siblings = prev.filter(i => i.parentId === parentId)
+      const newFolder: DocumentItem = {
+        id: 'folder-' + Date.now(),
+        title,
+        parentId,
+        type: 'folder',
+        isOpen: true,
+        order: siblings.length
+      }
+      return [...prev, newFolder]
+    })
   }
 
   const handleRenameFolder = (id: string, currentTitle: string) => {
     const newTitle = prompt('Novo nome para a pasta:', currentTitle)
     if (!newTitle || !newTitle.trim()) return
     lastLocalMutationRef.current = Date.now()
-    setItems(items.map(i => i.id === id ? { ...i, title: newTitle.trim() } : i))
+    setItems(prev => prev.map(i => i.id === id ? { ...i, title: newTitle.trim() } : i))
   }
 
   const handleAddPage = (parentId: string | null) => {
     const title = prompt('Nome da nova página ou receita:')
     if (!title) return
     lastLocalMutationRef.current = Date.now()
-    const newPage: DocumentItem = {
-      id: 'page-' + Date.now(),
-      title,
-      parentId,
-      type: 'page',
-      content: '',
-      differential: '',
-      notes: '',
-      attachments: []
-    }
-    setItems([...items, newPage])
-    setSelectedItemId(newPage.id)
+    
+    setItems(prev => {
+      const siblings = prev.filter(i => i.parentId === parentId)
+      const newPage: DocumentItem = {
+        id: 'page-' + Date.now(),
+        title,
+        parentId,
+        type: 'page',
+        content: '',
+        differential: '',
+        notes: '',
+        attachments: [],
+        order: siblings.length
+      }
+      return [...prev, newPage]
+    })
+    setSelectedItemId('page-' + Date.now())
     setActiveTab('estudos')
   }
 
   const toggleFolder = (id: string) => {
-    setItems(items.map(i => i.id === id ? { ...i, isOpen: !i.isOpen } : i))
+    setItems(prev => prev.map(i => i.id === id ? { ...i, isOpen: !i.isOpen } : i))
   }
 
   const deleteItem = (id: string) => {
     lastLocalMutationRef.current = Date.now()
-    const idsToDelete = [id]
-    const getChildrenIds = (parentId: string) => {
-      items.filter(i => i.parentId === parentId).forEach(child => {
-        idsToDelete.push(child.id)
-        if (child.type === 'folder') getChildrenIds(child.id)
+    setItems(prev => {
+      const idsToDelete = [id]
+      const getChildrenIds = (parentId: string) => {
+        prev.filter(i => i.parentId === parentId).forEach(child => {
+          idsToDelete.push(child.id)
+          if (child.type === 'folder') getChildrenIds(child.id)
+        })
+      }
+      getChildrenIds(id)
+      return prev.filter(i => !idsToDelete.includes(i.id))
+    })
+  }
+
+  const handleMoveItem = (id: string, direction: 'up' | 'down') => {
+    lastLocalMutationRef.current = Date.now()
+    setItems(prev => {
+      const targetItem = prev.find(i => i.id === id)
+      if (!targetItem) return prev
+
+      const siblings = prev
+        .filter(i => i.parentId === targetItem.parentId)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+
+      const index = siblings.findIndex(i => i.id === id)
+      if (index === -1) return prev
+      if (direction === 'up' && index === 0) return prev
+      if (direction === 'down' && index === siblings.length - 1) return prev
+
+      const targetIndex = direction === 'up' ? index - 1 : index + 1
+      
+      // Swap elements in sorted array
+      const temp = siblings[index]
+      siblings[index] = siblings[targetIndex]
+      siblings[targetIndex] = temp
+
+      // Reassign sequential orders
+      siblings.forEach((sib, idx) => {
+        sib.order = idx
       })
-    }
-    getChildrenIds(id)
-    setItems(items.filter(i => !idsToDelete.includes(i.id)))
+
+      const siblingIds = new Set(siblings.map(s => s.id))
+      return prev.map(i => {
+        if (siblingIds.has(i.id)) {
+          const updatedSib = siblings.find(s => s.id === i.id)
+          return updatedSib || i
+        }
+        return i
+      })
+    })
   }
 
   const renderTree = (parentId: string | null) => {
-    const children = items.filter(i => i.parentId === parentId)
+    const children = items
+      .filter(i => i.parentId === parentId)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+
     if (children.length === 0) return null
 
     return (
       <div className="space-y-1.5 pl-3 border-l border-pink-200 ml-1">
-        {children.map(item => {
+        {children.map((item, index) => {
           if (item.type === 'folder') {
             return (
               <div key={item.id} className="space-y-1 pt-1">
                 <div className="flex items-center justify-between group px-2.5 py-1.5 rounded-xl bg-pink-50/50 hover:bg-pink-100/80 text-pink-950 cursor-pointer border border-pink-100">
-                  <div className="flex items-center gap-2 truncate" onClick={() => toggleFolder(item.id)}>
+                  <div className="flex items-center gap-2 truncate flex-1" onClick={() => toggleFolder(item.id)}>
                     <button className="text-pink-500">
                       {item.isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                     </button>
                     <Folder className="w-4 h-4 text-pink-500 fill-pink-200 shrink-0" />
                     <span className="font-extrabold text-xs truncate">{item.title}</span>
                   </div>
-                  <div className="hidden group-hover:flex items-center gap-1.5 shrink-0">
+                  <div className="hidden group-hover:flex items-center gap-1 shrink-0">
+                    <button title="Mover para cima" onClick={(e) => { e.stopPropagation(); handleMoveItem(item.id, 'up'); }} disabled={index === 0} className="p-1 text-pink-600 hover:text-pink-950 bg-white rounded-lg shadow-2xs disabled:opacity-30">
+                      <ChevronUp className="w-3.5 h-3.5" />
+                    </button>
+                    <button title="Mover para baixo" onClick={(e) => { e.stopPropagation(); handleMoveItem(item.id, 'down'); }} disabled={index === children.length - 1} className="p-1 text-pink-600 hover:text-pink-950 bg-white rounded-lg shadow-2xs disabled:opacity-30">
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </button>
                     <button title="Renomear Pasta" onClick={(e) => { e.stopPropagation(); handleRenameFolder(item.id, item.title); }} className="p-1 text-pink-600 hover:text-pink-950 bg-white rounded-lg shadow-2xs">
                       <Edit3 className="w-3.5 h-3.5" />
                     </button>
@@ -1359,13 +1420,21 @@ export default function VetWorkspaceBeatrizV28() {
             const isSelected = selectedItemId === item.id
             return (
               <div key={item.id} className={`flex items-center justify-between group px-3 py-2 rounded-xl cursor-pointer transition shadow-2xs ${isSelected ? 'bg-pink-500 text-white font-extrabold shadow-sm' : 'bg-white/80 text-pink-950 hover:bg-pink-50 border border-pink-100'}`} onClick={() => { setSelectedItemId(item.id); setActiveTab('estudos'); }}>
-                <div className="flex items-center gap-2.5 truncate">
+                <div className="flex items-center gap-2.5 truncate flex-1">
                   <FileText className={`w-4 h-4 shrink-0 ${isSelected ? 'text-white' : 'text-pink-500'}`} />
                   <span className="text-xs truncate">{item.title}</span>
                 </div>
-                <button title="Excluir Página" onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className={`opacity-0 group-hover:opacity-100 p-1 ${isSelected ? 'text-white/80 hover:text-white' : 'text-stone-400 hover:text-red-500'}`}>
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                <div className="hidden group-hover:flex items-center gap-1 shrink-0">
+                  <button title="Mover para cima" onClick={(e) => { e.stopPropagation(); handleMoveItem(item.id, 'up'); }} disabled={index === 0} className={`p-1 rounded-lg shadow-2xs disabled:opacity-30 ${isSelected ? 'bg-pink-600 text-white' : 'bg-white text-pink-600'}`}>
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  </button>
+                  <button title="Mover para baixo" onClick={(e) => { e.stopPropagation(); handleMoveItem(item.id, 'down'); }} disabled={index === children.length - 1} className={`p-1 rounded-lg shadow-2xs disabled:opacity-30 ${isSelected ? 'bg-pink-600 text-white' : 'bg-white text-pink-600'}`}>
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                  <button title="Excluir Página" onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className={`p-1 ${isSelected ? 'text-white/80 hover:text-white' : 'text-stone-400 hover:text-red-500'}`}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             )
           }
@@ -2809,15 +2878,15 @@ export default function VetWorkspaceBeatrizV28() {
                       <div className="grid grid-cols-3 gap-2">
                         <div>
                           <label className="text-[10px] font-bold text-stone-600 block mb-1">Dose (mg/kg)</label>
-                          <input type="number" step="0.01" value={calcDosage} onChange={(e) => setCalcDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <input type="number" step="0.01" value={calcDosage} onChange={(e) => setCalcDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-stone-600 block mb-1">Conc. (mg/ml)</label>
-                          <input type="number" step="0.01" value={calcConcentration} onChange={(e) => setCalcConcentration(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <input type="number" step="0.01" value={calcConcentration} onChange={(e) => setCalcConcentration(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-stone-600 block mb-1">Comp. (mg)</label>
-                          <input type="number" step="0.1" placeholder="Ex: 20" value={calcPillMg} onChange={(e) => setCalcPillMg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <input type="number" step="0.1" placeholder="Ex: 20" value={calcPillMg} onChange={(e) => setCalcPillMg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                       </div>
 
