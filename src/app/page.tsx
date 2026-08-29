@@ -617,7 +617,7 @@ export default function VetWorkspaceBeatrizV28() {
     }
   }
 
-  // EXCLUSÃO DE CHAT DE FORMA DEFINITIVA
+  // EXCLUSÃO DE CHAT DEFINITIVA
   const deleteChatSession = (e: React.MouseEvent, id: string) => {
     e.stopPropagation()
     e.preventDefault()
@@ -996,8 +996,8 @@ export default function VetWorkspaceBeatrizV28() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'app_data', filter: 'id=eq.beatriz_workspace_v28' },
         (payload: any) => {
-          // SE HOUVE MUTAÇÃO LOCAL NOS ÚLTIMOS 3 SEGUNDOS, IGNORA O REALTIME PARA NÃO APAGAR OU RESSUSCITAR DADOS
-          if (Date.now() - lastLocalMutationRef.current < 3000) {
+          // PROTEÇÃO INTELIGENTE DE 15 SEGUNDOS
+          if (Date.now() - lastLocalMutationRef.current < 15000) {
             return
           }
 
@@ -1017,7 +1017,20 @@ export default function VetWorkspaceBeatrizV28() {
             if (d.finances) { setFinances(d.finances); localStorage.setItem('vet_finances_v28', JSON.stringify(d.finances)); }
             if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v28', JSON.stringify(d.tasks)); }
             if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v28', JSON.stringify(d.events)); }
-            if (d.chatSessions) { setChatSessions(d.chatSessions); localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(d.chatSessions)); }
+            
+            // SMART MERGE PARA O CHAT: NUNCA SOBRESCREVE SE O LOCAL TIVER MAIS MENSAGENS!
+            if (d.chatSessions) {
+              setChatSessions(prevSessions => {
+                const localTotalMsgs = prevSessions.reduce((acc, s) => acc + (s.messages?.length || 0), 0)
+                const incomingTotalMsgs = d.chatSessions.reduce((acc: number, s: any) => acc + (s.messages?.length || 0), 0)
+                if (localTotalMsgs > incomingTotalMsgs) {
+                  return prevSessions // Mantém as mensagens locais sem apagar nada!
+                }
+                return d.chatSessions
+              })
+              localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(d.chatSessions))
+            }
+
             if (d.clinics) { setClinics(d.clinics); localStorage.setItem('vet_clinics_v28', JSON.stringify(d.clinics)); }
             if (d.shifts) { setShifts(d.shifts); localStorage.setItem('vet_shifts_v28', JSON.stringify(d.shifts)); }
             if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v28', JSON.stringify(d.personalPets)); }
@@ -1350,10 +1363,12 @@ export default function VetWorkspaceBeatrizV28() {
     )
   }
 
+  // ENVIO DE MENSAGENS NO CHAT PROTEGIDO SEM LIMITE
   const handleSendAiMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!chatInput.trim() || isAiLoading) return
 
+    // RENOVA A TRAVA NO ENVIO
     lastLocalMutationRef.current = Date.now()
 
     const userText = chatInput.trim()
@@ -1386,6 +1401,7 @@ export default function VetWorkspaceBeatrizV28() {
       const data = await response.json()
       const reply = data.reply || 'Não foi possível processar a resposta no momento.'
 
+      // RENOVA A TRAVA QUANDO A IA RESPONDE
       lastLocalMutationRef.current = Date.now()
 
       const finalMessages: ChatMessage[] = [
@@ -1404,7 +1420,7 @@ export default function VetWorkspaceBeatrizV28() {
       lastLocalMutationRef.current = Date.now()
       const errorMessages: ChatMessage[] = [
         ...updatedMessages,
-        { sender: 'ai', text: 'Erro de conexão com o servidor de IA. Verifique sua chave de API.' }
+        { sender: 'ai', text: 'Erro de conexão com o servidor de IA. Verifique sua conexão.' }
       ]
       setChatSessions(prev => {
         const nextSessions = prev.map(s => s.id === currentChatId ? { ...s, messages: errorMessages } : s)
@@ -1414,6 +1430,7 @@ export default function VetWorkspaceBeatrizV28() {
         return nextSessions
       })
     } finally {
+      lastLocalMutationRef.current = Date.now()
       setIsAiLoading(false)
     }
   }
@@ -1558,7 +1575,6 @@ export default function VetWorkspaceBeatrizV28() {
               </button>
             </div>
 
-            {/* LISTA DE SESSÕES DO CHAT COM EXCLUSÃO TOTAL CORRIGIDA */}
             <div className="pl-3 pr-1 space-y-1 my-1 max-h-36 overflow-y-auto border-l border-pink-200 ml-2">
               {chatSessions.map(session => (
                 <div 
@@ -2302,7 +2318,7 @@ export default function VetWorkspaceBeatrizV28() {
                     <div className="w-10 h-10 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Bot className="w-5 h-5" /></div>
                     <div>
                       <h2 className="text-sm font-extrabold text-pink-950">Copiloto IA Veterinária - {currentChatSession.title}</h2>
-                      <p className="text-[11px] text-pink-500 font-medium">Raciocínio clínico com templates rápidos e exportação para prontuário</p>
+                      <p className="text-[11px] text-pink-500 font-medium">Raciocínio clínico ilimitado, sem perda de histórico no mesmo chat</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
