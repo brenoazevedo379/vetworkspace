@@ -359,6 +359,9 @@ export default function VetWorkspaceBeatrizV28() {
   const [isMounted, setIsMounted] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
 
+  // REGISTRA O MOMENTO DA ÚLTIMA ALTERAÇÃO LOCAL
+  const lastLocalMutationRef = useRef<number>(0)
+
   useEffect(() => {
     setIsMounted(true)
   }, [])
@@ -368,7 +371,6 @@ export default function VetWorkspaceBeatrizV28() {
   const [isPersonalSidebarOpen, setIsPersonalSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Sincronizado')
 
-  // MODO PRIVACIDADE DE VALORES
   const [showValues, setShowValues] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vet_show_values_v28')
@@ -503,6 +505,7 @@ export default function VetWorkspaceBeatrizV28() {
   const handleAddPersonalPet = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newPetBiaName.trim()) return
+    lastLocalMutationRef.current = Date.now()
     const newP: PersonalPet = {
       id: Date.now().toString(),
       name: newPetBiaName.trim(),
@@ -548,6 +551,7 @@ export default function VetWorkspaceBeatrizV28() {
 
   const handleAddShift = (e: React.FormEvent) => {
     e.preventDefault()
+    lastLocalMutationRef.current = Date.now()
     const rate = parseFloat(shiftBaseRate) || 200
     const comm = parseFloat(shiftCommission) || 0
     const newS: ShiftRecord = {
@@ -595,6 +599,7 @@ export default function VetWorkspaceBeatrizV28() {
   const currentChatSession = chatSessions.find(s => s.id === currentChatId) || chatSessions[0]
 
   const handleNewChatSession = () => {
+    lastLocalMutationRef.current = Date.now()
     const newId = Date.now().toString()
     const newSession: ChatSession = {
       id: newId,
@@ -603,25 +608,43 @@ export default function VetWorkspaceBeatrizV28() {
         { sender: 'ai', text: 'Olá, Dra. Beatriz! Novo caso clínico iniciado. Descreva os sintomas ou escolha um template.' }
       ]
     }
-    setChatSessions([newSession, ...chatSessions])
+    const updated = [newSession, ...chatSessions]
+    setChatSessions(updated)
     setCurrentChatId(newId)
     setActiveTab('ia')
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(updated))
+    }
   }
 
+  // EXCLUSÃO DE CHAT DE FORMA DEFINITIVA
   const deleteChatSession = (e: React.MouseEvent, id: string) => {
     e.stopPropagation()
+    e.preventDefault()
+
+    lastLocalMutationRef.current = Date.now()
+
     const filtered = chatSessions.filter(s => s.id !== id)
     if (filtered.length === 0) {
       const freshId = Date.now().toString()
-      setChatSessions([{
+      const freshSessions: ChatSession[] = [{
         id: freshId,
         title: 'Caso Clínico Inicial',
         messages: [{ sender: 'ai', text: 'Olá, Dra. Beatriz! Sou seu copiloto clínico.' }]
-      }])
+      }]
+      setChatSessions(freshSessions)
       setCurrentChatId(freshId)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(freshSessions))
+      }
     } else {
       setChatSessions(filtered)
-      if (currentChatId === id) setCurrentChatId(filtered[0].id)
+      if (currentChatId === id) {
+        setCurrentChatId(filtered[0].id)
+      }
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(filtered))
+      }
     }
   }
 
@@ -717,6 +740,7 @@ export default function VetWorkspaceBeatrizV28() {
       alert('Selecione um paciente para exportar.')
       return
     }
+    lastLocalMutationRef.current = Date.now()
     const newEvo: PatientEvolution = {
       id: Date.now().toString(),
       date: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
@@ -863,7 +887,6 @@ export default function VetWorkspaceBeatrizV28() {
     return 0.00
   })
 
-  // ESTADO DO COFRINHO
   const [cofrinhoAmount, setCofrinhoAmount] = useState<number>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vet_cofrinho_v28')
@@ -973,6 +996,11 @@ export default function VetWorkspaceBeatrizV28() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'app_data', filter: 'id=eq.beatriz_workspace_v28' },
         (payload: any) => {
+          // SE HOUVE MUTAÇÃO LOCAL NOS ÚLTIMOS 3 SEGUNDOS, IGNORA O REALTIME PARA NÃO APAGAR OU RESSUSCITAR DADOS
+          if (Date.now() - lastLocalMutationRef.current < 3000) {
+            return
+          }
+
           if (payload.new && payload.new.data) {
             const d = payload.new.data
             if (d.items) { setItems(d.items); localStorage.setItem('vet_items_v28', JSON.stringify(d.items)); }
@@ -1006,6 +1034,8 @@ export default function VetWorkspaceBeatrizV28() {
 
   useEffect(() => {
     if (!isMounted || !isInitialized) return
+
+    lastLocalMutationRef.current = Date.now()
 
     localStorage.setItem('vet_items_v28', JSON.stringify(items))
     localStorage.setItem('vet_patients_v28', JSON.stringify(patients))
@@ -1118,6 +1148,7 @@ export default function VetWorkspaceBeatrizV28() {
   const handleAddFinancial = (e: React.FormEvent) => {
     e.preventDefault()
     if (!finDesc || !finAmount) return
+    lastLocalMutationRef.current = Date.now()
     const catFinal = finCategory === 'Outro' && finCustomCategory.trim() ? finCustomCategory.trim() : finCategory
     const newF: FinancialItem = {
       id: Date.now().toString(),
@@ -1135,6 +1166,7 @@ export default function VetWorkspaceBeatrizV28() {
   const handleAddPatient = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newPetName.trim()) return
+    lastLocalMutationRef.current = Date.now()
     const initialEvo: PatientEvolution = {
       id: Date.now().toString(),
       date: new Date().toLocaleDateString('pt-BR'),
@@ -1166,6 +1198,7 @@ export default function VetWorkspaceBeatrizV28() {
   const handleAddEvolution = (patientId: string, e: React.FormEvent) => {
     e.preventDefault()
     if (!evoNotes.trim()) return
+    lastLocalMutationRef.current = Date.now()
     const newEvo: PatientEvolution = {
       id: Date.now().toString(),
       date: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
@@ -1183,6 +1216,7 @@ export default function VetWorkspaceBeatrizV28() {
   const handleSaveNewDrug = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newDrugName.trim() || !newDrugDosage || !newDrugConc) return
+    lastLocalMutationRef.current = Date.now()
     const newD: VetDrug = {
       name: newDrugName.trim(),
       category: newDrugCat.trim() || 'Personalizado',
@@ -1203,6 +1237,7 @@ export default function VetWorkspaceBeatrizV28() {
   const handleAddFolder = (parentId: string | null) => {
     const title = prompt('Nome da nova pasta ou subpasta:')
     if (!title) return
+    lastLocalMutationRef.current = Date.now()
     const newFolder: DocumentItem = {
       id: 'folder-' + Date.now(),
       title,
@@ -1216,12 +1251,14 @@ export default function VetWorkspaceBeatrizV28() {
   const handleRenameFolder = (id: string, currentTitle: string) => {
     const newTitle = prompt('Novo nome para a pasta:', currentTitle)
     if (!newTitle || !newTitle.trim()) return
+    lastLocalMutationRef.current = Date.now()
     setItems(items.map(i => i.id === id ? { ...i, title: newTitle.trim() } : i))
   }
 
   const handleAddPage = (parentId: string | null) => {
     const title = prompt('Nome da nova página ou receita:')
     if (!title) return
+    lastLocalMutationRef.current = Date.now()
     const newPage: DocumentItem = {
       id: 'page-' + Date.now(),
       title,
@@ -1242,6 +1279,7 @@ export default function VetWorkspaceBeatrizV28() {
   }
 
   const deleteItem = (id: string) => {
+    lastLocalMutationRef.current = Date.now()
     const idsToDelete = [id]
     const getChildrenIds = (parentId: string) => {
       items.filter(i => i.parentId === parentId).forEach(child => {
@@ -1316,6 +1354,8 @@ export default function VetWorkspaceBeatrizV28() {
     e.preventDefault()
     if (!chatInput.trim() || isAiLoading) return
 
+    lastLocalMutationRef.current = Date.now()
+
     const userText = chatInput.trim()
     setChatInput('')
     setIsAiLoading(true)
@@ -1329,7 +1369,13 @@ export default function VetWorkspaceBeatrizV28() {
       ? (userText.length > 28 ? userText.substring(0, 28) + '...' : userText)
       : currentChatSession.title
 
-    setChatSessions(chatSessions.map(s => s.id === currentChatId ? { ...s, title: autoTitle, messages: updatedMessages } : s))
+    setChatSessions(prev => {
+      const nextSessions = prev.map(s => s.id === currentChatId ? { ...s, title: autoTitle, messages: updatedMessages } : s)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(nextSessions))
+      }
+      return nextSessions
+    })
 
     try {
       const response = await fetch('/api/vet', {
@@ -1340,18 +1386,33 @@ export default function VetWorkspaceBeatrizV28() {
       const data = await response.json()
       const reply = data.reply || 'Não foi possível processar a resposta no momento.'
 
+      lastLocalMutationRef.current = Date.now()
+
       const finalMessages: ChatMessage[] = [
         ...updatedMessages,
         { sender: 'ai', text: reply }
       ]
 
-      setChatSessions(prev => prev.map(s => s.id === currentChatId ? { ...s, messages: finalMessages } : s))
+      setChatSessions(prev => {
+        const nextSessions = prev.map(s => s.id === currentChatId ? { ...s, messages: finalMessages } : s)
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(nextSessions))
+        }
+        return nextSessions
+      })
     } catch (err) {
+      lastLocalMutationRef.current = Date.now()
       const errorMessages: ChatMessage[] = [
         ...updatedMessages,
         { sender: 'ai', text: 'Erro de conexão com o servidor de IA. Verifique sua chave de API.' }
       ]
-      setChatSessions(prev => prev.map(s => s.id === currentChatId ? { ...s, messages: errorMessages } : s))
+      setChatSessions(prev => {
+        const nextSessions = prev.map(s => s.id === currentChatId ? { ...s, messages: errorMessages } : s)
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(nextSessions))
+        }
+        return nextSessions
+      })
     } finally {
       setIsAiLoading(false)
     }
@@ -1497,7 +1558,8 @@ export default function VetWorkspaceBeatrizV28() {
               </button>
             </div>
 
-            <div className="pl-3 pr-1 space-y-1 my-1 max-h-32 overflow-y-auto border-l border-pink-200 ml-2">
+            {/* LISTA DE SESSÕES DO CHAT COM EXCLUSÃO TOTAL CORRIGIDA */}
+            <div className="pl-3 pr-1 space-y-1 my-1 max-h-36 overflow-y-auto border-l border-pink-200 ml-2">
               {chatSessions.map(session => (
                 <div 
                   key={session.id}
@@ -1505,8 +1567,13 @@ export default function VetWorkspaceBeatrizV28() {
                   className={`group flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer text-[11px] transition ${session.id === currentChatId && activeTab === 'ia' ? 'bg-pink-200/80 font-bold text-pink-950' : 'text-stone-600 hover:bg-pink-50'}`}
                 >
                   <span className="truncate flex-1">{session.title}</span>
-                  <button onClick={(e) => deleteChatSession(e, session.id)} className="opacity-0 group-hover:opacity-100 text-stone-400 hover:text-red-500 p-0.5">
-                    <Trash2 className="w-3 h-3" />
+                  <button 
+                    type="button"
+                    title="Excluir esta conversa"
+                    onClick={(e) => deleteChatSession(e, session.id)} 
+                    className="text-stone-400 hover:text-red-500 p-1 rounded transition shrink-0"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               ))}
@@ -1567,7 +1634,6 @@ export default function VetWorkspaceBeatrizV28() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {/* BOTÃO MODO PRIVACIDADE (OCULTAR / MOSTRAR VALORES) */}
             <button 
               onClick={() => setShowValues(!showValues)} 
               className="bg-white hover:bg-pink-50 text-pink-700 px-3 py-1.5 rounded-xl border border-pink-200 text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
@@ -1627,7 +1693,7 @@ export default function VetWorkspaceBeatrizV28() {
                 </div>
               </div>
 
-              {/* MURAL DE PETS & MEMÓRIAS DA BEATRIZ */}
+              {/* MURAL DE PETS */}
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-pink-100 pb-4 gap-4">
                   <div>
@@ -1685,7 +1751,7 @@ export default function VetWorkspaceBeatrizV28() {
                               🕊️ Eterno no Coração
                             </span>
                           )}
-                          <button onClick={() => setPersonalPets(personalPets.filter(p => p.id !== pet.id))} className="absolute top-3 right-3 bg-white/90 hover:bg-rose-500 hover:text-white text-stone-600 p-1.5 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition">
+                          <button onClick={() => { lastLocalMutationRef.current = Date.now(); setPersonalPets(personalPets.filter(p => p.id !== pet.id)); }} className="absolute top-3 right-3 bg-white/90 hover:bg-rose-500 hover:text-white text-stone-600 p-1.5 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -1744,6 +1810,7 @@ export default function VetWorkspaceBeatrizV28() {
                                 onClick={() => {
                                   const rateVal = parseFloat(editClinicRateInput)
                                   if (editClinicNameInput.trim() && !isNaN(rateVal)) {
+                                    lastLocalMutationRef.current = Date.now()
                                     setClinics(clinics.map(item => item.id === c.id ? { ...item, name: editClinicNameInput.trim(), defaultRate: rateVal } : item))
                                     setEditingClinicId(null)
                                   }
@@ -1878,7 +1945,7 @@ export default function VetWorkspaceBeatrizV28() {
                                     <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${s.status === 'Pago' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
                                       {s.status}
                                     </span>
-                                    <button onClick={() => setShifts(shifts.filter(item => item.id !== s.id))} className="text-stone-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                                    <button onClick={() => { lastLocalMutationRef.current = Date.now(); setShifts(shifts.filter(item => item.id !== s.id)); }} className="text-stone-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
                                   </div>
                                 </div>
                               )
@@ -1949,7 +2016,7 @@ export default function VetWorkspaceBeatrizV28() {
                               const stepKey = `${idx}-${sIdx}`
                               const isChecked = skincareDone[stepKey] || false
                               return (
-                                <div key={sIdx} onClick={() => setSkincareDone({ ...skincareDone, [stepKey]: !isChecked })} className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition border ${isChecked ? 'bg-emerald-50 border-emerald-200 text-emerald-900 font-bold' : 'bg-white border-pink-100 text-stone-700 hover:bg-pink-50'}`}>
+                                <div key={sIdx} onClick={() => { lastLocalMutationRef.current = Date.now(); setSkincareDone({ ...skincareDone, [stepKey]: !isChecked }); }} className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition border ${isChecked ? 'bg-emerald-50 border-emerald-200 text-emerald-900 font-bold' : 'bg-white border-pink-100 text-stone-700 hover:bg-pink-50'}`}>
                                   <span className="text-xs">{step}</span>
                                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${isChecked ? 'bg-emerald-200 text-emerald-800' : 'bg-stone-100 text-stone-500'}`}>
                                     {isChecked ? '✅ Já testei / Uso' : 'Marcar usado'}
@@ -1974,7 +2041,7 @@ export default function VetWorkspaceBeatrizV28() {
                     </div>
                     <textarea 
                       value={mimosWishlist} 
-                      onChange={(e) => setMimosWishlist(e.target.value)} 
+                      onChange={(e) => { lastLocalMutationRef.current = Date.now(); setMimosWishlist(e.target.value); }} 
                       rows={12} 
                       className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" 
                       placeholder="Anote aqui os mimos, roupas, livros e acessórios que você quer comprar ou ganhar..." 
@@ -2001,7 +2068,7 @@ export default function VetWorkspaceBeatrizV28() {
 
                     <textarea 
                       value={descompressaoNotes} 
-                      onChange={(e) => setDescompressaoNotes(e.target.value)} 
+                      onChange={(e) => { lastLocalMutationRef.current = Date.now(); setDescompressaoNotes(e.target.value); }} 
                       rows={4} 
                       className="w-full bg-pink-50/25 border border-pink-200 p-4 rounded-2xl text-stone-800 text-xs leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" 
                       placeholder="Minhas anotações e favoritos sobre filmes, séries e livros..." 
@@ -2159,7 +2226,7 @@ export default function VetWorkspaceBeatrizV28() {
                   <input 
                     type="text" 
                     value={selectedItem.title}
-                    onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, title: e.target.value } : i))}
+                    onChange={(e) => { lastLocalMutationRef.current = Date.now(); setItems(items.map(i => i.id === selectedItem.id ? { ...i, title: e.target.value } : i)); }}
                     className="w-full bg-transparent text-2xl lg:text-3xl font-extrabold text-pink-950 focus:outline-none placeholder-pink-200"
                     placeholder="Título da Página ou Receita..."
                   />
@@ -2183,7 +2250,7 @@ export default function VetWorkspaceBeatrizV28() {
                         <button
                           type="button"
                           title="Excluir Anexo"
-                          onClick={() => handleRemoveAttachment(selectedItem.id, att.id)}
+                          onClick={() => { lastLocalMutationRef.current = Date.now(); handleRemoveAttachment(selectedItem.id, att.id); }}
                           className="text-stone-400 hover:text-red-500 p-0.5 ml-1 transition cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -2209,19 +2276,19 @@ export default function VetWorkspaceBeatrizV28() {
               {studySubTab === 'resumo' && (
                 <div className="space-y-3">
                   <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><FileText className="w-3.5 h-3.5 text-pink-500" /> Prescrição ou Conteúdo Principal</label>
-                  <textarea value={selectedItem.content || ''} onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, content: e.target.value } : i))} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" placeholder="Escreva a receita, doses ou resumo da matéria..." />
+                  <textarea value={selectedItem.content || ''} onChange={(e) => { lastLocalMutationRef.current = Date.now(); setItems(items.map(i => i.id === selectedItem.id ? { ...i, content: e.target.value } : i)); }} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" placeholder="Escreva a receita, doses ou resumo da matéria..." />
                 </div>
               )}
               {studySubTab === 'diferenciais' && (
                 <div className="space-y-3">
                   <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><Layers className="w-3.5 h-3.5 text-pink-500" /> Diagnósticos Diferenciais / Opções</label>
-                  <textarea value={selectedItem.differential || ''} onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, differential: e.target.value } : i))} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" placeholder="Liste aqui os diferenciais clínicos..." />
+                  <textarea value={selectedItem.differential || ''} onChange={(e) => { lastLocalMutationRef.current = Date.now(); setItems(items.map(i => i.id === selectedItem.id ? { ...i, differential: e.target.value } : i)); }} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" placeholder="Liste aqui os diferenciais clínicos..." />
                 </div>
               )}
               {studySubTab === 'pontos' && (
                 <div className="space-y-3">
                   <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><Bookmark className="w-3.5 h-3.5 text-pink-500" /> Observações, Contraindicações & Avisos ao Tutor</label>
-                  <textarea value={selectedItem.notes || ''} onChange={(e) => setItems(items.map(i => i.id === selectedItem.id ? { ...i, notes: e.target.value } : i))} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" placeholder="Anotações importantes..." />
+                  <textarea value={selectedItem.notes || ''} onChange={(e) => { lastLocalMutationRef.current = Date.now(); setItems(items.map(i => i.id === selectedItem.id ? { ...i, notes: e.target.value } : i)); }} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300" placeholder="Anotações importantes..." />
                 </div>
               )}
             </div>
@@ -2578,7 +2645,7 @@ export default function VetWorkspaceBeatrizV28() {
                           <span className={`text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-wider ${p.status === 'Internado' ? 'bg-amber-100 text-amber-800' : p.status === 'Alta' ? 'bg-emerald-100 text-emerald-800' : 'bg-pink-100 text-pink-800'}`}>
                             {p.status}
                           </span>
-                          <button onClick={() => setPatients(patients.filter(item => item.id !== p.id))} className="text-stone-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => { lastLocalMutationRef.current = Date.now(); setPatients(patients.filter(item => item.id !== p.id)); }} className="text-stone-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </div>
 
@@ -2855,6 +2922,7 @@ export default function VetWorkspaceBeatrizV28() {
                 <form onSubmit={(e) => {
                   e.preventDefault()
                   if (!newTaskText.trim()) return
+                  lastLocalMutationRef.current = Date.now()
                   setTasks([{ id: Date.now().toString(), text: newTaskText, completed: false, category: newTaskCategory, notes: newTaskNotes, attachments: [] }, ...tasks])
                   setNewTaskText('')
                   setNewTaskNotes('')
@@ -2873,7 +2941,7 @@ export default function VetWorkspaceBeatrizV28() {
                   <div key={t.id} className={`bg-white/95 backdrop-blur-md border p-4 rounded-2xl shadow-xs flex flex-col gap-3 transition ${t.completed ? 'border-emerald-200 bg-emerald-50/20 opacity-80' : 'border-pink-100'}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <input type="checkbox" checked={t.completed} onChange={() => setTasks(tasks.map(item => item.id === t.id ? { ...item, completed: !item.completed } : item))} className="w-4 h-4 accent-pink-500 cursor-pointer" />
+                        <input type="checkbox" checked={t.completed} onChange={() => { lastLocalMutationRef.current = Date.now(); setTasks(tasks.map(item => item.id === t.id ? { ...item, completed: !item.completed } : item)); }} className="w-4 h-4 accent-pink-500 cursor-pointer" />
                         <div>
                           <span className={`text-xs font-bold ${t.completed ? 'line-through text-stone-400' : 'text-pink-950'}`}>{t.text}</span>
                           <span className="ml-2 text-[10px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-md font-semibold">{t.category}</span>
@@ -2881,7 +2949,7 @@ export default function VetWorkspaceBeatrizV28() {
                       </div>
                       <div className="flex items-center gap-2">
                         <button onClick={() => { setActiveTaskForAttach(t.id); fileInputRef.current?.click(); }} className="text-xs text-pink-600 hover:bg-pink-50 px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1 border border-pink-200 cursor-pointer"><Paperclip className="w-3 h-3" /> Anexar</button>
-                        <button onClick={() => setTasks(tasks.filter(item => item.id !== t.id))} className="text-stone-400 hover:text-red-500 p-1"><Trash2 className="w-4 h-4" /></button>
+                        <button onClick={() => { lastLocalMutationRef.current = Date.now(); setTasks(tasks.filter(item => item.id !== t.id)); }} className="text-stone-400 hover:text-red-500 p-1"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </div>
                     {t.notes && <p className="text-xs text-stone-600 pl-7">{t.notes}</p>}
@@ -2942,6 +3010,7 @@ export default function VetWorkspaceBeatrizV28() {
                   <form onSubmit={(e) => {
                     e.preventDefault()
                     if (!eventTitle.trim()) return
+                    lastLocalMutationRef.current = Date.now()
                     setEvents([...events, { dateKey: selectedDate, title: eventTitle, description: eventDesc, time: eventTime }])
                     setEventTitle('')
                     setEventDesc('')
@@ -2970,7 +3039,7 @@ export default function VetWorkspaceBeatrizV28() {
                             </div>
                             {ev.description && <div className="text-[11px] text-stone-600 mt-0.5">{ev.description}</div>}
                           </div>
-                          <button onClick={() => setEvents(events.filter(item => !(item.title === ev.title && item.dateKey === ev.dateKey)))} className="text-stone-400 hover:text-red-500 p-1"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => { lastLocalMutationRef.current = Date.now(); setEvents(events.filter(item => !(item.title === ev.title && item.dateKey === ev.dateKey))); }} className="text-stone-400 hover:text-red-500 p-1"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       ))
                     )}
@@ -2985,7 +3054,6 @@ export default function VetWorkspaceBeatrizV28() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <h2 className="text-xl font-extrabold text-pink-950">Controle Financeiro & Gráficos</h2>
                 
-                {/* BOTÃO DE OCULTAR / MOSTRAR VALORES DENTRO DA ABA FINANÇAS */}
                 <button 
                   onClick={() => setShowValues(!showValues)}
                   className="flex items-center gap-2 bg-white hover:bg-pink-100 text-pink-800 px-4 py-2 rounded-xl text-xs font-bold transition border border-pink-200 cursor-pointer shadow-2xs w-fit"
@@ -3025,6 +3093,7 @@ export default function VetWorkspaceBeatrizV28() {
                         onClick={() => {
                           const val = parseFloat(tempIncomeInput)
                           if (!isNaN(val)) {
+                            lastLocalMutationRef.current = Date.now()
                             setMonthlyIncome(val)
                             setIsEditingIncome(false)
                             alert('Renda base atualizada com sucesso!')
@@ -3050,7 +3119,7 @@ export default function VetWorkspaceBeatrizV28() {
                 )}
               </div>
 
-              {/* CARD DE COFRINHO / RESERVA */}
+              {/* CARD DE COFRINHO */}
               <div className="bg-gradient-to-br from-pink-50 to-pink-100/60 border border-pink-200 p-6 rounded-3xl shadow-xs space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
@@ -3083,6 +3152,7 @@ export default function VetWorkspaceBeatrizV28() {
                       onClick={() => {
                         const val = parseFloat(cofrinhoInput)
                         if (!isNaN(val) && val > 0) {
+                          lastLocalMutationRef.current = Date.now()
                           setCofrinhoAmount(prev => prev + val)
                           setCofrinhoInput('')
                         }
@@ -3096,6 +3166,7 @@ export default function VetWorkspaceBeatrizV28() {
                       onClick={() => {
                         const val = parseFloat(cofrinhoInput)
                         if (!isNaN(val) && val > 0) {
+                          lastLocalMutationRef.current = Date.now()
                           setCofrinhoAmount(prev => Math.max(0, prev - val))
                           setCofrinhoInput('')
                         }
@@ -3185,6 +3256,7 @@ export default function VetWorkspaceBeatrizV28() {
                                 onClick={() => {
                                   const amt = parseFloat(editAmountInput)
                                   if (!isNaN(amt)) {
+                                    lastLocalMutationRef.current = Date.now()
                                     setFinances(finances.map(item => item.id === f.id ? { ...item, description: editDescInput || item.description, amount: amt } : item))
                                     setEditingExpenseId(null)
                                   }
@@ -3220,7 +3292,7 @@ export default function VetWorkspaceBeatrizV28() {
                                 >
                                   <Edit3 className="w-3.5 h-3.5" />
                                 </button>
-                                <button onClick={() => setFinances(finances.filter(item => item.id !== f.id))} className="text-stone-400 hover:text-red-500 p-1"><Trash2 className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => { lastLocalMutationRef.current = Date.now(); setFinances(finances.filter(item => item.id !== f.id)); }} className="text-stone-400 hover:text-red-500 p-1"><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             </>
                           )}
