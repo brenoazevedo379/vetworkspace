@@ -348,7 +348,7 @@ const CONDOLENCE_MESSAGES = [
   {
     id: 'c6',
     title: '🤍 Acolhimento Veterinário Especializado',
-    text: `Querido(a) [Tutor(a)],\n\nAcompanhando de perto toda a trajetória do(a) [Pet], pude testemunhar o quanto ele(a) era amado(a) e o quanto você lutou para proporcionar o melhor cuidado e conforto em cada instante.\n\nDespedir-se de um anjo de quatro patas é uma das provas mais duras que a vida nos impõe. Que você possa encontrar conforto nas lembranças doces, na certeza do dever cumprido e no carinho imenso que marcou a vida de vocês. Meu abraço mais fraterno e solidário.`
+    text: `Querido(a) [Tutor(a)],\n\nAcompanhando de perto toda a trajetória do(a) [Pet], pude testemunhar o quanto ele(a) era amado(a) e o quanto você lutou para proporcionar o melhor cuidado e conforto em cada instante.\n\nDespedir-se de um anjo de quatro patas é uma das provas mais duras que a vida nos impõe. Que você possa encontrar conforto nas lembranças doces, na certeza do dever cumprido e no carinho imenso que marcaram a vida de vocês. Meu abraço mais fraterno e solidário.`
   },
   {
     id: 'c7',
@@ -361,7 +361,6 @@ export default function VetWorkspaceBeatrizV28() {
   const [isMounted, setIsMounted] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
 
-  // REGISTRA O MOMENTO DA ÚLTIMA ALTERAÇÃO LOCAL
   const lastLocalMutationRef = useRef<number>(0)
 
   useEffect(() => {
@@ -1004,7 +1003,7 @@ export default function VetWorkspaceBeatrizV28() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'app_data', filter: 'id=eq.beatriz_workspace_v28' },
         (payload: any) => {
-          if (Date.now() - lastLocalMutationRef.current < 15000) {
+          if (Date.now() - lastLocalMutationRef.current < 25000) {
             return
           }
 
@@ -1027,14 +1026,20 @@ export default function VetWorkspaceBeatrizV28() {
             
             if (d.chatSessions) {
               setChatSessions(prevSessions => {
-                const localTotalMsgs = prevSessions.reduce((acc, s) => acc + (s.messages?.length || 0), 0)
-                const incomingTotalMsgs = d.chatSessions.reduce((acc: number, s: any) => acc + (s.messages?.length || 0), 0)
-                if (localTotalMsgs > incomingTotalMsgs) {
-                  return prevSessions
-                }
-                return d.chatSessions
+                const merged = d.chatSessions.map((remoteSession: ChatSession) => {
+                  const localSession = prevSessions.find(s => s.id === remoteSession.id)
+                  if (localSession && localSession.messages.length > remoteSession.messages.length) {
+                    return localSession
+                  }
+                  return remoteSession
+                })
+                const remoteIds = new Set(d.chatSessions.map((s: any) => s.id))
+                const localOnly = prevSessions.filter(s => !remoteIds.has(s.id))
+                
+                const finalSessions = [...merged, ...localOnly]
+                localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(finalSessions))
+                return finalSessions
               })
-              localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(d.chatSessions))
             }
 
             if (d.clinics) { setClinics(d.clinics); localStorage.setItem('vet_clinics_v28', JSON.stringify(d.clinics)); }
@@ -1373,64 +1378,85 @@ export default function VetWorkspaceBeatrizV28() {
     e.preventDefault()
     if (!chatInput.trim() || isAiLoading) return
 
-    lastLocalMutationRef.current = Date.now()
-
     const userText = chatInput.trim()
     setChatInput('')
     setIsAiLoading(true)
 
-    const updatedMessages: ChatMessage[] = [
-      ...currentChatSession.messages,
-      { sender: 'user', text: userText }
-    ]
+    lastLocalMutationRef.current = Date.now()
 
-    const autoTitle = currentChatSession.title === 'Novo Caso Clínico' || currentChatSession.title === 'Caso Clínico Inicial'
-      ? (userText.length > 28 ? userText.substring(0, 28) + '...' : userText)
-      : currentChatSession.title
+    let currentHistory: ChatMessage[] = []
 
-    setChatSessions(prev => {
-      const nextSessions = prev.map(s => s.id === currentChatId ? { ...s, title: autoTitle, messages: updatedMessages } : s)
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(nextSessions))
-      }
-      return nextSessions
+    setChatSessions(prevSessions => {
+      const updated = prevSessions.map(session => {
+        if (session.id === currentChatId) {
+          const isDefaultTitle = session.title === 'Novo Caso Clínico' || session.title === 'Caso Clínico Inicial'
+          const newTitle = isDefaultTitle
+            ? (userText.length > 28 ? userText.substring(0, 28) + '...' : userText)
+            : session.title
+
+          const newMessages: ChatMessage[] = [...session.messages, { sender: 'user', text: userText }]
+          currentHistory = newMessages
+
+          return {
+            ...session,
+            title: newTitle,
+            messages: newMessages
+          }
+        }
+        return session
+      })
+
+      localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(updated))
+      return updated
     })
 
     try {
       const response = await fetch('/api/vet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: userText })
+        body: JSON.stringify({ prompt: userText, messages: currentHistory })
       })
-      const data = await response.json()
-      const reply = data.reply || 'Não foi possível processar a resposta no momento.'
+
+      let replyText = 'Não foi possível obter resposta no momento.'
+
+      if (response.ok) {
+        const data = await response.json()
+        replyText = data.reply || replyText
+      } else {
+        const errData = await response.json().catch(() => ({}))
+        replyText = errData.error || `Erro no servidor (${response.status}).`
+      }
 
       lastLocalMutationRef.current = Date.now()
 
-      const finalMessages: ChatMessage[] = [
-        ...updatedMessages,
-        { sender: 'ai', text: reply }
-      ]
+      setChatSessions(prevSessions => {
+        const updated = prevSessions.map(session => {
+          if (session.id === currentChatId) {
+            return {
+              ...session,
+              messages: [...session.messages, { sender: 'ai', text: replyText }]
+            }
+          }
+          return session
+        })
 
-      setChatSessions(prev => {
-        const nextSessions = prev.map(s => s.id === currentChatId ? { ...s, messages: finalMessages } : s)
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(nextSessions))
-        }
-        return nextSessions
+        localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(updated))
+        return updated
       })
-    } catch (err) {
+    } catch (err: any) {
       lastLocalMutationRef.current = Date.now()
-      const errorMessages: ChatMessage[] = [
-        ...updatedMessages,
-        { sender: 'ai', text: 'Erro de conexão com o servidor de IA. Verifique sua conexão.' }
-      ]
-      setChatSessions(prev => {
-        const nextSessions = prev.map(s => s.id === currentChatId ? { ...s, messages: errorMessages } : s)
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(nextSessions))
-        }
-        return nextSessions
+      setChatSessions(prevSessions => {
+        const updated = prevSessions.map(session => {
+          if (session.id === currentChatId) {
+            return {
+              ...session,
+              messages: [...session.messages, { sender: 'ai', text: '⚠️ Falha na conexão ao enviar mensagem. Tente novamente.' }]
+            }
+          }
+          return session
+        })
+        localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(updated))
+        return updated
       })
     } finally {
       lastLocalMutationRef.current = Date.now()
