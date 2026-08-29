@@ -1641,8 +1641,8 @@ export default function VetWorkspaceBeatrizV28() {
 
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".docx,.doc,.xlsx,.xls,.png,.jpg,.jpeg,.pdf" />
 
-      {/* BARRA LATERAL */}
-      <div className={`${isSidebarOpen ? 'w-72' : 'w-0'} transition-all duration-200 bg-white/90 backdrop-blur-md border-r border-pink-100 flex flex-col z-10 overflow-hidden shadow-xs select-none`}>
+      {/* BARRA LATERAL (Largura aumentada para w-88 para melhor visualização) */}
+      <div className={`${isSidebarOpen ? 'w-88' : 'w-0'} transition-all duration-200 bg-white/90 backdrop-blur-md border-r border-pink-100 flex flex-col z-10 overflow-hidden shadow-xs select-none shrink-0`}>
         <div className="p-4 border-b border-pink-100 flex items-center justify-between bg-pink-50/30">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-pink-500 flex items-center justify-center text-white font-bold text-xs shadow-sm">V</div>
