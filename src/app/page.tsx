@@ -180,6 +180,7 @@ interface ShiftRecord {
 
 interface SpecialistConsultationItem {
   id: string
+  clinicId: string
   specialty: string
   quantity: number
   unitValue: number
@@ -484,7 +485,7 @@ export default function VetWorkspaceBeatrizV28() {
   const [shiftDetails, setShiftDetails] = useState('')
   const [isShiftAiLoading, setIsShiftAiLoading] = useState(false)
 
-  // Specialist Consultations state ("finanças extras" por fora)
+  // Specialist Consultations state ("finanças extras" por fora) com suporte a clínica e edição
   const [specialistConsultations, setSpecialistConsultations] = useState<SpecialistConsultationItem[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vet_specialist_consultations_v28')
@@ -492,11 +493,21 @@ export default function VetWorkspaceBeatrizV28() {
     }
     return []
   })
+  const [specClinicId, setSpecClinicId] = useState('c-1')
   const [specSpecialty, setSpecSpecialty] = useState('')
   const [specQuantity, setSpecQuantity] = useState('1')
   const [specUnitValue, setSpecUnitValue] = useState('')
   const [specDate, setSpecDate] = useState(todayDateKey)
   const [specNotes, setSpecNotes] = useState('')
+
+  // Estados para edição de consulta de especialista
+  const [editingSpecialistId, setEditingSpecialistId] = useState<string | null>(null)
+  const [editSpecClinicId, setEditSpecClinicId] = useState('')
+  const [editSpecSpecialty, setEditSpecSpecialty] = useState('')
+  const [editSpecQuantity, setEditSpecQuantity] = useState('1')
+  const [editSpecUnitValue, setEditSpecUnitValue] = useState('')
+  const [editSpecDate, setEditSpecDate] = useState('')
+  const [editSpecNotes, setEditSpecNotes] = useState('')
 
   const handleAddSpecialistConsultation = (e: React.FormEvent) => {
     e.preventDefault()
@@ -504,6 +515,7 @@ export default function VetWorkspaceBeatrizV28() {
     lastLocalMutationRef.current = Date.now()
     const newSpec: SpecialistConsultationItem = {
       id: Date.now().toString(),
+      clinicId: specClinicId,
       specialty: specSpecialty.trim(),
       quantity: parseInt(specQuantity) || 1,
       unitValue: parseFloat(specUnitValue) || 0,
@@ -1690,7 +1702,7 @@ export default function VetWorkspaceBeatrizV28() {
 
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".docx,.doc,.xlsx,.xls,.png,.jpg,.jpeg,.pdf" />
 
-      {/* BARRA LATERAL (Largura aumentada para w-88 para melhor visualização) */}
+      {/* BARRA LATERAL */}
       <div className={`${isSidebarOpen ? 'w-88' : 'w-0'} transition-all duration-200 bg-white/90 backdrop-blur-md border-r border-pink-100 flex flex-col z-10 overflow-hidden shadow-xs select-none shrink-0`}>
         <div className="p-4 border-b border-pink-100 flex items-center justify-between bg-pink-50/30">
           <div className="flex items-center gap-2.5">
@@ -2212,7 +2224,7 @@ export default function VetWorkspaceBeatrizV28() {
                   <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Stethoscope className="w-6 h-6" /></div>
                   <div>
                     <h2 className="text-base font-extrabold text-pink-950">Consultas com Especialistas 🩺 (Finanças Extras por Fora)</h2>
-                    <p className="text-xs text-pink-500 font-medium">Cadastre quantas consultas com especialista foram realizadas e os respectivos valores. Integrado automaticamente com as finanças.</p>
+                    <p className="text-xs text-pink-500 font-medium">Selecione a clínica onde o atendimento foi realizado, cadastre a especialidade e o valor. Integrado automaticamente com as finanças.</p>
                   </div>
                 </div>
 
@@ -2220,6 +2232,19 @@ export default function VetWorkspaceBeatrizV28() {
                   <div className="space-y-4">
                     <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Registrar Consulta Especializada</h3>
                     <form onSubmit={handleAddSpecialistConsultation} className="space-y-3">
+                      <div>
+                        <label className="text-xs font-bold text-stone-700 block mb-1">Clínica de Atendimento</label>
+                        <select 
+                          value={specClinicId} 
+                          onChange={(e) => setSpecClinicId(e.target.value)} 
+                          className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
+                        >
+                          {clinics.map(c => (
+                            <option key={c.id} value={c.id}>🏥 {c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
                       <div>
                         <label className="text-xs font-bold text-stone-700 block mb-1">Especialidade / Descrição</label>
                         <input type="text" placeholder="Ex: Cardiologia, Oftalmologia, Ortopedia..." value={specSpecialty} onChange={(e) => setSpecSpecialty(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
@@ -2262,20 +2287,138 @@ export default function VetWorkspaceBeatrizV28() {
                       </div>
 
                       <div className="pt-3 border-t border-pink-200/60 space-y-2">
-                        <span className="text-xs font-extrabold text-pink-950">Histórico de Consultas:</span>
+                        <span className="text-xs font-extrabold text-pink-950">Histórico de Consultas (Com Clínicas, Edição e Exclusão):</span>
                         <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
                           {specialistConsultations.length === 0 ? (
                             <p className="text-xs text-stone-400 text-center py-6">Nenhuma consulta com especialista registrada.</p>
                           ) : (
-                            specialistConsultations.map(item => (
-                              <div key={item.id} className="bg-white border border-pink-200 p-3 rounded-xl text-xs flex items-center justify-between shadow-2xs">
-                                <div>
-                                  <div className="font-extrabold text-pink-950">🩺 {item.specialty} ({item.date})</div>
-                                  <div className="text-[10px] text-stone-600">Qtd: {item.quantity} | Unit: {maskValue(item.unitValue)} | Total: <span className="font-bold text-emerald-600">{maskValue(item.quantity * item.unitValue)}</span> {item.notes ? `• ${item.notes}` : ''}</div>
+                            specialistConsultations.map(item => {
+                              const isEditing = editingSpecialistId === item.id
+                              const clinicObj = clinics.find(c => c.id === item.clinicId)
+                              return (
+                                <div key={item.id} className="bg-white border border-pink-200 p-3 rounded-xl text-xs shadow-2xs space-y-2">
+                                  {isEditing ? (
+                                    <div className="space-y-2">
+                                      <div>
+                                        <label className="text-[10px] font-bold text-stone-500 block mb-0.5">Clínica</label>
+                                        <select 
+                                          value={editSpecClinicId} 
+                                          onChange={(e) => setEditSpecClinicId(e.target.value)} 
+                                          className="w-full bg-pink-50 border border-pink-200 rounded-lg px-2.5 py-1 text-xs text-pink-950 font-bold"
+                                        >
+                                          {clinics.map(c => (
+                                            <option key={c.id} value={c.id}>🏥 {c.name}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                      <input 
+                                        type="text" 
+                                        value={editSpecSpecialty} 
+                                        onChange={(e) => setEditSpecSpecialty(e.target.value)} 
+                                        className="w-full bg-pink-50 border border-pink-200 rounded-lg px-2.5 py-1 text-xs text-pink-950 font-bold"
+                                        placeholder="Especialidade"
+                                      />
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <input 
+                                          type="number" 
+                                          min="1" 
+                                          value={editSpecQuantity} 
+                                          onChange={(e) => setEditSpecQuantity(e.target.value)} 
+                                          className="bg-pink-50 border border-pink-200 rounded-lg px-2.5 py-1 text-xs text-pink-950"
+                                          placeholder="Qtd"
+                                        />
+                                        <input 
+                                          type="number" 
+                                          step="0.01" 
+                                          value={editSpecUnitValue} 
+                                          onChange={(e) => setEditSpecUnitValue(e.target.value)} 
+                                          className="bg-pink-50 border border-pink-200 rounded-lg px-2.5 py-1 text-xs text-pink-950"
+                                          placeholder="Valor Unitário R$"
+                                        />
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <input 
+                                          type="date" 
+                                          value={editSpecDate} 
+                                          onChange={(e) => setEditSpecDate(e.target.value)} 
+                                          className="bg-pink-50 border border-pink-200 rounded-lg px-2.5 py-1 text-xs text-pink-950"
+                                        />
+                                        <input 
+                                          type="text" 
+                                          value={editSpecNotes} 
+                                          onChange={(e) => setEditSpecNotes(e.target.value)} 
+                                          className="bg-pink-50 border border-pink-200 rounded-lg px-2.5 py-1 text-xs text-pink-950"
+                                          placeholder="Observações"
+                                        />
+                                      </div>
+                                      <div className="flex items-center gap-2 pt-1">
+                                        <button 
+                                          onClick={() => {
+                                            const qty = parseInt(editSpecQuantity) || 1
+                                            const val = parseFloat(editSpecUnitValue) || 0
+                                            if (editSpecSpecialty.trim() && !isNaN(val)) {
+                                              lastLocalMutationRef.current = Date.now()
+                                              setSpecialistConsultations(specialistConsultations.map(s => s.id === item.id ? {
+                                                ...s,
+                                                clinicId: editSpecClinicId,
+                                                specialty: editSpecSpecialty.trim(),
+                                                quantity: qty,
+                                                unitValue: val,
+                                                date: editSpecDate || s.date,
+                                                notes: editSpecNotes.trim()
+                                              } : s))
+                                              setEditingSpecialistId(null)
+                                            }
+                                          }} 
+                                          className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded-lg font-bold"
+                                        >
+                                          Salvar
+                                        </button>
+                                        <button 
+                                          onClick={() => setEditingSpecialistId(null)} 
+                                          className="bg-stone-200 hover:bg-stone-300 text-stone-700 px-3 py-1 rounded-lg font-bold"
+                                        >
+                                          Cancelar
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <div className="font-extrabold text-pink-950">
+                                          🩺 {item.specialty} <span className="text-pink-600 font-semibold">({clinicObj?.name || 'Clínica'})</span> - {item.date}
+                                        </div>
+                                        <div className="text-[10px] text-stone-600">Qtd: {item.quantity} | Unit: {maskValue(item.unitValue)} | Total: <span className="font-bold text-emerald-600">{maskValue(item.quantity * item.unitValue)}</span> {item.notes ? `• ${item.notes}` : ''}</div>
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <button 
+                                          onClick={() => {
+                                            setEditingSpecialistId(item.id)
+                                            setEditSpecClinicId(item.clinicId || clinics[0]?.id || '')
+                                            setEditSpecSpecialty(item.specialty)
+                                            setEditSpecQuantity(item.quantity.toString())
+                                            setEditSpecUnitValue(item.unitValue.toString())
+                                            setEditSpecDate(item.date)
+                                            setEditSpecNotes(item.notes || '')
+                                          }}
+                                          className="text-pink-600 hover:bg-pink-50 p-1 rounded-lg transition"
+                                          title="Editar Consulta"
+                                        >
+                                          <Edit3 className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button 
+                                          onClick={() => { lastLocalMutationRef.current = Date.now(); setSpecialistConsultations(specialistConsultations.filter(s => s.id !== item.id)); }} 
+                                          className="text-stone-400 hover:text-red-500 p-1 transition"
+                                          title="Excluir Consulta"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
-                                <button onClick={() => { lastLocalMutationRef.current = Date.now(); setSpecialistConsultations(specialistConsultations.filter(s => s.id !== item.id)); }} className="text-stone-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
-                              </div>
-                            ))
+                              )
+                            })
                           )}
                         </div>
                       </div>
