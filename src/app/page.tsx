@@ -178,6 +178,15 @@ interface ShiftRecord {
   details: string
 }
 
+interface SpecialistConsultationItem {
+  id: string
+  specialty: string
+  quantity: number
+  unitValue: number
+  date: string
+  notes?: string
+}
+
 interface PersonalPet {
   id: string
   name: string
@@ -370,7 +379,7 @@ export default function VetWorkspaceBeatrizV28() {
     setIsMounted(true)
   }, [])
 
-  const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'bsa' | 'ia' | 'condolencias' | 'tarefas' | 'calendario' | 'financas' | 'wishlist' | 'clinicas' | 'pessoal'>('painel')
+  const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'bsa' | 'ia' | 'condolencias' | 'tarefas' | 'calendario' | 'financas' | 'wishlist' | 'clinicas' | 'especialistas' | 'pessoal'>('painel')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isPersonalSidebarOpen, setIsPersonalSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Sincronizado')
@@ -474,6 +483,41 @@ export default function VetWorkspaceBeatrizV28() {
   const [shiftStatus, setShiftStatus] = useState<'Pago' | 'Pendente'>('Pendente')
   const [shiftDetails, setShiftDetails] = useState('')
   const [isShiftAiLoading, setIsShiftAiLoading] = useState(false)
+
+  // Specialist Consultations state ("finanças extras" por fora)
+  const [specialistConsultations, setSpecialistConsultations] = useState<SpecialistConsultationItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_specialist_consultations_v28')
+      if (saved) try { return JSON.parse(saved) } catch(e) {}
+    }
+    return []
+  })
+  const [specSpecialty, setSpecSpecialty] = useState('')
+  const [specQuantity, setSpecQuantity] = useState('1')
+  const [specUnitValue, setSpecUnitValue] = useState('')
+  const [specDate, setSpecDate] = useState(todayDateKey)
+  const [specNotes, setSpecNotes] = useState('')
+
+  const handleAddSpecialistConsultation = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!specSpecialty.trim() || !specUnitValue) return
+    lastLocalMutationRef.current = Date.now()
+    const newSpec: SpecialistConsultationItem = {
+      id: Date.now().toString(),
+      specialty: specSpecialty.trim(),
+      quantity: parseInt(specQuantity) || 1,
+      unitValue: parseFloat(specUnitValue) || 0,
+      date: specDate,
+      notes: specNotes.trim()
+    }
+    setSpecialistConsultations([newSpec, ...specialistConsultations])
+    setSpecSpecialty('')
+    setSpecQuantity('1')
+    setSpecUnitValue('')
+    setSpecNotes('')
+  }
+
+  const totalSpecialistIncome = specialistConsultations.reduce((acc, item) => acc + (item.quantity * item.unitValue), 0)
 
   const [personalSubTab, setPersonalSubTab] = useState<'skincare' | 'wishlist' | 'descompressao' | 'jogos' | 'locais' | 'podcasts'>('skincare')
   
@@ -989,6 +1033,7 @@ export default function VetWorkspaceBeatrizV28() {
           if (d.chatSessions) { setChatSessions(d.chatSessions); localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(d.chatSessions)); }
           if (d.clinics) { setClinics(d.clinics); localStorage.setItem('vet_clinics_v28', JSON.stringify(d.clinics)); }
           if (d.shifts) { setShifts(d.shifts); localStorage.setItem('vet_shifts_v28', JSON.stringify(d.shifts)); }
+          if (d.specialistConsultations) { setSpecialistConsultations(d.specialistConsultations); localStorage.setItem('vet_specialist_consultations_v28', JSON.stringify(d.specialistConsultations)); }
           if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v28', JSON.stringify(d.personalPets)); }
           if (d.skincareDone) { setSkincareDone(d.skincareDone); localStorage.setItem('vet_skincare_checked_v28', JSON.stringify(d.skincareDone)); }
           if (d.mimosWishlist) { setMimosWishlist(d.mimosWishlist); localStorage.setItem('vet_mimos_v28', d.mimosWishlist); }
@@ -1050,6 +1095,7 @@ export default function VetWorkspaceBeatrizV28() {
 
             if (d.clinics) { setClinics(d.clinics); localStorage.setItem('vet_clinics_v28', JSON.stringify(d.clinics)); }
             if (d.shifts) { setShifts(d.shifts); localStorage.setItem('vet_shifts_v28', JSON.stringify(d.shifts)); }
+            if (d.specialistConsultations) { setSpecialistConsultations(d.specialistConsultations); localStorage.setItem('vet_specialist_consultations_v28', JSON.stringify(d.specialistConsultations)); }
             if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v28', JSON.stringify(d.personalPets)); }
             if (d.skincareDone) { setSkincareDone(d.skincareDone); localStorage.setItem('vet_skincare_checked_v28', JSON.stringify(d.skincareDone)); }
           }
@@ -1078,6 +1124,7 @@ export default function VetWorkspaceBeatrizV28() {
     localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(chatSessions))
     localStorage.setItem('vet_clinics_v28', JSON.stringify(clinics))
     localStorage.setItem('vet_shifts_v28', JSON.stringify(shifts))
+    localStorage.setItem('vet_specialist_consultations_v28', JSON.stringify(specialistConsultations))
     localStorage.setItem('vet_personal_pets_v28', JSON.stringify(personalPets))
     localStorage.setItem('vet_skincare_checked_v28', JSON.stringify(skincareDone))
     localStorage.setItem('vet_mimos_v28', mimosWishlist)
@@ -1105,6 +1152,7 @@ export default function VetWorkspaceBeatrizV28() {
           chatSessions,
           clinics,
           shifts,
+          specialistConsultations,
           personalPets,
           skincareDone,
           mimosWishlist,
@@ -1132,7 +1180,7 @@ export default function VetWorkspaceBeatrizV28() {
 
     const timer = setTimeout(syncToCloud, 800)
     return () => clearTimeout(timer)
-  }, [isInitialized, items, patients, customDrugs, monthlyIncome, cofrinhoAmount, finances, tasks, events, chatSessions, clinics, shifts, personalPets, skincareDone, mimosWishlist, descompressaoNotes])
+  }, [isInitialized, items, patients, customDrugs, monthlyIncome, cofrinhoAmount, finances, tasks, events, chatSessions, clinics, shifts, specialistConsultations, personalPets, skincareDone, mimosWishlist, descompressaoNotes])
 
   const selectedItem = items.find(i => i.id === selectedItemId && i.type === 'page') || items.find(i => i.type === 'page')
 
@@ -1173,7 +1221,8 @@ export default function VetWorkspaceBeatrizV28() {
   }
 
   const totalGastos = finances.reduce((acc, f) => acc + f.amount, 0)
-  const saldoRestante = (monthlyIncome + totalShiftsAmount) - totalGastos
+  const totalRendaGeral = monthlyIncome + totalShiftsAmount + totalSpecialistIncome
+  const saldoRestante = totalRendaGeral - totalGastos
 
   const handleAddFinancial = (e: React.FormEvent) => {
     e.preventDefault()
@@ -1671,9 +1720,12 @@ export default function VetWorkspaceBeatrizV28() {
             </div>
           </div>
 
-          <div className="pt-2 border-t border-pink-100/60 mt-2">
+          <div className="pt-2 border-t border-pink-100/60 mt-2 space-y-1">
             <button onClick={() => setActiveTab('clinicas')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'clinicas' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
               <Stethoscope className="w-4 h-4" /> Clínicas & Plantões 🏥
+            </button>
+            <button onClick={() => setActiveTab('especialistas')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'especialistas' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+              <Stethoscope className="w-4 h-4 text-pink-500" /> Consultas com Especialistas 🩺
             </button>
           </div>
 
@@ -1859,7 +1911,7 @@ export default function VetWorkspaceBeatrizV28() {
                 <div onClick={() => setActiveTab('financas')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
                   <div>
                     <span className="text-xs font-semibold text-pink-400">Renda do Mês</span>
-                    <div className="text-2xl font-extrabold text-emerald-600 mt-1">{maskValue(monthlyIncome + totalShiftsAmount)}</div>
+                    <div className="text-2xl font-extrabold text-emerald-600 mt-1">{maskValue(totalRendaGeral)}</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600"><Wallet className="w-5 h-5" /></div>
                 </div>
@@ -1870,10 +1922,10 @@ export default function VetWorkspaceBeatrizV28() {
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500"><CreditCard className="w-5 h-5" /></div>
                 </div>
-                <div onClick={() => setActiveTab('clinicas')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
+                <div onClick={() => setActiveTab('especialistas')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
                   <div>
-                    <span className="text-xs font-semibold text-pink-400">Plantões Cadastrados</span>
-                    <div className="text-2xl font-extrabold text-pink-950 mt-1">{shifts.length} Registrados</div>
+                    <span className="text-xs font-semibold text-pink-400">Consultas Especialistas</span>
+                    <div className="text-2xl font-extrabold text-pink-950 mt-1">{maskValue(totalSpecialistIncome)}</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-pink-500"><Stethoscope className="w-5 h-5" /></div>
                 </div>
@@ -2143,6 +2195,87 @@ export default function VetWorkspaceBeatrizV28() {
                                 </div>
                               )
                             })
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'especialistas' && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
+                <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Stethoscope className="w-6 h-6" /></div>
+                  <div>
+                    <h2 className="text-base font-extrabold text-pink-950">Consultas com Especialistas 🩺 (Finanças Extras por Fora)</h2>
+                    <p className="text-xs text-pink-500 font-medium">Cadastre quantas consultas com especialista foram realizadas e os respectivos valores. Integrado automaticamente com as finanças.</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Registrar Consulta Especializada</h3>
+                    <form onSubmit={handleAddSpecialistConsultation} className="space-y-3">
+                      <div>
+                        <label className="text-xs font-bold text-stone-700 block mb-1">Especialidade / Descrição</label>
+                        <input type="text" placeholder="Ex: Cardiologia, Oftalmologia, Ortopedia..." value={specSpecialty} onChange={(e) => setSpecSpecialty(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-bold text-stone-700 block mb-1">Quantidade de Consultas</label>
+                          <input type="number" min="1" value={specQuantity} onChange={(e) => setSpecQuantity(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-stone-700 block mb-1">Valor Unitário (R$)</label>
+                          <input type="number" step="0.01" placeholder="Ex: 250.00" value={specUnitValue} onChange={(e) => setSpecUnitValue(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-stone-700 block mb-1">Data</label>
+                        <input type="date" value={specDate} onChange={(e) => setSpecDate(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-stone-700 block mb-1">Observações (Opcional)</label>
+                        <input type="text" placeholder="Nome do paciente / tutor ou detalhes..." value={specNotes} onChange={(e) => setSpecNotes(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                      </div>
+
+                      <button type="submit" className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
+                        <Plus className="w-4 h-4" /> Salvar Consulta Especializada
+                      </button>
+                    </form>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Consolidado Finanças Extras (Especialistas)</h3>
+                    <div className="bg-pink-50 border border-pink-200 p-5 rounded-2xl space-y-4">
+                      <div>
+                        <span className="text-[10px] font-bold text-pink-600 uppercase">Total Acumulado com Especialistas</span>
+                        <div className="text-3xl font-extrabold text-pink-950 mt-1">{maskValue(totalSpecialistIncome)}</div>
+                        <p className="text-[11px] text-stone-500 mt-1">Este valor soma automaticamente nas suas finanças totais ("por fora").</p>
+                      </div>
+
+                      <div className="pt-3 border-t border-pink-200/60 space-y-2">
+                        <span className="text-xs font-extrabold text-pink-950">Histórico de Consultas:</span>
+                        <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+                          {specialistConsultations.length === 0 ? (
+                            <p className="text-xs text-stone-400 text-center py-6">Nenhuma consulta com especialista registrada.</p>
+                          ) : (
+                            specialistConsultations.map(item => (
+                              <div key={item.id} className="bg-white border border-pink-200 p-3 rounded-xl text-xs flex items-center justify-between shadow-2xs">
+                                <div>
+                                  <div className="font-extrabold text-pink-950">🩺 {item.specialty} ({item.date})</div>
+                                  <div className="text-[10px] text-stone-600">Qtd: {item.quantity} | Unit: {maskValue(item.unitValue)} | Total: <span className="font-bold text-emerald-600">{maskValue(item.quantity * item.unitValue)}</span> {item.notes ? `• ${item.notes}` : ''}</div>
+                                </div>
+                                <button onClick={() => { lastLocalMutationRef.current = Date.now(); setSpecialistConsultations(specialistConsultations.filter(s => s.id !== item.id)); }} className="text-stone-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                              </div>
+                            ))
                           )}
                         </div>
                       </div>
@@ -2951,15 +3084,15 @@ export default function VetWorkspaceBeatrizV28() {
                       <div className="grid grid-cols-3 gap-2">
                         <div>
                           <label className="text-[10px] font-bold text-stone-600 block mb-1">Dose (mg/kg)</label>
-                          <input type="number" step="0.01" value={calcDosage} onChange={(e) => setCalcDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <input type="number" step="0.01" value={calcDosage} onChange={(e) => setCalcDosage(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-stone-600 block mb-1">Conc. (mg/ml)</label>
-                          <input type="number" step="0.01" value={calcConcentration} onChange={(e) => setCalcConcentration(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <input type="number" step="0.01" value={calcConcentration} onChange={(e) => setCalcConcentration(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-stone-600 block mb-1">Comp. (mg)</label>
-                          <input type="number" step="0.1" placeholder="Ex: 20" value={calcPillMg} onChange={(e) => setCalcPillMg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <input type="number" step="0.1" placeholder="Ex: 20" value={calcPillMg} onChange={(e) => setCalcPillMg(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                       </div>
 
@@ -3387,22 +3520,25 @@ export default function VetWorkspaceBeatrizV28() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
-                  <span className="text-xs font-bold text-stone-400">Renda Total do Mês (Base + Plantões)</span>
-                  <div className="flex items-center justify-between mt-2">
-                    <div className="text-2xl font-extrabold text-emerald-600">{maskValue(monthlyIncome + totalShiftsAmount)}</div>
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs">
+                  <span className="text-xs font-bold text-stone-400">Renda Base + Plantões</span>
+                  <div className="text-xl font-extrabold text-emerald-600 mt-2">{maskValue(monthlyIncome + totalShiftsAmount)}</div>
+                </div>
+
+                <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs">
+                  <span className="text-xs font-bold text-stone-400">Finanças Extras (Especialistas)</span>
+                  <div className="text-xl font-extrabold text-pink-600 mt-2">{maskValue(totalSpecialistIncome)}</div>
                 </div>
 
                 <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs">
                   <span className="text-xs font-bold text-stone-400">Total de Despesas</span>
-                  <div className="text-2xl font-extrabold text-rose-500 mt-2">{maskValue(totalGastos)}</div>
+                  <div className="text-xl font-extrabold text-rose-500 mt-2">{maskValue(totalGastos)}</div>
                 </div>
 
                 <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs">
                   <span className="text-xs font-bold text-stone-400">Saldo Restante</span>
-                  <div className={`text-2xl font-extrabold mt-2 ${saldoRestante >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  <div className={`text-xl font-extrabold mt-2 ${saldoRestante >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                     {maskValue(saldoRestante)}
                   </div>
                 </div>
