@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { 
   LayoutDashboard, 
@@ -61,7 +61,9 @@ import {
   Activity,
   ShieldAlert,
   Syringe,
-  ClipboardList
+  ClipboardList,
+  Utensils,
+  Weight
 } from 'lucide-react'
 import WishlistTab from '@/components/WishlistTab'
 
@@ -136,6 +138,10 @@ interface PatientRecord {
   status: 'Em Atendimento' | 'Internado' | 'Alta' | 'Observação'
   date: string
   evolutions: PatientEvolution[]
+  neoplasia?: string
+  timeline?: PatientTimelineEvent[]
+  alerts?: PatientAlert[]
+  continuousMedications?: string[]
 }
 
 interface VetDrug {
@@ -375,6 +381,1150 @@ const CONDOLENCE_MESSAGES = [
   }
 ]
 
+/**
+ * Ferramentas de apoio à decisão clínica.
+ * - VCOG-CTCAE v2: LeBlanc et al., Vet Comp Oncol. 2021;19:311-352.
+ * - Energia/Nutrição: 2021 AAHA Nutrition and Weight Management Guidelines.
+ * - ECC: WSAVA Global Nutrition Committee, escala 1-9 para cães.
+ *
+ * Os módulos abaixo NÃO substituem julgamento clínico, laudo anatomopatológico,
+ * bula, protocolo institucional ou consulta com nutricionista veterinário.
+ */
+
+export type TimelineEventType =
+  | 'peso'
+  | 'tumor'
+  | 'hemograma'
+  | 'quimioterapia'
+  | 'toxicidade'
+  | 'histologia'
+  | 'nutricao'
+  | 'outro'
+
+export interface PatientTimelineEvent {
+  id: string
+  date: string
+  type: TimelineEventType
+  title: string
+  notes?: string
+  weightKg?: number
+  tumorMeasurementMm?: string
+  neutrophils?: number
+  platelets?: number
+  hematocrit?: number
+  chemoDrug?: string
+  chemoCycle?: string
+  nadirStart?: string
+  nadirEnd?: string
+  grade?: number
+}
+
+export interface PatientAlert {
+  id: string
+  createdAt: string
+  severity: 'info' | 'warning' | 'critical'
+  title: string
+  message: string
+  resolved?: boolean
+}
+
+export interface ClinicalPatientLite {
+  id: string
+  petName: string
+  tutor: string
+  species: string
+  neoplasia?: string
+  timeline?: PatientTimelineEvent[]
+  alerts?: PatientAlert[]
+  continuousMedications?: string[]
+}
+
+interface CalendarEventLite {
+  dateKey: string
+  title: string
+  description: string
+  time?: string
+}
+
+interface TaskLite {
+  id: string
+  text: string
+  completed: boolean
+  category: string
+}
+
+const inputClass = 'w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none focus:border-pink-400 font-medium'
+const labelClass = 'text-[11px] font-bold text-stone-600 block mb-1'
+const cardClass = 'bg-white/95 border border-pink-100 rounded-3xl shadow-sm p-6 md:p-8'
+
+const formatLocalDate = (iso: string) => {
+  if (!iso) return '—'
+  const [y, m, d] = iso.split('-').map(Number)
+  if (!y || !m || !d) return iso
+  return new Date(y, m - 1, d).toLocaleDateString('pt-BR')
+}
+
+const todayLocalIso = () => {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+const addDaysIso = (iso: string, days: number) => {
+  const [y, m, d] = iso.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  date.setDate(date.getDate() + days)
+  const yy = date.getFullYear()
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const dd = String(date.getDate()).padStart(2, '0')
+  return `${yy}-${mm}-${dd}`
+}
+
+const NADIR_WINDOWS: Record<string, { start: number; end: number }> = {
+  Doxorrubicina: { start: 7, end: 14 },
+  Ciclofosfamida: { start: 7, end: 14 },
+  Vincristina: { start: 7, end: 10 },
+  'Lomustina (CCNU)': { start: 7, end: 21 },
+  Clorambucil: { start: 7, end: 14 },
+}
+
+const getNadirWindow = (drug: string, date: string) => {
+  const win = NADIR_WINDOWS[drug]
+  if (!win || !date) return null
+  return { start: addDaysIso(date, win.start), end: addDaysIso(date, win.end) }
+}
+
+const VCOG_GENERAL: Record<number, { label: string; description: string; workflow: string }> = {
+  1: {
+    label: 'Grau 1 — Leve',
+    description: 'Assintomático ou sintomas leves; observação clínica/diagnóstica; intervenção geralmente não indicada.',
+    workflow: 'Registrar, orientar monitoramento e revisar antes do próximo ciclo se houver progressão.',
+  },
+  2: {
+    label: 'Grau 2 — Moderado',
+    description: 'Intervenção ambulatorial ou não invasiva indicada; limitação moderada das atividades diárias.',
+    workflow: 'Avaliar suporte ambulatorial e discutir necessidade de ajuste/adiamento conforme protocolo e tendência clínica.',
+  },
+  3: {
+    label: 'Grau 3 — Grave',
+    description: 'Grave ou clinicamente significativo, sem risco de vida imediato; hospitalização pode ser indicada.',
+    workflow: 'Reavaliação veterinária prioritária; não liberar novo ciclo sem revisão oncológica e laboratorial.',
+  },
+  4: {
+    label: 'Grau 4 — Risco de vida',
+    description: 'Consequências potencialmente fatais; intervenção urgente indicada.',
+    workflow: 'Atendimento emergencial/hospitalização e estabilização. Suspender programação antineoplásica até reavaliação formal.',
+  },
+  5: {
+    label: 'Grau 5 — Óbito relacionado ao evento',
+    description: 'Óbito natural ou eutanásia relacionada ao evento adverso, conforme documentação clínica.',
+    workflow: 'Documentar evento, atribuição e relação temporal de forma completa.',
+  },
+}
+
+const toxicitySeverityClass = (grade: number) => {
+  if (grade >= 4) return 'bg-rose-50 border-rose-300 text-rose-900'
+  if (grade === 3) return 'bg-orange-50 border-orange-300 text-orange-900'
+  if (grade === 2) return 'bg-amber-50 border-amber-300 text-amber-900'
+  return 'bg-emerald-50 border-emerald-200 text-emerald-900'
+}
+
+function autoGradeHematologic(event: string, value: number, lln: number, species: 'cao' | 'gato') {
+  if (!Number.isFinite(value) || value < 0) return 0
+
+  if (event === 'Neutropenia') {
+    if (value < 500) return 4
+    if (value < 1000) return 3
+    if (value < 1500) return 2
+    if (lln > 0 && value < lln) return 1
+    return 0
+  }
+
+  if (event === 'Trombocitopenia') {
+    if (value < 25000) return 4
+    if (value < 50000) return 3
+    if (value < 100000) return 2
+    if (lln > 0 && value < lln) return 1
+    return 0
+  }
+
+  if (event === 'PCV/Hematócrito baixo') {
+    if (value < 15) return 4
+    if (value < 20) return 3
+    if (species === 'cao') {
+      if (value < 30) return 2
+      if (lln > 0 && value < lln) return 1
+    } else {
+      if (value < 25) return 2
+      if (lln > 0 && value < lln) return 1
+    }
+    return 0
+  }
+
+  return 0
+}
+
+export type OncologyFeatureMode = 'toxicity' | 'interactions' | 'postchemo' | 'histology'
+
+interface AdvancedOncologyFeatureProps {
+  mode: OncologyFeatureMode
+  patients: ClinicalPatientLite[]
+  onAddTimelineEvent?: (patientId: string, event: PatientTimelineEvent) => void
+  onAddAlert?: (patientId: string, alert: PatientAlert) => void
+  onUpdateContinuousMedications?: (patientId: string, medications: string[]) => void
+}
+
+export function AdvancedOncologyFeature({
+  mode,
+  patients,
+  onAddTimelineEvent,
+  onAddAlert,
+  onUpdateContinuousMedications,
+}: AdvancedOncologyFeatureProps) {
+  const [patientId, setPatientId] = useState('')
+
+  const selectedPatient = patients.find(p => p.id === patientId)
+  const patientOptions = patients.filter(p => ['canino', 'felino', 'cão', 'gato'].some(s => p.species.toLowerCase().includes(s)))
+
+  if (mode === 'toxicity') {
+    return <ToxicityGrading patientOptions={patientOptions} patientId={patientId} setPatientId={setPatientId} onAddTimelineEvent={onAddTimelineEvent} onAddAlert={onAddAlert} />
+  }
+  if (mode === 'interactions') {
+    return <InteractionChecker patientOptions={patientOptions} patientId={patientId} setPatientId={setPatientId} selectedPatient={selectedPatient} onUpdateContinuousMedications={onUpdateContinuousMedications} />
+  }
+  if (mode === 'postchemo') {
+    return <PostChemoGuidance patientOptions={patientOptions} patientId={patientId} setPatientId={setPatientId} selectedPatient={selectedPatient} onAddTimelineEvent={onAddTimelineEvent} />
+  }
+  return <HistologyGrading patientOptions={patientOptions} patientId={patientId} setPatientId={setPatientId} selectedPatient={selectedPatient} onAddTimelineEvent={onAddTimelineEvent} />
+}
+
+function PatientSelector({
+  patients,
+  value,
+  onChange,
+  label = 'Paciente (opcional para simulação)',
+}: {
+  patients: ClinicalPatientLite[]
+  value: string
+  onChange: (value: string) => void
+  label?: string
+}) {
+  return (
+    <div>
+      <label className={labelClass}>{label}</label>
+      <select value={value} onChange={e => onChange(e.target.value)} className={inputClass}>
+        <option value="">Sem vincular a prontuário</option>
+        {patients.map(p => (
+          <option key={p.id} value={p.id}>{p.petName} • {p.tutor} • {p.species}{p.neoplasia ? ` • ${p.neoplasia}` : ''}</option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
+function ModuleHeader({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle: string }) {
+  return (
+    <div className="flex items-center gap-3 border-b border-pink-100 pb-4 mb-5">
+      <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm">{icon}</div>
+      <div>
+        <h2 className="text-base font-extrabold text-pink-950">{title}</h2>
+        <p className="text-xs text-pink-500 font-medium">{subtitle}</p>
+      </div>
+    </div>
+  )
+}
+
+function SafetyBanner({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="bg-amber-50 border border-amber-300 rounded-2xl p-3 text-[11px] leading-relaxed text-amber-900 flex gap-2">
+      <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+      <div>{children}</div>
+    </div>
+  )
+}
+
+function ToxicityGrading({
+  patientOptions,
+  patientId,
+  setPatientId,
+  onAddTimelineEvent,
+  onAddAlert,
+}: {
+  patientOptions: ClinicalPatientLite[]
+  patientId: string
+  setPatientId: (v: string) => void
+  onAddTimelineEvent?: AdvancedOncologyFeatureProps['onAddTimelineEvent']
+  onAddAlert?: AdvancedOncologyFeatureProps['onAddAlert']
+}) {
+  const [event, setEvent] = useState('Neutropenia')
+  const [species, setSpecies] = useState<'cao' | 'gato'>('cao')
+  const [value, setValue] = useState('')
+  const [lln, setLln] = useState('')
+  const [manualGrade, setManualGrade] = useState(1)
+  const [fatalEvent, setFatalEvent] = useState(false)
+  const [notes, setNotes] = useState('')
+  const [saved, setSaved] = useState(false)
+
+  const hematologic = ['Neutropenia', 'Trombocitopenia', 'PCV/Hematócrito baixo'].includes(event)
+  const numericValue = Number(value)
+  const numericLln = Number(lln)
+  const autoGrade = hematologic ? autoGradeHematologic(event, numericValue, numericLln, species) : manualGrade
+  const finalGrade = fatalEvent ? 5 : (autoGrade || (hematologic ? 0 : manualGrade))
+
+  const unit = event === 'PCV/Hematócrito baixo' ? '%' : '/µL'
+
+  const saveEvent = () => {
+    if (!patientId || finalGrade === 0) return
+    const date = todayLocalIso()
+    onAddTimelineEvent?.(patientId, {
+      id: `tox-${Date.now()}`,
+      date,
+      type: 'toxicidade',
+      title: `${event} — VCOG Grau ${finalGrade}`,
+      grade: finalGrade,
+      notes: `${hematologic ? `Valor: ${value} ${unit}${lln ? ` | LLN lab: ${lln} ${unit}` : ''}. ` : ''}${notes}`.trim(),
+    })
+    if (finalGrade >= 3) {
+      onAddAlert?.(patientId, {
+        id: `alert-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        severity: finalGrade >= 4 ? 'critical' : 'warning',
+        title: `Toxicidade VCOG Grau ${finalGrade}: ${event}`,
+        message: VCOG_GENERAL[finalGrade].workflow,
+        resolved: false,
+      })
+    }
+    setSaved(true)
+    window.setTimeout(() => setSaved(false), 2200)
+  }
+
+  return (
+    <div className="max-w-5xl mx-auto">
+      <div className={cardClass}>
+        <ModuleHeader icon={<ShieldAlert className="w-6 h-6" />} title="Graduação de Toxicidade — VCOG-CTCAE v2" subtitle="Cães e gatos • eventos hematológicos automáticos + graduação clínica não hematológica" />
+        <SafetyBanner>
+          Os limites hematológicos abaixo seguem a VCOG-CTCAE v2. O grau 1 depende do limite inferior de referência (LLN) do laboratório. Para eventos não hematológicos, selecione o grau conforme a descrição específica do VCOG quando disponível; a descrição geral funciona como apoio.
+        </SafetyBanner>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+          <div className="space-y-4">
+            <PatientSelector patients={patientOptions} value={patientId} onChange={setPatientId} />
+            <div>
+              <label className={labelClass}>Evento adverso</label>
+              <select value={event} onChange={e => { setEvent(e.target.value); setValue(''); setLln('') }} className={inputClass}>
+                <optgroup label="Hematológicos — cálculo automático">
+                  <option>Neutropenia</option>
+                  <option>Trombocitopenia</option>
+                  <option>PCV/Hematócrito baixo</option>
+                </optgroup>
+                <optgroup label="Não hematológicos — graduação clínica">
+                  <option>Vômito</option>
+                  <option>Diarreia</option>
+                  <option>Hiporexia/Anorexia</option>
+                  <option>Letargia/Fadiga</option>
+                  <option>Dor</option>
+                  <option>Reação de hipersensibilidade</option>
+                  <option>Outro</option>
+                </optgroup>
+              </select>
+            </div>
+
+            {hematologic ? (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelClass}>Espécie</label>
+                    <select value={species} onChange={e => setSpecies(e.target.value as 'cao' | 'gato')} className={inputClass}>
+                      <option value="cao">Canino</option>
+                      <option value="gato">Felino</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Resultado ({unit})</label>
+                    <input type="number" min="0" step={event === 'PCV/Hematócrito baixo' ? '0.1' : '1'} value={value} onChange={e => setValue(e.target.value)} className={inputClass} placeholder="Valor do exame" />
+                  </div>
+                </div>
+                <div>
+                  <label className={labelClass}>LLN do laboratório ({unit})</label>
+                  <input type="number" min="0" step={event === 'PCV/Hematócrito baixo' ? '0.1' : '1'} value={lln} onChange={e => setLln(e.target.value)} className={inputClass} placeholder="Necessário para diferenciar normal de Grau 1" />
+                </div>
+              </>
+            ) : (
+              <div>
+                <label className={labelClass}>Grau clínico</label>
+                <div className="grid grid-cols-5 gap-2">
+                  {[1, 2, 3, 4, 5].map(g => (
+                    <button key={g} type="button" onClick={() => setManualGrade(g)} className={`py-2 rounded-xl border text-xs font-extrabold transition ${manualGrade === g ? 'bg-pink-500 text-white border-pink-500' : 'bg-white border-pink-200 text-pink-800 hover:bg-pink-50'}`}>
+                      G{g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <label className={`flex items-start gap-2 p-3 rounded-xl border text-[11px] font-bold ${fatalEvent ? 'bg-rose-50 border-rose-300 text-rose-900' : 'bg-white border-pink-100 text-stone-600'}`}>
+              <input type="checkbox" checked={fatalEvent} onChange={e => setFatalEvent(e.target.checked)} className="accent-rose-600 mt-0.5" />
+              Óbito/eutanásia atribuída ao evento adverso — classificar como Grau 5 independentemente do valor laboratorial.
+            </label>
+
+            <div>
+              <label className={labelClass}>Observações clínicas</label>
+              <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} className={inputClass} placeholder="Sintomas, duração, intervenções, tendência..." />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {finalGrade === 0 ? (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-sm text-emerald-900 font-bold">
+                Sem toxicidade graduável pelos dados informados. Confirme o intervalo de referência do laboratório.
+              </div>
+            ) : (
+              <div className={`border rounded-2xl p-5 space-y-3 ${toxicitySeverityClass(finalGrade)}`}>
+                <div className="text-lg font-extrabold">{VCOG_GENERAL[finalGrade].label}</div>
+                <p className="text-xs leading-relaxed">{VCOG_GENERAL[finalGrade].description}</p>
+                <div className="bg-white/70 rounded-xl p-3 text-xs leading-relaxed">
+                  <strong>Fluxo clínico sugerido no sistema:</strong> {VCOG_GENERAL[finalGrade].workflow}
+                </div>
+              </div>
+            )}
+
+            {hematologic && (
+              <div className="bg-pink-50/60 border border-pink-200 rounded-2xl p-4 text-[11px] text-stone-700 space-y-1">
+                <div className="font-extrabold text-pink-950">Referência rápida VCOG-CTCAE v2</div>
+                {event === 'Neutropenia' && <p>G1: 1.500 até &lt;LLN • G2: 1.000–1.499 • G3: 500–999 • G4: &lt;500 neutrófilos/µL.</p>}
+                {event === 'Trombocitopenia' && <p>Sem sangramento: G1: 100.000 até &lt;LLN • G2: 50.000–99.000 • G3: 25.000–49.000 • G4: &lt;25.000 plaquetas/µL.</p>}
+                {event === 'PCV/Hematócrito baixo' && <p>G2: cão 20–&lt;30%, gato 20–&lt;25% • G3: 15–&lt;20% • G4: &lt;15%. G1 depende do LLN do laboratório.</p>}
+              </div>
+            )}
+
+            <button type="button" disabled={!patientId || finalGrade === 0} onClick={saveEvent} className="w-full bg-pink-500 hover:bg-pink-600 disabled:opacity-40 text-white py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
+              {saved ? <Check className="w-4 h-4" /> : <ClipboardList className="w-4 h-4" />}
+              {saved ? 'Registrado no prontuário' : patientId ? 'Registrar na timeline do paciente' : 'Selecione um paciente para registrar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface InteractionFlag {
+  severity: 'warning' | 'critical'
+  title: string
+  detail: string
+}
+
+function InteractionChecker({
+  patientOptions,
+  patientId,
+  setPatientId,
+  selectedPatient,
+  onUpdateContinuousMedications,
+}: {
+  patientOptions: ClinicalPatientLite[]
+  patientId: string
+  setPatientId: (v: string) => void
+  selectedPatient?: ClinicalPatientLite
+  onUpdateContinuousMedications?: AdvancedOncologyFeatureProps['onUpdateContinuousMedications']
+}) {
+  const [chemo, setChemo] = useState('Doxorrubicina')
+  const [meds, setMeds] = useState('')
+  const [classes, setClasses] = useState<string[]>([])
+  const [saved, setSaved] = useState(false)
+
+  React.useEffect(() => {
+    setMeds((selectedPatient?.continuousMedications || []).join(', '))
+    setClasses([])
+  }, [selectedPatient?.id])
+
+  const toggleClass = (name: string) => setClasses(prev => prev.includes(name) ? prev.filter(x => x !== name) : [...prev, name])
+
+  const detectedClasses = useMemo(() => {
+    const text = meds.toLowerCase()
+    const detected: string[] = []
+    const hasAny = (terms: string[]) => terms.some(term => text.includes(term))
+    if (hasAny(['meloxicam', 'carprofeno', 'carprofen', 'firocoxib', 'deracoxib', 'robenacoxib', 'cetoprofeno', 'ketoprofen', 'aspirina'])) detected.push('AINE')
+    if (hasAny(['prednisolona', 'prednisona', 'dexametasona', 'metilprednisolona', 'hidrocortisona'])) detected.push('Corticoide')
+    if (hasAny(['clopidogrel', 'rivaroxabana', 'rivaroxaban', 'apixabana', 'apixaban', 'heparina', 'varfarina', 'warfarin'])) detected.push('Anticoagulante')
+    if (hasAny(['cetoconazol', 'ketoconazole', 'itraconazol', 'itraconazole', 'claritromicina', 'clarithromycin'])) detected.push('CYP/P-gp')
+    return detected
+  }, [meds])
+
+  const riskClasses = useMemo(() => Array.from(new Set([...classes, ...detectedClasses])), [classes, detectedClasses])
+
+  const flags = useMemo<InteractionFlag[]>(() => {
+    const f: InteractionFlag[] = []
+    if (riskClasses.includes('AINE') && riskClasses.includes('Corticoide')) {
+      f.push({ severity: 'critical', title: 'AINE + corticoide', detail: 'Associação com risco gastrointestinal/renal aumentado. Revisar necessidade de uso concomitante e intervalo entre classes.' })
+    }
+    if (chemo === 'Lomustina (CCNU)' && riskClasses.includes('Hepatotóxico')) {
+      f.push({ severity: 'critical', title: 'Lomustina + potencial hepatotóxico', detail: 'Risco de hepatotoxicidade aditiva. Revisar medicações, enzimas hepáticas e protocolo de monitoramento.' })
+    }
+    if (chemo === 'Doxorrubicina' && riskClasses.includes('Cardiotóxico')) {
+      f.push({ severity: 'critical', title: 'Doxorrubicina + potencial cardiotóxico', detail: 'Possível cardiotoxicidade aditiva. Necessita revisão do histórico, dose cumulativa e avaliação cardiológica quando indicada.' })
+    }
+    if (chemo === 'Vincristina' && riskClasses.includes('CYP/P-gp')) {
+      f.push({ severity: 'warning', title: 'Vincristina + inibidor forte CYP3A/P-gp', detail: 'Pode aumentar exposição/toxicidade de alcaloides da vinca. Confirmar interação específica da medicação antes da administração.' })
+    }
+    if (riskClasses.includes('Mielossupressor')) {
+      f.push({ severity: 'warning', title: 'Terapia concomitante mielossupressora', detail: 'Pode haver toxicidade hematológica aditiva. Correlacionar com hemograma, nadir esperado e protocolo.' })
+    }
+    if (riskClasses.includes('Anticoagulante')) {
+      f.push({ severity: 'warning', title: 'Anticoagulante/antiagregante em paciente oncológico', detail: 'Revisar risco hemorrágico especialmente se houver trombocitopenia, tumor ulcerado ou procedimento invasivo.' })
+    }
+    if ((chemo === 'Cisplatina' || chemo === 'Carboplatina') && riskClasses.includes('Nefrotóxico')) {
+      f.push({ severity: 'critical', title: `${chemo} + potencial nefrotóxico`, detail: 'Possível risco renal aditivo. Revisar função renal, hidratação e alternativas antes da terapia.' })
+    }
+    return f
+  }, [chemo, riskClasses])
+
+  const saveMeds = () => {
+    if (!patientId) return
+    const parsed = meds.split(/[\n,;]/).map(x => x.trim()).filter(Boolean)
+    onUpdateContinuousMedications?.(patientId, parsed)
+    setSaved(true)
+    window.setTimeout(() => setSaved(false), 2000)
+  }
+
+  return (
+    <div className="max-w-5xl mx-auto">
+      <div className={cardClass}>
+        <ModuleHeader icon={<Activity className="w-6 h-6" />} title="Alerta de Interações Medicamentosas" subtitle="Triagem rule-based entre quimioterápicos, medicações contínuas e classes de risco" />
+        <SafetyBanner>
+          Esta tela faz detecção automática limitada por nomes comuns e permite marcar classes adicionais; não é uma base exaustiva de interações. Sempre conferir bula, farmacologia, comorbidades, função orgânica e protocolo oncológico antes de alterar tratamento.
+        </SafetyBanner>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+          <div className="space-y-4">
+            <PatientSelector patients={patientOptions} value={patientId} onChange={setPatientId} />
+            <div>
+              <label className={labelClass}>Quimioterápico</label>
+              <select value={chemo} onChange={e => setChemo(e.target.value)} className={inputClass}>
+                {['Doxorrubicina', 'Ciclofosfamida', 'Vincristina', 'Lomustina (CCNU)', 'Clorambucil', 'Carboplatina', 'Cisplatina'].map(x => <option key={x}>{x}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Medicações de uso contínuo</label>
+              <textarea rows={4} value={meds} onChange={e => setMeds(e.target.value)} className={inputClass} placeholder="Ex.: prednisolona, meloxicam, fenobarbital..." />
+              {patientId && <button type="button" onClick={saveMeds} className="mt-2 text-[11px] font-bold text-pink-700 hover:underline">{saved ? '✓ Salvo no paciente' : 'Salvar lista no prontuário'}</button>}
+              {detectedClasses.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5"><span className="text-[10px] text-stone-500">Detectado pelo nome:</span>{detectedClasses.map(c => <span key={c} className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">{c}</span>)}</div>}
+            </div>
+            <div>
+              <label className={labelClass}>Classes/riscos adicionais para revisão manual</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  ['AINE', 'AINE'],
+                  ['Corticoide', 'Corticoide'],
+                  ['Hepatotóxico', 'Potencial hepatotóxico'],
+                  ['Nefrotóxico', 'Potencial nefrotóxico'],
+                  ['Cardiotóxico', 'Potencial cardiotóxico'],
+                  ['CYP/P-gp', 'Inibidor forte CYP3A/P-gp'],
+                  ['Mielossupressor', 'Outro mielossupressor'],
+                  ['Anticoagulante', 'Anticoagulante/antiagregante'],
+                ].map(([value, label]) => (
+                  <label key={value} className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer text-[11px] font-bold ${classes.includes(value) ? 'bg-pink-100 border-pink-300 text-pink-900' : 'bg-white border-pink-100 text-stone-600'}`}>
+                    <input type="checkbox" checked={classes.includes(value)} onChange={() => toggleClass(value)} className="accent-pink-500" /> {label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-xs font-extrabold text-pink-950 uppercase tracking-wider">Resultado da triagem</h3>
+            {flags.length === 0 ? (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-xs text-emerald-900 leading-relaxed">
+                Nenhum conflito de alta relevância foi disparado pelas classes marcadas. Isso <strong>não significa ausência de interação</strong>; revise os nomes das medicações individualmente.
+              </div>
+            ) : flags.map((flag, idx) => (
+              <div key={idx} className={`rounded-2xl p-4 border ${flag.severity === 'critical' ? 'bg-rose-50 border-rose-300 text-rose-900' : 'bg-amber-50 border-amber-300 text-amber-900'}`}>
+                <div className="font-extrabold text-xs flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> {flag.title}</div>
+                <p className="text-[11px] mt-1.5 leading-relaxed">{flag.detail}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PostChemoGuidance({
+  patientOptions,
+  patientId,
+  setPatientId,
+  selectedPatient,
+  onAddTimelineEvent,
+}: {
+  patientOptions: ClinicalPatientLite[]
+  patientId: string
+  setPatientId: (v: string) => void
+  selectedPatient?: ClinicalPatientLite
+  onAddTimelineEvent?: AdvancedOncologyFeatureProps['onAddTimelineEvent']
+}) {
+  const [drug, setDrug] = useState('Doxorrubicina')
+  const [date, setDate] = useState(() => todayLocalIso())
+  const [hours, setHours] = useState('72')
+  const [extra, setExtra] = useState('')
+  const [copied, setCopied] = useState(false)
+
+  const guidance = useMemo(() => {
+    const pet = selectedPatient?.petName || '[nome do pet]'
+    const tutor = selectedPatient?.tutor || '[tutor]'
+    return `ORIENTAÇÕES APÓS QUIMIOTERAPIA\n\nPaciente: ${pet}\nTutor(a): ${tutor}\nFármaco: ${drug}\nData da aplicação: ${formatLocalDate(date)}\n\n1. MEDICAÇÕES E ALIMENTAÇÃO\n• Ofereça água e alimentação conforme orientação da equipe.\n• Administre somente as medicações prescritas. Não acrescente anti-inflamatórios, corticoides ou outros medicamentos por conta própria.\n\n2. URINA, FEZES E VÔMITO\n• Durante aproximadamente ${hours || '72'} horas (ou pelo período específico informado pela equipe), use luvas descartáveis ao limpar urina, fezes ou vômito.\n• Recolha os resíduos com material descartável, acondicione em saco fechado e higienize a área.\n• Gestantes, crianças pequenas e pessoas imunossuprimidas devem evitar contato direto com dejetos nesse período.\n\n3. SINAIS DE ALARME — CONTATE A EQUIPE\n• Febre medida ou temperatura fora do intervalo orientado pela clínica.\n• Apatia intensa, fraqueza ou piora súbita do estado geral.\n• Vômitos repetidos, diarreia intensa ou recusa persistente de água/alimento.\n• Sangramento, dificuldade respiratória, dor importante ou redução importante da urina.\n\n4. RETORNO\n• Realize hemograma e retorno nas datas orientadas, especialmente durante a janela prevista de nadir.\n${extra ? `\nObservações específicas:\n${extra}\n` : ''}\nEm caso de dúvida ou piora, entre em contato com a equipe veterinária responsável.`
+  }, [selectedPatient, drug, date, hours, extra])
+
+  const copy = async () => {
+    await navigator.clipboard.writeText(guidance)
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 2200)
+  }
+
+  const save = () => {
+    if (!patientId) return
+    const nadir = getNadirWindow(drug, date)
+    onAddTimelineEvent?.(patientId, {
+      id: `post-${Date.now()}`,
+      date,
+      type: 'quimioterapia',
+      title: `Quimioterapia / orientações — ${drug}`,
+      chemoDrug: drug,
+      nadirStart: nadir?.start,
+      nadirEnd: nadir?.end,
+      notes: 'Orientações domiciliares entregues ao tutor e registradas no prontuário.',
+    })
+  }
+
+  return (
+    <div className="max-w-5xl mx-auto">
+      <div className={cardClass}>
+        <ModuleHeader icon={<FileText className="w-6 h-6" />} title="Gerador de Orientações Pós-Quimio para o Tutor" subtitle="Resumo prático de cuidados domiciliares, manejo de dejetos e sinais de alarme" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="space-y-4">
+            <PatientSelector patients={patientOptions} value={patientId} onChange={setPatientId} label="Paciente" />
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className={labelClass}>Quimioterápico</label><select value={drug} onChange={e => setDrug(e.target.value)} className={inputClass}>{Object.keys(NADIR_WINDOWS).map(x => <option key={x}>{x}</option>)}</select></div>
+              <div><label className={labelClass}>Data</label><input type="date" value={date} onChange={e => setDate(e.target.value)} className={inputClass} /></div>
+            </div>
+            <div><label className={labelClass}>Período de precaução com dejetos (horas)</label><input type="number" min="24" max="168" value={hours} onChange={e => setHours(e.target.value)} className={inputClass} /></div>
+            <div><label className={labelClass}>Orientações específicas adicionais</label><textarea rows={5} value={extra} onChange={e => setExtra(e.target.value)} className={inputClass} placeholder="Ex.: antiemético, data do hemograma, telefone da clínica..." /></div>
+            <SafetyBanner>O período de manejo de excretas pode variar conforme o fármaco e o protocolo da instituição. Ajuste o campo acima para a orientação adotada pela sua equipe.</SafetyBanner>
+          </div>
+          <div className="space-y-3">
+            <div className="bg-pink-50/40 border border-pink-200 rounded-2xl p-4 text-xs whitespace-pre-line leading-relaxed text-stone-800 max-h-[520px] overflow-y-auto select-text">{guidance}</div>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={copy} className="bg-stone-800 hover:bg-stone-900 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2">{copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}{copied ? 'Copiado' : 'Copiar para o tutor'}</button>
+              <button type="button" disabled={!patientId} onClick={save} className="bg-pink-500 hover:bg-pink-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-xs font-bold">Registrar entrega</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function HistologyGrading({
+  patientOptions,
+  patientId,
+  setPatientId,
+  selectedPatient,
+  onAddTimelineEvent,
+}: {
+  patientOptions: ClinicalPatientLite[]
+  patientId: string
+  setPatientId: (v: string) => void
+  selectedPatient?: ClinicalPatientLite
+  onAddTimelineEvent?: AdvancedOncologyFeatureProps['onAddTimelineEvent']
+}) {
+  const [tumorType, setTumorType] = useState<'mastocitoma' | 'mamario' | 'outro'>('mastocitoma')
+  const [patnaik, setPatnaik] = useState('II')
+  const [mitosesMct, setMitosesMct] = useState('')
+  const [multinucleated, setMultinucleated] = useState('')
+  const [bizarre, setBizarre] = useState('')
+  const [karyomegaly, setKaryomegaly] = useState<'nao_informado' | 'ausente' | 'presente'>('nao_informado')
+  const [tubule, setTubule] = useState(1)
+  const [pleomorphism, setPleomorphism] = useState(1)
+  const [mammaryMitosis, setMammaryMitosis] = useState(1)
+  const [genericGrade, setGenericGrade] = useState('I')
+  const [margins, setMargins] = useState('Não informado')
+  const [lvi, setLvi] = useState('Não informado')
+  const [notes, setNotes] = useState('')
+  const [saved, setSaved] = useState(false)
+
+  React.useEffect(() => {
+    const n = (selectedPatient?.neoplasia || '').toLowerCase()
+    if (n.includes('mastoc')) setTumorType('mastocitoma')
+    else if (n.includes('mam')) setTumorType('mamario')
+  }, [selectedPatient?.id])
+
+  const mctAnyHigh = (mitosesMct !== '' && Number(mitosesMct) >= 7) || (multinucleated !== '' && Number(multinucleated) >= 3) || (bizarre !== '' && Number(bizarre) >= 3) || karyomegaly === 'presente'
+  const mctComplete = mitosesMct !== '' && multinucleated !== '' && bizarre !== '' && karyomegaly !== 'nao_informado'
+  const mctClassification = mctAnyHigh ? 'ALTO GRAU' : mctComplete ? 'BAIXO GRAU' : 'INDETERMINADO — complete todos os critérios'
+  const mammaryTotal = tubule + pleomorphism + mammaryMitosis
+  const mammaryGrade = mammaryTotal <= 5 ? 'I (baixo)' : mammaryTotal <= 7 ? 'II (intermediário)' : 'III (alto)'
+
+  const summary = useMemo(() => {
+    const base = [`Paciente: ${selectedPatient?.petName || '[não vinculado]'}`, `Neoplasia cadastrada: ${selectedPatient?.neoplasia || 'não informada'}`]
+    if (tumorType === 'mastocitoma') {
+      base.push(`Mastocitoma cutâneo — Patnaik: grau ${patnaik}.`)
+      base.push(`Kiupel pelos critérios inseridos: ${mctClassification}.`)
+      base.push(`Critérios Kiupel: mitoses/10 HPF=${mitosesMct || 'NI'}; células multinucleadas/10 HPF=${multinucleated || 'NI'}; núcleos bizarros/10 HPF=${bizarre || 'NI'}; cariomegalia=${karyomegaly === 'presente' ? 'presente' : karyomegaly === 'ausente' ? 'ausente' : 'NI'}.`)
+    } else if (tumorType === 'mamario') {
+      base.push(`Carcinoma mamário — escore histológico: ${mammaryTotal}/9; grau ${mammaryGrade}.`)
+      base.push(`Componentes: formação tubular=${tubule}; pleomorfismo nuclear=${pleomorphism}; atividade mitótica=${mammaryMitosis}.`)
+    } else {
+      base.push(`Tumor/Laudo — grau histológico informado: ${genericGrade}.`)
+    }
+    base.push(`Margens: ${margins}. Invasão linfovascular: ${lvi}.`)
+    if (notes) base.push(`Observações: ${notes}`)
+    return base.join('\n')
+  }, [selectedPatient, tumorType, patnaik, mctClassification, mitosesMct, multinucleated, bizarre, karyomegaly, mammaryTotal, mammaryGrade, tubule, pleomorphism, mammaryMitosis, genericGrade, margins, lvi, notes])
+
+  const save = () => {
+    if (!patientId) return
+    onAddTimelineEvent?.(patientId, {
+      id: `hist-${Date.now()}`,
+      date: todayLocalIso(),
+      type: 'histologia',
+      title: tumorType === 'mastocitoma' ? `Laudo: Mastocitoma — Kiupel ${mctClassification}` : tumorType === 'mamario' ? `Laudo: Carcinoma mamário — Grau ${mammaryGrade}` : `Laudo histológico — Grau ${genericGrade}`,
+      notes: summary,
+    })
+    setSaved(true)
+    window.setTimeout(() => setSaved(false), 2200)
+  }
+
+  return (
+    <div className="max-w-5xl mx-auto">
+      <div className={cardClass}>
+        <ModuleHeader icon={<Stethoscope className="w-6 h-6" />} title="Laudos Estruturados & Graduação Histológica" subtitle="Mastocitoma (Patnaik/Kiupel), carcinoma mamário e laudos gerais" />
+        <SafetyBanner>O sumário organiza dados do laudo e pode sugerir a classificação pelos critérios inseridos. A classificação definitiva permanece a do patologista e deve considerar tipo tumoral, amostra, margens, estadiamento e contexto clínico.</SafetyBanner>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+          <div className="space-y-4">
+            <PatientSelector patients={patientOptions} value={patientId} onChange={setPatientId} label="Paciente" />
+            <div><label className={labelClass}>Tipo de graduação</label><select value={tumorType} onChange={e => setTumorType(e.target.value as any)} className={inputClass}><option value="mastocitoma">Mastocitoma cutâneo canino</option><option value="mamario">Carcinoma mamário canino</option><option value="outro">Outro tumor / laudo</option></select></div>
+
+            {tumorType === 'mastocitoma' && (
+              <div className="space-y-3 bg-pink-50/40 border border-pink-100 rounded-2xl p-4">
+                <div><label className={labelClass}>Patnaik informado no laudo</label><select value={patnaik} onChange={e => setPatnaik(e.target.value)} className={inputClass}><option>I</option><option>II</option><option>III</option><option>Não informado</option></select></div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div><label className={labelClass}>Mitoses / 10 HPF</label><input type="number" min="0" value={mitosesMct} onChange={e => setMitosesMct(e.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>Multinucleadas / 10 HPF</label><input type="number" min="0" value={multinucleated} onChange={e => setMultinucleated(e.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>Núcleos bizarros / 10 HPF</label><input type="number" min="0" value={bizarre} onChange={e => setBizarre(e.target.value)} className={inputClass} /></div>
+                </div>
+                <div><label className={labelClass}>Cariomegalia: ≥10% das células com variação ≥2× do diâmetro nuclear</label><select value={karyomegaly} onChange={e => setKaryomegaly(e.target.value as any)} className={inputClass}><option value="nao_informado">Não informado</option><option value="ausente">Ausente</option><option value="presente">Presente</option></select></div>
+                <div className={`rounded-xl p-3 text-xs font-extrabold border ${mctAnyHigh ? 'bg-rose-50 border-rose-300 text-rose-900' : mctComplete ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-amber-50 border-amber-300 text-amber-900'}`}>Kiupel: {mctClassification}</div>
+              </div>
+            )}
+
+            {tumorType === 'mamario' && (
+              <div className="space-y-3 bg-pink-50/40 border border-pink-100 rounded-2xl p-4">
+                <p className="text-[11px] text-stone-600">Some os três componentes do sistema histológico: formação tubular, pleomorfismo nuclear e atividade mitótica.</p>
+                {[['Formação tubular', tubule, setTubule], ['Pleomorfismo nuclear', pleomorphism, setPleomorphism], ['Atividade mitótica', mammaryMitosis, setMammaryMitosis]].map(([label, value, setter]: any) => (
+                  <div key={label}><label className={labelClass}>{label}</label><select value={value} onChange={e => setter(Number(e.target.value))} className={inputClass}><option value={1}>1 ponto</option><option value={2}>2 pontos</option><option value={3}>3 pontos</option></select></div>
+                ))}
+                <div className="bg-white border border-pink-200 rounded-xl p-3 text-xs font-extrabold text-pink-950">Total: {mammaryTotal}/9 → Grau {mammaryGrade}</div>
+              </div>
+            )}
+
+            {tumorType === 'outro' && <div><label className={labelClass}>Grau informado</label><select value={genericGrade} onChange={e => setGenericGrade(e.target.value)} className={inputClass}><option>I</option><option>II</option><option>III</option><option>Baixo</option><option>Intermediário</option><option>Alto</option><option>Não aplicável</option></select></div>}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className={labelClass}>Margens</label><select value={margins} onChange={e => setMargins(e.target.value)} className={inputClass}><option>Não informado</option><option>Livres</option><option>Exíguas</option><option>Comprometidas</option></select></div>
+              <div><label className={labelClass}>Invasão linfovascular</label><select value={lvi} onChange={e => setLvi(e.target.value)} className={inputClass}><option>Não informado</option><option>Ausente</option><option>Presente</option><option>Suspeita</option></select></div>
+            </div>
+            <div><label className={labelClass}>Observações adicionais</label><textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} className={inputClass} /></div>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-xs font-extrabold text-pink-950 uppercase tracking-wider">Sumário automático</h3>
+            <div className="bg-white border border-pink-200 rounded-2xl p-4 text-xs whitespace-pre-line leading-relaxed text-stone-800 select-text">{summary}</div>
+            <button type="button" onClick={() => navigator.clipboard.writeText(summary)} className="w-full bg-stone-800 hover:bg-stone-900 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2"><Copy className="w-4 h-4" /> Copiar sumário</button>
+            <button type="button" disabled={!patientId} onClick={save} className="w-full bg-pink-500 hover:bg-pink-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-xs font-bold">{saved ? '✓ Registrado na timeline' : 'Registrar no prontuário'}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export type NutritionFeatureMode = 'energy' | 'bcs' | 'toxins' | 'diet'
+
+interface CanineNutritionFeatureProps {
+  mode: NutritionFeatureMode
+  patients: ClinicalPatientLite[]
+  onAddTimelineEvent?: (patientId: string, event: PatientTimelineEvent) => void
+}
+
+const CANINE_FACTORS: Record<string, { label: string; min: number; max: number; default: number; note?: string }> = {
+  neutered: { label: 'Adulto castrado', min: 1.4, max: 1.6, default: 1.5 },
+  intact: { label: 'Adulto inteiro', min: 1.6, max: 1.8, default: 1.7 },
+  inactive: { label: 'Inativo / propenso à obesidade', min: 1.0, max: 1.2, default: 1.1 },
+  senior: { label: 'Idoso / baixa atividade', min: 1.0, max: 1.4, default: 1.2, note: 'Não há fator único universal para idosos; ajustar por ECC, massa muscular e atividade.' },
+  weightloss: { label: 'Emagrecimento', min: 1.0, max: 1.0, default: 1.0 },
+  puppy1: { label: 'Filhote < 4 meses', min: 3.0, max: 3.0, default: 3.0 },
+  puppy2: { label: 'Filhote ≥ 4 meses', min: 2.0, max: 2.0, default: 2.0 },
+  gestation: { label: 'Gestação — últimos 21 dias', min: 3.0, max: 3.0, default: 3.0 },
+  lactation: { label: 'Lactação', min: 3.0, max: 6.0, default: 4.0, note: 'Pode ultrapassar 6× RER conforme ninhada e semana de lactação.' },
+  worklight: { label: 'Trabalho leve', min: 1.6, max: 2.0, default: 1.8 },
+  workmoderate: { label: 'Trabalho moderado', min: 2.0, max: 5.0, default: 3.0 },
+  workheavy: { label: 'Trabalho pesado', min: 5.0, max: 11.0, default: 7.0 },
+}
+
+const BCS_TEXT: Record<number, string> = {
+  1: 'Muito magro: proeminências ósseas evidentes à distância, sem gordura observável e perda muscular.',
+  2: 'Muito magro: costelas, vértebras lombares e pelve facilmente visíveis; sem gordura palpável.',
+  3: 'Magro: costelas facilmente palpáveis e possivelmente visíveis; cintura e recolhimento abdominal óbvios.',
+  4: 'Ideal baixo: costelas facilmente palpáveis com cobertura mínima; cintura evidente.',
+  5: 'Ideal: costelas palpáveis sem excesso de gordura; cintura visível e recolhimento abdominal presente.',
+  6: 'Sobrepeso leve: cobertura adiposa discretamente excessiva; cintura ainda observável.',
+  7: 'Sobrepeso: costelas difíceis de palpar; depósitos lombares/base da cauda; cintura pouco evidente.',
+  8: 'Obesidade: costelas não palpáveis ou apenas com pressão; cintura ausente e depósitos adiposos marcados.',
+  9: 'Obesidade acentuada: depósitos adiposos massivos; cintura e recolhimento abdominal ausentes.',
+}
+
+const DOG_TOXINS = [
+  { name: 'Xilitol', risk: 'CRÍTICO', effect: 'Hipoglicemia rápida e, em exposições maiores, lesão/insuficiência hepática.', action: 'Contato veterinário imediato. Não induzir vômito em casa sem orientação; a hipoglicemia pode começar rapidamente.' },
+  { name: 'Chocolate / cacau', risk: 'ALTO', effect: 'Metilxantinas podem causar vômito, agitação, taquicardia, arritmias, tremores e convulsões.', action: 'Identificar tipo, quantidade, peso do cão e horário; contatar serviço veterinário/toxicologia rapidamente.' },
+  { name: 'Uvas / passas', risk: 'ALTO', effect: 'Risco variável de lesão renal aguda; não existe quantidade doméstica considerada previsivelmente segura.', action: 'Avaliação veterinária precoce após ingestão e monitoramento renal conforme orientação.' },
+  { name: 'Cebola / alho / cebolinha / alho-poró', risk: 'ALTO', effect: 'Oxidantes de Allium podem causar hemólise e anemia, inclusive após formas cozidas ou desidratadas.', action: 'Registrar forma e quantidade ingerida; procurar orientação veterinária, sobretudo se houver fraqueza, palidez ou icterícia.' },
+  { name: 'Macadâmia', risk: 'MODERADO', effect: 'Pode causar vômito, fraqueza, ataxia, tremores e hipertermia em cães.', action: 'Contatar veterinário para avaliação; quadros graves podem necessitar suporte.' },
+  { name: 'Massa crua com fermento', risk: 'ALTO', effect: 'Pode expandir no estômago e produzir etanol, levando a distensão e intoxicação alcoólica.', action: 'Atendimento veterinário imediato.' },
+]
+
+export function CanineNutritionFeature({ mode, patients, onAddTimelineEvent }: CanineNutritionFeatureProps) {
+  const caninePatients = patients.filter(p => p.species.toLowerCase().includes('can'))
+  if (mode === 'energy') return <EnergyCalculator patients={caninePatients} onAddTimelineEvent={onAddTimelineEvent} />
+  if (mode === 'bcs') return <BCSCalculator patients={caninePatients} onAddTimelineEvent={onAddTimelineEvent} />
+  if (mode === 'toxins') return <ToxicFoods />
+  return <HomeDiet patients={caninePatients} onAddTimelineEvent={onAddTimelineEvent} />
+}
+
+function EnergyCalculator({ patients, onAddTimelineEvent }: Pick<CanineNutritionFeatureProps, 'onAddTimelineEvent'> & { patients: ClinicalPatientLite[] }) {
+  const [patientId, setPatientId] = useState('')
+  const [weight, setWeight] = useState('')
+  const [stage, setStage] = useState('neutered')
+  const [factor, setFactor] = useState(CANINE_FACTORS.neutered.default.toString())
+
+  const rer = Number(weight) > 0 ? 70 * Math.pow(Number(weight), 0.75) : 0
+  const mer = rer * (Number(factor) || 0)
+  const stageInfo = CANINE_FACTORS[stage]
+
+  const changeStage = (value: string) => {
+    setStage(value)
+    setFactor(CANINE_FACTORS[value].default.toString())
+  }
+
+  const save = () => {
+    if (!patientId || !rer) return
+    onAddTimelineEvent?.(patientId, {
+      id: `nutrition-${Date.now()}`,
+      date: todayLocalIso(),
+      type: 'nutricao',
+      title: `Necessidade energética — RER ${rer.toFixed(0)} / MER ${mer.toFixed(0)} kcal/dia`,
+      weightKg: Number(weight),
+      notes: `${stageInfo.label}; fator utilizado ${Number(factor).toFixed(2)}× RER. Estimativa inicial — ajustar pela resposta de peso/ECC.`,
+    })
+  }
+
+  return (
+    <div className="max-w-5xl mx-auto"><div className={cardClass}>
+      <ModuleHeader icon={<Calculator className="w-6 h-6" />} title="Nutrição Canina — RER & MER Personalizada" subtitle="Exclusivo para cães • necessidade energética por peso e fase fisiológica" />
+      <SafetyBanner>RER = 70 × peso(kg)^0,75. Os fatores de MER são estimativas iniciais da AAHA e devem ser ajustados pelo acompanhamento de peso, ECC, massa muscular, atividade, doença e ingestão real.</SafetyBanner>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+        <div className="space-y-4">
+          <PatientSelector patients={patients} value={patientId} onChange={setPatientId} />
+          <div><label className={labelClass}>Peso atual (kg)</label><input type="number" min="0.1" step="0.1" value={weight} onChange={e => setWeight(e.target.value)} className={inputClass} /></div>
+          <div><label className={labelClass}>Condição fisiológica</label><select value={stage} onChange={e => changeStage(e.target.value)} className={inputClass}>{Object.entries(CANINE_FACTORS).map(([key, x]) => <option value={key} key={key}>{x.label}</option>)}</select></div>
+          <div><label className={labelClass}>Fator MER utilizado</label><input type="number" step="0.1" min="0.5" max="12" value={factor} onChange={e => setFactor(e.target.value)} className={inputClass} /><p className="text-[10px] text-stone-500 mt-1">Faixa de referência: {stageInfo.min === stageInfo.max ? stageInfo.min : `${stageInfo.min}–${stageInfo.max}`} × RER. {stageInfo.note || ''}</p></div>
+        </div>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-pink-50 border border-pink-200 rounded-2xl p-5 text-center"><div className="text-[10px] font-bold text-pink-600 uppercase">RER</div><div className="text-2xl font-extrabold text-pink-950">{rer ? rer.toFixed(0) : '—'}</div><div className="text-[10px] text-stone-500">kcal/dia</div></div>
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-center"><div className="text-[10px] font-bold text-emerald-700 uppercase">MER estimada</div><div className="text-2xl font-extrabold text-emerald-900">{mer ? mer.toFixed(0) : '—'}</div><div className="text-[10px] text-stone-500">kcal/dia</div></div>
+          </div>
+          <div className="bg-white border border-pink-200 rounded-2xl p-4 text-xs text-stone-700 leading-relaxed"><strong>Interpretação:</strong> comece pela estimativa e reavalie a ingestão com peso e ECC seriados. Pacientes oncológicos, cardiopatas, renais, gastrointestinais ou com perda muscular podem precisar de plano individualizado.</div>
+          <button type="button" disabled={!patientId || !rer} onClick={save} className="w-full bg-pink-500 hover:bg-pink-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-xs font-bold">Registrar avaliação nutricional</button>
+        </div>
+      </div>
+    </div></div>
+  )
+}
+
+function BCSCalculator({ patients, onAddTimelineEvent }: Pick<CanineNutritionFeatureProps, 'onAddTimelineEvent'> & { patients: ClinicalPatientLite[] }) {
+  const [patientId, setPatientId] = useState('')
+  const [weight, setWeight] = useState('')
+  const [bcs, setBcs] = useState(5)
+  const [maintenanceFactor, setMaintenanceFactor] = useState('1.4')
+  const w = Number(weight)
+
+  const estimatedIdeal = useMemo(() => {
+    if (!w) return 0
+    if (bcs > 5) return w / (1 + (bcs - 5) * 0.10)
+    if (bcs < 4) return w / Math.max(0.5, 1 - (4 - bcs) * 0.10)
+    return w
+  }, [w, bcs])
+  const currentRer = w ? 70 * Math.pow(w, 0.75) : 0
+  const estimatedMaintenance = currentRer * Number(maintenanceFactor || 0)
+  const targetRer = estimatedIdeal ? 70 * Math.pow(estimatedIdeal, 0.75) : 0
+  const deficit = Math.max(0, estimatedMaintenance - targetRer)
+
+  const save = () => {
+    if (!patientId || !w) return
+    onAddTimelineEvent?.(patientId, {
+      id: `bcs-${Date.now()}`,
+      date: todayLocalIso(),
+      type: 'nutricao',
+      title: `ECC ${bcs}/9 — avaliação de condição corporal`,
+      weightKg: w,
+      notes: `Peso ideal estimado: ${estimatedIdeal.toFixed(1)} kg. ${bcs > 5 ? `RER do peso-alvo: ${targetRer.toFixed(0)} kcal/dia; déficit estimado vs manutenção atual: ${deficit.toFixed(0)} kcal/dia.` : 'Sem plano automático de restrição calórica.'}`,
+    })
+  }
+
+  return (
+    <div className="max-w-5xl mx-auto"><div className={cardClass}>
+      <ModuleHeader icon={<Weight className="w-6 h-6" />} title="Nutrição Canina — ECC 1 a 9 & Meta de Peso" subtitle="Escala WSAVA, estimativa de peso-alvo e ponto de partida calórico para emagrecimento" />
+      <SafetyBanner>A estimativa de peso ideal usa aproximadamente 10% de diferença por ponto de ECC acima/abaixo da faixa ideal e serve apenas como ponto de partida. Em cães obesos, a meta de perda costuma ser acompanhada semanalmente e ajustada pela resposta clínica.</SafetyBanner>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+        <div className="space-y-4">
+          <PatientSelector patients={patients} value={patientId} onChange={setPatientId} />
+          <div><label className={labelClass}>Peso atual (kg)</label><input type="number" min="0.1" step="0.1" value={weight} onChange={e => setWeight(e.target.value)} className={inputClass} /></div>
+          <div><label className={labelClass}>ECC — 1 a 9</label><div className="grid grid-cols-9 gap-1">{Array.from({ length: 9 }, (_, i) => i + 1).map(score => <button key={score} type="button" onClick={() => setBcs(score)} className={`py-2 rounded-lg text-xs font-extrabold border ${bcs === score ? 'bg-pink-500 text-white border-pink-500' : 'bg-white border-pink-200 text-pink-800'}`}>{score}</button>)}</div></div>
+          <div className="bg-pink-50/60 border border-pink-200 rounded-xl p-3 text-xs text-stone-700 leading-relaxed"><strong>ECC {bcs}/9:</strong> {BCS_TEXT[bcs]}</div>
+          <div><label className={labelClass}>Fator de manutenção atual para comparar déficit</label><input type="number" step="0.1" min="0.8" max="3" value={maintenanceFactor} onChange={e => setMaintenanceFactor(e.target.value)} className={inputClass} /></div>
+        </div>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-pink-50 border border-pink-200 rounded-2xl p-4 text-center"><div className="text-[10px] uppercase font-bold text-pink-600">Peso ideal estimado</div><div className="text-2xl font-extrabold text-pink-950">{estimatedIdeal ? `${estimatedIdeal.toFixed(1)} kg` : '—'}</div></div>
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center"><div className="text-[10px] uppercase font-bold text-emerald-700">Meta semanal</div><div className="text-lg font-extrabold text-emerald-900">{w && bcs > 5 ? `${(w * 0.01).toFixed(2)}–${(w * 0.02).toFixed(2)} kg` : '—'}</div><div className="text-[10px] text-stone-500">≈1–2% do peso/semana em programa de redução</div></div>
+          </div>
+          {bcs > 5 ? <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 text-xs text-amber-900 space-y-1"><div><strong>Manutenção estimada atual:</strong> {estimatedMaintenance.toFixed(0)} kcal/dia</div><div><strong>Ponto de partida de perda:</strong> RER do peso-alvo ≈ {targetRer.toFixed(0)} kcal/dia</div><div><strong>Déficit estimado:</strong> {deficit.toFixed(0)} kcal/dia ({estimatedMaintenance ? ((deficit / estimatedMaintenance) * 100).toFixed(0) : 0}%)</div><p className="text-[10px] pt-1">Recalcular conforme o cão emagrece e interromper/reavaliar se houver perda excessiva, fraqueza ou perda de massa muscular.</p></div> : <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-xs text-emerald-900">ECC na faixa ideal ou abaixo dela: o módulo não propõe déficit calórico automático.</div>}
+          <button type="button" disabled={!patientId || !w} onClick={save} className="w-full bg-pink-500 hover:bg-pink-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-xs font-bold">Registrar ECC e meta</button>
+        </div>
+      </div>
+    </div></div>
+  )
+}
+
+function ToxicFoods() {
+  const [query, setQuery] = useState('')
+  const filtered = DOG_TOXINS.filter(x => `${x.name} ${x.effect}`.toLowerCase().includes(query.toLowerCase()))
+  return (
+    <div className="max-w-5xl mx-auto"><div className={cardClass}>
+      <ModuleHeader icon={<AlertTriangle className="w-6 h-6" />} title="Consulta Rápida — Alimentos Tóxicos para Cães" subtitle="Busca rápida de exposições alimentares comuns e conduta inicial segura" />
+      <SafetyBanner>Em suspeita de intoxicação, a conduta depende de quantidade, concentração, peso, tempo desde a ingestão e estado clínico. Não induza vômito nem administre “antídotos caseiros” sem orientação veterinária.</SafetyBanner>
+      <div className="relative mt-5 mb-4"><Search className="absolute left-3.5 top-3 w-4 h-4 text-pink-400" /><input value={query} onChange={e => setQuery(e.target.value)} className={`${inputClass} pl-10`} placeholder="Buscar xilitol, chocolate, uva, alho..." /></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{filtered.map(item => <div key={item.name} className="bg-white border border-pink-200 rounded-2xl p-4 space-y-2"><div className="flex items-center justify-between"><h3 className="font-extrabold text-sm text-pink-950">{item.name}</h3><span className={`text-[10px] font-extrabold px-2 py-1 rounded-full ${item.risk === 'CRÍTICO' ? 'bg-rose-100 text-rose-800' : item.risk === 'ALTO' ? 'bg-orange-100 text-orange-800' : 'bg-amber-100 text-amber-800'}`}>{item.risk}</span></div><p className="text-xs text-stone-700 leading-relaxed"><strong>Efeito:</strong> {item.effect}</p><div className="bg-pink-50 rounded-xl p-3 text-[11px] text-pink-900 leading-relaxed"><strong>Conduta inicial:</strong> {item.action}</div></div>)}</div>
+    </div></div>
+  )
+}
+
+function HomeDiet({ patients, onAddTimelineEvent }: Pick<CanineNutritionFeatureProps, 'onAddTimelineEvent'> & { patients: ClinicalPatientLite[] }) {
+  const [patientId, setPatientId] = useState('')
+  const [dietType, setDietType] = useState<'cozida' | 'crua'>('cozida')
+  const [protein, setProtein] = useState('')
+  const [carb, setCarb] = useState('')
+  const [veg, setVeg] = useState('')
+  const [fat, setFat] = useState('')
+  const [other, setOther] = useState('')
+  const [calcium, setCalcium] = useState('')
+  const [phosphorus, setPhosphorus] = useState('')
+  const [cmv, setCmv] = useState(false)
+  const [formulaNotes, setFormulaNotes] = useState('')
+
+  const amounts = [Number(protein) || 0, Number(carb) || 0, Number(veg) || 0, Number(fat) || 0, Number(other) || 0]
+  const total = amounts.reduce((a, b) => a + b, 0)
+  const ratio = Number(calcium) > 0 && Number(phosphorus) > 0 ? Number(calcium) / Number(phosphorus) : 0
+  const pct = (v: number) => total ? (v / total) * 100 : 0
+
+  const save = () => {
+    if (!patientId || !total) return
+    onAddTimelineEvent?.(patientId, {
+      id: `diet-${Date.now()}`,
+      date: todayLocalIso(),
+      type: 'nutricao',
+      title: `Dieta caseira ${dietType} — registro de composição`,
+      notes: `Total ${total.toFixed(0)} g: proteína ${pct(amounts[0]).toFixed(1)}%, carboidrato ${pct(amounts[1]).toFixed(1)}%, vegetais/fibras ${pct(amounts[2]).toFixed(1)}%, gordura ${pct(amounts[3]).toFixed(1)}%, outros ${pct(amounts[4]).toFixed(1)}%. CMV: ${cmv ? 'informado' : 'NÃO informado'}. Ca:P: ${ratio ? `${ratio.toFixed(2)}:1` : 'não calculada'}. ${formulaNotes}`,
+    })
+  }
+
+  return (
+    <div className="max-w-5xl mx-auto"><div className={cardClass}>
+      <ModuleHeader icon={<Utensils className="w-6 h-6" />} title="Nutrição Canina — Dieta Caseira Cozida/Crua" subtitle="Registro de proporções, suplementação CMV e relação cálcio:fósforo" />
+      <SafetyBanner>A maioria das receitas caseiras não formuladas é nutricionalmente incompleta. O módulo confere proporções e documentação, mas não “balanceia” micronutrientes sozinho. Receita terapêutica deve ser formulada/revisada por nutricionista veterinário e seguida exatamente.</SafetyBanner>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+        <div className="space-y-4">
+          <PatientSelector patients={patients} value={patientId} onChange={setPatientId} />
+          <div><label className={labelClass}>Tipo</label><select value={dietType} onChange={e => setDietType(e.target.value as any)} className={inputClass}><option value="cozida">Cozida</option><option value="crua">Crua</option></select></div>
+          <div className="grid grid-cols-2 gap-2">{[['Proteína animal (g)', protein, setProtein], ['Carboidratos (g)', carb, setCarb], ['Vegetais/fibras (g)', veg, setVeg], ['Gorduras/óleos (g)', fat, setFat], ['Outros ingredientes (g)', other, setOther]].map(([label, value, setter]: any) => <div key={label}><label className={labelClass}>{label}</label><input type="number" min="0" step="1" value={value} onChange={e => setter(e.target.value)} className={inputClass} /></div>)}</div>
+          <label className={`flex items-center gap-2 p-3 rounded-xl border text-xs font-bold ${cmv ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-rose-50 border-rose-300 text-rose-900'}`}><input type="checkbox" checked={cmv} onChange={e => setCmv(e.target.checked)} className="accent-pink-500" /> Suplemento minero-vitamínico (CMV) específico da formulação está incluído</label>
+          <div className="grid grid-cols-2 gap-2"><div><label className={labelClass}>Cálcio total informado (mg)</label><input type="number" min="0" value={calcium} onChange={e => setCalcium(e.target.value)} className={inputClass} /></div><div><label className={labelClass}>Fósforo total informado (mg)</label><input type="number" min="0" value={phosphorus} onChange={e => setPhosphorus(e.target.value)} className={inputClass} /></div></div>
+          <div><label className={labelClass}>Observações da formulação</label><textarea rows={3} value={formulaNotes} onChange={e => setFormulaNotes(e.target.value)} className={inputClass} placeholder="Fonte/receita, suplemento, kcal, restrições..." /></div>
+        </div>
+        <div className="space-y-3">
+          <div className="bg-pink-50 border border-pink-200 rounded-2xl p-4"><div className="text-[10px] font-bold uppercase text-pink-600">Peso total registrado</div><div className="text-2xl font-extrabold text-pink-950">{total ? `${total.toFixed(0)} g` : '—'}</div></div>
+          {total > 0 && <div className="grid grid-cols-2 gap-2 text-xs">{[['Proteína', amounts[0]], ['Carboidrato', amounts[1]], ['Vegetais/fibras', amounts[2]], ['Gordura', amounts[3]], ['Outros', amounts[4]]].map(([name, value]: any) => <div key={name} className="bg-white border border-pink-100 rounded-xl p-3"><strong>{name}</strong><div className="text-pink-700 font-extrabold">{pct(value).toFixed(1)}%</div></div>)}</div>}
+          <div className={`border rounded-2xl p-4 text-xs ${ratio ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-stone-50 border-stone-200 text-stone-600'}`}><strong>Relação Ca:P:</strong> {ratio ? `${ratio.toFixed(2)} : 1` : 'informe cálcio e fósforo para calcular'}. <span className="block text-[10px] mt-1">A relação isolada não garante adequação: comparar com a formulação completa, fase de vida e recomendação do nutricionista.</span></div>
+          {!cmv && <div className="bg-rose-50 border border-rose-300 rounded-2xl p-4 text-xs font-bold text-rose-900">⚠️ CMV não marcado: dieta caseira sem suplementação mineral/vitamínica formulada apresenta alto risco de desequilíbrio nutricional.</div>}
+          {dietType === 'crua' && <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 text-xs text-amber-900">⚠️ Dietas cruas acrescentam risco microbiológico para o cão e para pessoas que manipulam alimento/fezes, especialmente crianças, idosos, gestantes e imunossuprimidos.</div>}
+          <button type="button" disabled={!patientId || !total} onClick={save} className="w-full bg-pink-500 hover:bg-pink-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-xs font-bold">Registrar dieta no prontuário</button>
+        </div>
+      </div>
+    </div></div>
+  )
+}
+
+export function GlobalPatientSearch({ patients, onSelectPatient }: { patients: ClinicalPatientLite[]; onSelectPatient: (id: string) => void }) {
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return []
+    return patients.filter(p => `${p.petName} ${p.tutor} ${p.species} ${p.neoplasia || ''}`.toLowerCase().includes(q)).slice(0, 8)
+  }, [patients, query])
+
+  return (
+    <div className="relative w-72 max-w-[28vw]">
+      <Search className="absolute left-3 top-2.5 w-4 h-4 text-pink-400 z-10" />
+      <input value={query} onFocus={() => setOpen(true)} onChange={e => { setQuery(e.target.value); setOpen(true) }} className="w-full bg-pink-50/70 border border-pink-200 rounded-xl pl-9 pr-3 py-2 text-[11px] text-pink-950 focus:outline-none focus:border-pink-400" placeholder="Buscar pet, tutor, espécie ou neoplasia..." />
+      {open && query && <div className="absolute top-11 left-0 right-0 bg-white border border-pink-200 rounded-2xl shadow-xl p-2 z-50 max-h-72 overflow-y-auto">{results.length === 0 ? <div className="p-3 text-[11px] text-stone-400 text-center">Nenhum paciente encontrado.</div> : results.map(p => <button key={p.id} type="button" onClick={() => { onSelectPatient(p.id); setOpen(false); setQuery('') }} className="w-full text-left p-2.5 rounded-xl hover:bg-pink-50 transition"><div className="text-xs font-extrabold text-pink-950">🐾 {p.petName}</div><div className="text-[10px] text-stone-500">{p.tutor} • {p.species}{p.neoplasia ? ` • ${p.neoplasia}` : ''}</div></button>)}</div>}
+    </div>
+  )
+}
+
+export function ClinicalDashboard({
+  patients,
+  events,
+  tasks,
+  onOpenPatient,
+  onResolveAlert,
+}: {
+  patients: ClinicalPatientLite[]
+  events: CalendarEventLite[]
+  tasks: TaskLite[]
+  onOpenPatient: (id: string) => void
+  onResolveAlert?: (patientId: string, alertId: string) => void
+}) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const horizon = new Date(today)
+  horizon.setDate(horizon.getDate() + 7)
+
+  const inNextSeven = (iso: string) => {
+    const [y, m, d] = iso.split('-').map(Number)
+    const dt = new Date(y, m - 1, d)
+    return dt >= today && dt <= horizon
+  }
+
+  const nadirs = patients.flatMap(p => (p.timeline || []).filter(e => e.nadirStart && e.nadirEnd && (inNextSeven(e.nadirStart) || inNextSeven(e.nadirEnd))).map(e => ({ patient: p, event: e })))
+  const returns = events.filter(e => inNextSeven(e.dateKey)).sort((a, b) => a.dateKey.localeCompare(b.dateKey))
+  const alerts = patients.flatMap(p => (p.alerts || []).filter(a => !a.resolved).map(a => ({ patient: p, alert: a })))
+  const pendingTasks = tasks.filter(t => !t.completed).slice(0, 5)
+
+  return (
+    <div className="bg-white/95 border border-pink-100 rounded-3xl shadow-sm p-6 space-y-4">
+      <div className="flex items-center justify-between"><div><div className="text-[10px] font-extrabold uppercase tracking-widest text-pink-500">Visão clínica dos próximos 7 dias</div><h2 className="text-lg font-extrabold text-pink-950">Dashboard Assistencial</h2></div><span className="text-[10px] bg-pink-100 text-pink-700 px-3 py-1 rounded-full font-bold">Atualização automática</span></div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="bg-rose-50/60 border border-rose-200 rounded-2xl p-4"><div className="font-extrabold text-xs text-rose-900 flex items-center gap-2"><Activity className="w-4 h-4" /> Nadir previsto ({nadirs.length})</div><div className="mt-3 space-y-2 max-h-44 overflow-y-auto">{nadirs.length === 0 ? <p className="text-[11px] text-stone-400">Nenhum nadir registrado para a semana.</p> : nadirs.map(({ patient, event }) => <button key={`${patient.id}-${event.id}`} type="button" onClick={() => onOpenPatient(patient.id)} className="w-full text-left bg-white border border-rose-100 rounded-xl p-2.5"><div className="text-xs font-bold text-pink-950">{patient.petName} • {event.chemoDrug || event.title}</div><div className="text-[10px] text-rose-700">{formatLocalDate(event.nadirStart!)} → {formatLocalDate(event.nadirEnd!)}</div></button>)}</div></div>
+        <div className="bg-sky-50/60 border border-sky-200 rounded-2xl p-4"><div className="font-extrabold text-xs text-sky-900 flex items-center gap-2"><Stethoscope className="w-4 h-4" /> Retornos agendados ({returns.length})</div><div className="mt-3 space-y-2 max-h-44 overflow-y-auto">{returns.length === 0 ? <p className="text-[11px] text-stone-400">Nenhum retorno/evento nos próximos 7 dias.</p> : returns.map((e, idx) => <div key={`${e.dateKey}-${idx}`} className="bg-white border border-sky-100 rounded-xl p-2.5"><div className="text-xs font-bold text-pink-950">{e.title}</div><div className="text-[10px] text-sky-700">{formatLocalDate(e.dateKey)} {e.time ? `• ${e.time}` : ''}</div><div className="text-[10px] text-stone-500 truncate">{e.description}</div></div>)}</div></div>
+        <div className="bg-amber-50/60 border border-amber-200 rounded-2xl p-4"><div className="font-extrabold text-xs text-amber-900 flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> Alertas pendentes ({alerts.length})</div><div className="mt-3 space-y-2 max-h-44 overflow-y-auto">{alerts.length === 0 ? <p className="text-[11px] text-stone-400">Nenhum alerta clínico pendente.</p> : alerts.map(({ patient, alert }) => <div key={alert.id} className="bg-white border border-amber-100 rounded-xl p-2.5"><button type="button" onClick={() => onOpenPatient(patient.id)} className="text-left w-full"><div className="text-xs font-bold text-pink-950">{patient.petName} • {alert.title}</div><div className="text-[10px] text-stone-500 line-clamp-2">{alert.message}</div></button>{onResolveAlert && <button type="button" onClick={() => onResolveAlert(patient.id, alert.id)} className="text-[10px] font-bold text-emerald-700 mt-1 hover:underline">Marcar como resolvido</button>}</div>)}</div></div>
+      </div>
+      {pendingTasks.length > 0 && <div className="border-t border-pink-100 pt-3 flex flex-wrap gap-2">{pendingTasks.map(t => <span key={t.id} className="text-[10px] bg-stone-100 text-stone-700 px-2.5 py-1 rounded-full">☐ {t.text}</span>)}</div>}
+    </div>
+  )
+}
+
+export function PatientTimeline({
+  events,
+  legacyEvolutions = [],
+  onAddEvent,
+}: {
+  events: PatientTimelineEvent[]
+  legacyEvolutions?: Array<{ id: string; date: string; weight: string; temperature: string; notes: string }>
+  onAddEvent: (event: PatientTimelineEvent) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [type, setType] = useState<TimelineEventType>('peso')
+  const [date, setDate] = useState(() => todayLocalIso())
+  const [weight, setWeight] = useState('')
+  const [tumor, setTumor] = useState('')
+  const [neutrophils, setNeutrophils] = useState('')
+  const [platelets, setPlatelets] = useState('')
+  const [hematocrit, setHematocrit] = useState('')
+  const [chemo, setChemo] = useState('Doxorrubicina')
+  const [cycle, setCycle] = useState('')
+  const [notes, setNotes] = useState('')
+
+  const merged = useMemo(() => {
+    const legacy: PatientTimelineEvent[] = legacyEvolutions.map(e => ({ id: `legacy-${e.id}`, date: e.date, type: 'outro', title: 'Evolução clínica', notes: `${e.notes}${e.weight ? ` | Peso: ${e.weight}` : ''}${e.temperature ? ` | Temp: ${e.temperature}` : ''}` }))
+    return [...events, ...legacy].sort((a, b) => {
+      const da = new Date(a.date.split(' ')[0].split('/').reverse().join('-')).getTime() || new Date(a.date).getTime() || 0
+      const db = new Date(b.date.split(' ')[0].split('/').reverse().join('-')).getTime() || new Date(b.date).getTime() || 0
+      return db - da
+    })
+  }, [events, legacyEvolutions])
+
+  const save = () => {
+    const nadir = type === 'quimioterapia' ? getNadirWindow(chemo, date) : null
+    const titles: Record<TimelineEventType, string> = {
+      peso: `Peso: ${weight || 'N/I'} kg`,
+      tumor: `Biometria tumoral: ${tumor || 'N/I'}`,
+      hemograma: 'Hemograma de controle',
+      quimioterapia: `${chemo}${cycle ? ` • Ciclo ${cycle}` : ''}`,
+      toxicidade: 'Toxicidade / evento adverso',
+      histologia: 'Histologia / anatomopatológico',
+      nutricao: 'Avaliação nutricional',
+      outro: 'Evento clínico',
+    }
+    onAddEvent({
+      id: `timeline-${Date.now()}`,
+      date,
+      type,
+      title: titles[type],
+      notes,
+      weightKg: type === 'peso' && Number(weight) ? Number(weight) : undefined,
+      tumorMeasurementMm: type === 'tumor' ? tumor : undefined,
+      neutrophils: type === 'hemograma' && Number(neutrophils) >= 0 && neutrophils !== '' ? Number(neutrophils) : undefined,
+      platelets: type === 'hemograma' && Number(platelets) >= 0 && platelets !== '' ? Number(platelets) : undefined,
+      hematocrit: type === 'hemograma' && Number(hematocrit) >= 0 && hematocrit !== '' ? Number(hematocrit) : undefined,
+      chemoDrug: type === 'quimioterapia' ? chemo : undefined,
+      chemoCycle: type === 'quimioterapia' ? cycle : undefined,
+      nadirStart: nadir?.start,
+      nadirEnd: nadir?.end,
+    })
+    setOpen(false)
+    setNotes('')
+    setWeight('')
+    setTumor('')
+    setNeutrophils('')
+    setPlatelets('')
+    setHematocrit('')
+  }
+
+  const iconFor = (t: TimelineEventType) => t === 'quimioterapia' ? '💉' : t === 'hemograma' ? '🩸' : t === 'tumor' ? '📏' : t === 'peso' ? '⚖️' : t === 'histologia' ? '🔬' : t === 'nutricao' ? '🥗' : t === 'toxicidade' ? '⚠️' : '🩺'
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between"><div className="text-xs font-extrabold text-pink-950 flex items-center gap-2"><Activity className="w-4 h-4 text-pink-500" /> Timeline Clínica Estruturada</div><button type="button" onClick={() => setOpen(!open)} className="text-[11px] font-bold text-pink-700 bg-pink-50 border border-pink-200 px-3 py-1.5 rounded-xl">{open ? 'Fechar' : '+ Evento estruturado'}</button></div>
+      {open && <div className="bg-pink-50/50 border border-pink-200 rounded-2xl p-4 space-y-3">
+        <div className="grid grid-cols-2 gap-2"><div><label className={labelClass}>Tipo</label><select value={type} onChange={e => setType(e.target.value as TimelineEventType)} className={inputClass}><option value="peso">Peso</option><option value="tumor">Biometria tumoral</option><option value="hemograma">Hemograma</option><option value="quimioterapia">Ciclo de quimioterapia</option><option value="outro">Outro evento</option></select></div><div><label className={labelClass}>Data</label><input type="date" value={date} onChange={e => setDate(e.target.value)} className={inputClass} /></div></div>
+        {type === 'peso' && <div><label className={labelClass}>Peso (kg)</label><input type="number" step="0.1" value={weight} onChange={e => setWeight(e.target.value)} className={inputClass} /></div>}
+        {type === 'tumor' && <div><label className={labelClass}>Medidas tumorais / biometria</label><input value={tumor} onChange={e => setTumor(e.target.value)} className={inputClass} placeholder="Ex.: 28 × 19 × 15 mm; linfonodo 12 mm" /></div>}
+        {type === 'hemograma' && <div className="grid grid-cols-3 gap-2"><div><label className={labelClass}>Neutrófilos /µL</label><input type="number" value={neutrophils} onChange={e => setNeutrophils(e.target.value)} className={inputClass} /></div><div><label className={labelClass}>Plaquetas /µL</label><input type="number" value={platelets} onChange={e => setPlatelets(e.target.value)} className={inputClass} /></div><div><label className={labelClass}>Hematócrito %</label><input type="number" step="0.1" value={hematocrit} onChange={e => setHematocrit(e.target.value)} className={inputClass} /></div></div>}
+        {type === 'quimioterapia' && <div className="grid grid-cols-2 gap-2"><div><label className={labelClass}>Fármaco</label><select value={chemo} onChange={e => setChemo(e.target.value)} className={inputClass}>{Object.keys(NADIR_WINDOWS).map(x => <option key={x}>{x}</option>)}</select></div><div><label className={labelClass}>Ciclo / semana</label><input value={cycle} onChange={e => setCycle(e.target.value)} className={inputClass} placeholder="Ex.: CHOP semana 4" /></div></div>}
+        <div><label className={labelClass}>Notas</label><textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} className={inputClass} /></div>
+        <button type="button" onClick={save} className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-xs font-bold">Salvar evento</button>
+      </div>}
+      <div className="relative pl-5 space-y-3 before:absolute before:left-[7px] before:top-1 before:bottom-1 before:w-px before:bg-pink-200 max-h-[520px] overflow-y-auto pr-1">
+        {merged.length === 0 ? <p className="text-[11px] text-stone-400 py-3">Nenhum evento na timeline ainda.</p> : merged.map(event => <div key={event.id} className="relative bg-white border border-pink-100 rounded-2xl p-3 shadow-2xs"><span className="absolute -left-[22px] top-4 w-4 h-4 bg-pink-100 border-2 border-pink-400 rounded-full" /><div className="flex items-start justify-between gap-2"><div><div className="text-xs font-extrabold text-pink-950">{iconFor(event.type)} {event.title}</div><div className="text-[10px] text-stone-400 mt-0.5">{formatLocalDate(event.date)}</div></div>{event.grade ? <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${event.grade >= 3 ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}`}>G{event.grade}</span> : null}</div>{event.type === 'hemograma' && <div className="flex flex-wrap gap-2 text-[10px] mt-2">{event.neutrophils !== undefined && <span className="bg-rose-50 px-2 py-1 rounded-lg">Neut: {event.neutrophils}/µL</span>}{event.platelets !== undefined && <span className="bg-purple-50 px-2 py-1 rounded-lg">Plaq: {event.platelets}/µL</span>}{event.hematocrit !== undefined && <span className="bg-sky-50 px-2 py-1 rounded-lg">Hct: {event.hematocrit}%</span>}</div>}{event.nadirStart && event.nadirEnd && <div className="bg-rose-50 text-rose-800 text-[10px] font-bold px-2.5 py-1.5 rounded-lg mt-2">Nadir previsto: {formatLocalDate(event.nadirStart)} → {formatLocalDate(event.nadirEnd)}</div>}{event.notes && <p className="text-[11px] text-stone-600 mt-2 whitespace-pre-line leading-relaxed">{event.notes}</p>}</div>)}
+      </div>
+    </div>
+  )
+}
+
+
 export default function VetWorkspaceBeatrizV28() {
   const [isMounted, setIsMounted] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
@@ -385,7 +1535,7 @@ export default function VetWorkspaceBeatrizV28() {
     setIsMounted(true)
   }, [])
 
-  const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'bsa' | 'ia' | 'condolencias' | 'tarefas' | 'calendario' | 'financas' | 'wishlist' | 'clinicas' | 'especialistas' | 'pessoal' | 'labref' | 'protocolos' | 'nadir' | 'extravasamento' | 'ajustes' | 'funcaorganica'>('painel')
+  const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'bsa' | 'ia' | 'condolencias' | 'tarefas' | 'calendario' | 'financas' | 'wishlist' | 'clinicas' | 'especialistas' | 'pessoal' | 'labref' | 'protocolos' | 'nadir' | 'extravasamento' | 'ajustes' | 'funcaorganica' | 'toxicidadevcog' | 'interacoesonco' | 'posquimio' | 'histologia' | 'nutricaoenergia' | 'nutricaoecc' | 'nutricaotoxicos' | 'nutricaodieta'>('painel')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isPersonalSidebarOpen, setIsPersonalSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Sincronizado')
@@ -663,6 +1813,7 @@ export default function VetWorkspaceBeatrizV28() {
 
   const [nadirDate, setNadirDate] = useState<string>('')
   const [nadirDrug, setNadirDrug] = useState<string>('Doxorrubicina')
+  const [nadirPatientId, setNadirPatientId] = useState<string>('')
   const [nadirResult, setNadirResult] = useState<any>(null)
 
   const [adjWeight, setAdjWeight] = useState<string>('')
@@ -822,8 +1973,10 @@ export default function VetWorkspaceBeatrizV28() {
   const [newAge, setNewAge] = useState('')
   const [newWeight, setNewWeight] = useState('')
   const [newTutor, setNewTutor] = useState('')
+  const [newNeoplasia, setNewNeoplasia] = useState('')
   const [newComplaint, setNewComplaint] = useState('')
   const [newStatus, setNewStatus] = useState<'Em Atendimento' | 'Internado' | 'Alta' | 'Observação'>('Em Atendimento')
+  const [focusedPatientId, setFocusedPatientId] = useState<string | null>(null)
 
   const [activePatientForEvolution, setActivePatientForEvolution] = useState<string | null>(null)
   const [evoWeight, setEvoWeight] = useState('')
@@ -879,6 +2032,7 @@ export default function VetWorkspaceBeatrizV28() {
           <p><strong>Espécie / Raça:</strong> ${p.species} - ${p.breed}</p>
           <p><strong>Idade:</strong> ${p.age} | <strong>Tutor:</strong> ${p.tutor}</p>
           <p><strong>Status Atual:</strong> ${p.status}</p>
+          <p><strong>Neoplasia / Diagnóstico:</strong> ${p.neoplasia || 'Não informado'}</p>
           <p><strong>Queixa Principal:</strong> ${p.complaint}</p>
         </div>
 
@@ -1304,7 +2458,11 @@ export default function VetWorkspaceBeatrizV28() {
       complaint: newComplaint || 'Sem queixa relatada',
       status: newStatus,
       date: new Date().toLocaleDateString('pt-BR'),
-      evolutions: [initialEvo]
+      evolutions: [initialEvo],
+      neoplasia: newNeoplasia.trim(),
+      timeline: [],
+      alerts: [],
+      continuousMedications: []
     }
     setPatients([newP, ...patients])
     setNewPetName('')
@@ -1312,7 +2470,39 @@ export default function VetWorkspaceBeatrizV28() {
     setNewAge('')
     setNewWeight('')
     setNewTutor('')
+    setNewNeoplasia('')
     setNewComplaint('')
+  }
+
+  const handleAddTimelineEvent = (patientId: string, event: PatientTimelineEvent) => {
+    lastLocalMutationRef.current = Date.now()
+    setPatients(prev => prev.map(p => p.id === patientId ? { ...p, timeline: [event, ...(p.timeline || [])] } : p))
+  }
+
+  const handleAddPatientAlert = (patientId: string, alert: PatientAlert) => {
+    lastLocalMutationRef.current = Date.now()
+    setPatients(prev => prev.map(p => p.id === patientId ? { ...p, alerts: [alert, ...(p.alerts || [])] } : p))
+  }
+
+  const handleResolvePatientAlert = (patientId: string, alertId: string) => {
+    lastLocalMutationRef.current = Date.now()
+    setPatients(prev => prev.map(p => p.id === patientId ? {
+      ...p,
+      alerts: (p.alerts || []).map(a => a.id === alertId ? { ...a, resolved: true } : a)
+    } : p))
+  }
+
+  const handleUpdateContinuousMedications = (patientId: string, medications: string[]) => {
+    lastLocalMutationRef.current = Date.now()
+    setPatients(prev => prev.map(p => p.id === patientId ? { ...p, continuousMedications: medications } : p))
+  }
+
+  const handleOpenPatient = (patientId: string) => {
+    setFocusedPatientId(patientId)
+    setActiveTab('pacientes')
+    window.setTimeout(() => {
+      document.getElementById(`patient-${patientId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
   }
 
   const handleAddEvolution = (patientId: string, e: React.FormEvent) => {
@@ -1912,6 +3102,34 @@ export default function VetWorkspaceBeatrizV28() {
             <button onClick={() => setActiveTab('funcaorganica')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'funcaorganica' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
               <ClipboardList className="w-4 h-4" /> Cruzamento Função Orgânica
             </button>
+            <button onClick={() => setActiveTab('toxicidadevcog')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'toxicidadevcog' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+              <Activity className="w-4 h-4" /> Graduação Toxicidade (VCOG)
+            </button>
+            <button onClick={() => setActiveTab('interacoesonco')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'interacoesonco' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+              <ShieldAlert className="w-4 h-4" /> Interações Medicamentosas
+            </button>
+            <button onClick={() => setActiveTab('posquimio')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'posquimio' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+              <FileText className="w-4 h-4" /> Orientações Pós-Quimio
+            </button>
+            <button onClick={() => setActiveTab('histologia')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'histologia' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+              <ClipboardList className="w-4 h-4" /> Laudos & Graduação Histológica
+            </button>
+          </div>
+
+          <div className="pt-2 border-t border-pink-100/60 mt-2 space-y-1">
+            <div className="px-3 py-1 text-[10px] font-extrabold text-emerald-600 uppercase tracking-widest">🥗 Nutrição Canina</div>
+            <button onClick={() => setActiveTab('nutricaoenergia')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'nutricaoenergia' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+              <Calculator className="w-4 h-4" /> Necessidade Energética (RER/MER)
+            </button>
+            <button onClick={() => setActiveTab('nutricaoecc')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'nutricaoecc' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+              <Scale className="w-4 h-4" /> ECC 1–9 & Meta de Peso
+            </button>
+            <button onClick={() => setActiveTab('nutricaotoxicos')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'nutricaotoxicos' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+              <AlertTriangle className="w-4 h-4" /> Alimentos Tóxicos / Proibidos
+            </button>
+            <button onClick={() => setActiveTab('nutricaodieta')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'nutricaodieta' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+              <ClipboardList className="w-4 h-4" /> Dieta Caseira (Cozida/Crua)
+            </button>
           </div>
         </div>
 
@@ -1942,6 +3160,7 @@ export default function VetWorkspaceBeatrizV28() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <GlobalPatientSearch patients={patients} onSelectPatient={handleOpenPatient} />
             <button 
               onClick={() => setShowValues(!showValues)} 
               className="bg-white hover:bg-pink-50 text-pink-700 px-3 py-1.5 rounded-xl border border-pink-200 text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
@@ -1970,6 +3189,13 @@ export default function VetWorkspaceBeatrizV28() {
           
           {activeTab === 'painel' && (
             <div className="space-y-6">
+              <ClinicalDashboard
+                patients={patients}
+                events={events}
+                tasks={tasks}
+                onOpenPatient={handleOpenPatient}
+                onResolveAlert={handleResolvePatientAlert}
+              />
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div onClick={() => setActiveTab('financas')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
                   <div>
@@ -3144,7 +4370,8 @@ export default function VetWorkspaceBeatrizV28() {
                     <input type="text" placeholder="Peso inicial (ex: 12kg)" value={newWeight} onChange={(e) => setNewWeight(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
                     <input type="text" placeholder="Nome do Tutor" value={newTutor} onChange={(e) => setNewTutor(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input type="text" placeholder="Neoplasia / Diagnóstico oncológico" value={newNeoplasia} onChange={(e) => setNewNeoplasia(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
                     <input type="text" placeholder="Queixa Principal / Anamnese" value={newComplaint} onChange={(e) => setNewComplaint(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
                     <select value={newStatus} onChange={(e) => setNewStatus(e.target.value as any)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
                       <option value="Em Atendimento">Em Atendimento</option>
@@ -3164,13 +4391,26 @@ export default function VetWorkspaceBeatrizV28() {
                   <p className="text-xs text-stone-400 py-6 text-center bg-white/50 rounded-2xl border border-pink-100">Nenhum caso clínico cadastrado ainda.</p>
                 ) : (
                   patients.map(p => (
-                    <div key={p.id} className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
+                    <div id={`patient-${p.id}`} key={p.id} className={`bg-white/95 backdrop-blur-md border p-6 rounded-2xl shadow-xs space-y-4 scroll-mt-24 transition ${focusedPatientId === p.id ? 'border-pink-500 ring-2 ring-pink-100' : 'border-pink-100'}`}>
                       <div className="flex items-center justify-between border-b border-pink-100 pb-3">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-pink-50 text-pink-600 flex items-center justify-center font-bold">🐾</div>
                           <div>
                             <h4 className="text-sm font-extrabold text-pink-950">{p.petName} <span className="text-xs font-normal text-stone-500">({p.species} - {p.breed})</span></h4>
                             <p className="text-[11px] text-stone-400">Tutor: {p.tutor} • Idade: {p.age}</p>
+                            <div className="mt-1 flex items-center gap-1.5">
+                              <span className="text-[10px] text-pink-500">🎗️</span>
+                              <input
+                                type="text"
+                                value={p.neoplasia || ''}
+                                onChange={(e) => {
+                                  lastLocalMutationRef.current = Date.now()
+                                  setPatients(prev => prev.map(item => item.id === p.id ? { ...item, neoplasia: e.target.value } : item))
+                                }}
+                                placeholder="Neoplasia / diagnóstico"
+                                className="bg-transparent border-b border-pink-100 focus:border-pink-400 outline-none text-[11px] text-pink-700 font-bold w-56 max-w-full"
+                              />
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2.5">
@@ -3185,6 +4425,17 @@ export default function VetWorkspaceBeatrizV28() {
                       </div>
 
                       <div className="space-y-3">
+                        {(p.alerts || []).some(a => !a.resolved) && (
+                          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                            <div className="text-[10px] font-extrabold uppercase tracking-wider text-amber-800">Alertas clínicos pendentes</div>
+                            {(p.alerts || []).filter(a => !a.resolved).map(a => (
+                              <div key={a.id} className="bg-white border border-amber-100 rounded-lg p-2.5 flex items-start justify-between gap-3">
+                                <div><div className="text-xs font-bold text-amber-950">{a.title}</div><div className="text-[10px] text-stone-600 mt-0.5">{a.message}</div></div>
+                                <button type="button" onClick={() => handleResolvePatientAlert(p.id, a.id)} className="text-[10px] font-bold text-emerald-700 whitespace-nowrap hover:underline">Resolver</button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold text-pink-900 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-pink-500" /> Linha do Tempo (Evoluções & Retornos)</span>
                           <button onClick={() => setActivePatientForEvolution(activePatientForEvolution === p.id ? null : p.id)} className="text-xs font-bold text-pink-600 hover:underline bg-pink-50 px-3 py-1 rounded-lg border border-pink-200">
@@ -3203,17 +4454,11 @@ export default function VetWorkspaceBeatrizV28() {
                           </form>
                         )}
 
-                        <div className="space-y-2 pt-1">
-                          {p.evolutions.map((evo, idx) => (
-                            <div key={evo.id || idx} className="bg-pink-50/30 border border-pink-100 p-3 rounded-xl text-xs space-y-1">
-                              <div className="flex items-center justify-between text-[11px] font-bold text-pink-950 border-b border-pink-100/60 pb-1">
-                                <span>📅 {evo.date}</span>
-                                <span className="text-pink-600">Peso: {evo.weight} • Temp: {evo.temperature}</span>
-                              </div>
-                              <p className="text-stone-700 pt-1 select-text">{evo.notes}</p>
-                            </div>
-                          ))}
-                        </div>
+                        <PatientTimeline
+                          events={p.timeline || []}
+                          legacyEvolutions={p.evolutions}
+                          onAddEvent={(event) => handleAddTimelineEvent(p.id, event)}
+                        />
                       </div>
                     </div>
                   ))
@@ -3843,6 +5088,55 @@ export default function VetWorkspaceBeatrizV28() {
             </div>
           )}
 
+          {activeTab === 'toxicidadevcog' && (
+            <AdvancedOncologyFeature
+              mode="toxicity"
+              patients={patients}
+              onAddTimelineEvent={handleAddTimelineEvent}
+              onAddAlert={handleAddPatientAlert}
+            />
+          )}
+
+          {activeTab === 'interacoesonco' && (
+            <AdvancedOncologyFeature
+              mode="interactions"
+              patients={patients}
+              onUpdateContinuousMedications={handleUpdateContinuousMedications}
+            />
+          )}
+
+          {activeTab === 'posquimio' && (
+            <AdvancedOncologyFeature
+              mode="postchemo"
+              patients={patients}
+              onAddTimelineEvent={handleAddTimelineEvent}
+            />
+          )}
+
+          {activeTab === 'histologia' && (
+            <AdvancedOncologyFeature
+              mode="histology"
+              patients={patients}
+              onAddTimelineEvent={handleAddTimelineEvent}
+            />
+          )}
+
+          {activeTab === 'nutricaoenergia' && (
+            <CanineNutritionFeature mode="energy" patients={patients} onAddTimelineEvent={handleAddTimelineEvent} />
+          )}
+
+          {activeTab === 'nutricaoecc' && (
+            <CanineNutritionFeature mode="bcs" patients={patients} onAddTimelineEvent={handleAddTimelineEvent} />
+          )}
+
+          {activeTab === 'nutricaotoxicos' && (
+            <CanineNutritionFeature mode="toxins" patients={patients} onAddTimelineEvent={handleAddTimelineEvent} />
+          )}
+
+          {activeTab === 'nutricaodieta' && (
+            <CanineNutritionFeature mode="diet" patients={patients} onAddTimelineEvent={handleAddTimelineEvent} />
+          )}
+
           {activeTab === 'labref' && (
             <div className="max-w-5xl mx-auto space-y-6">
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
@@ -4133,12 +5427,20 @@ export default function VetWorkspaceBeatrizV28() {
                     const d7 = new Date(base); d7.setDate(d7.getDate() + info.d7)
                     const d14 = new Date(base); d14.setDate(d14.getDate() + info.d14)
                     const fmt = (d: Date) => d.toLocaleDateString('pt-BR')
-                    setNadirResult({ drug: nadirDrug, applicationDate: fmt(base), nadirStart: fmt(d7), nadirEnd: fmt(d14), notes: info.notes })
+                    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+                    setNadirResult({ drug: nadirDrug, applicationDate: fmt(base), applicationDateIso: iso(base), nadirStart: fmt(d7), nadirEnd: fmt(d14), nadirStartIso: iso(d7), nadirEndIso: iso(d14), notes: info.notes })
                   }
 
                   return (
                     <div className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="text-xs font-bold text-stone-700 block mb-1">Paciente (para dashboard/timeline)</label>
+                          <select value={nadirPatientId} onChange={(e) => setNadirPatientId(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                            <option value="">Somente simular</option>
+                            {patients.filter(p => p.species === 'Canino' || p.species === 'Felino').map(p => <option key={p.id} value={p.id}>{p.petName} • {p.tutor}</option>)}
+                          </select>
+                        </div>
                         <div>
                           <label className="text-xs font-bold text-stone-700 block mb-1">Fármaco Aplicado</label>
                           <select value={nadirDrug} onChange={(e) => { setNadirDrug(e.target.value); setNadirResult(null); }} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
@@ -4183,6 +5485,23 @@ export default function VetWorkspaceBeatrizV28() {
                               <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                               ⚠️ Agendar hemograma de controle para o período: {nadirResult.nadirStart} → {nadirResult.nadirEnd}
                             </div>
+                            {nadirPatientId && (
+                              <button type="button" onClick={() => {
+                                handleAddTimelineEvent(nadirPatientId, {
+                                  id: `nadir-${Date.now()}`,
+                                  date: nadirResult.applicationDateIso,
+                                  type: 'quimioterapia',
+                                  title: `${nadirResult.drug} — janela de nadir calculada`,
+                                  chemoDrug: nadirResult.drug,
+                                  nadirStart: nadirResult.nadirStartIso,
+                                  nadirEnd: nadirResult.nadirEndIso,
+                                  notes: nadirResult.notes
+                                })
+                                alert('Janela de nadir registrada na timeline e no dashboard clínico.')
+                              }} className="w-full bg-pink-600 hover:bg-pink-700 text-white py-2.5 rounded-xl text-xs font-bold">
+                                Salvar nadir no prontuário / dashboard
+                              </button>
+                            )}
                           </div>
                         </div>
                       )}
