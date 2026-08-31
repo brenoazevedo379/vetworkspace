@@ -2161,6 +2161,547 @@ function PrescriptionModule({
   )
 }
 
+
+type PreChemoChecklistRecord = {
+  id: string
+  createdAt: string
+  patientId: string
+  patientName: string
+  protocol: string
+  cycle: string
+  currentWeight: string
+  previousWeight: string
+  temperature: string
+  appetite: string
+  vomiting: string
+  diarrhea: string
+  activity: string
+  intercurrences: string
+  currentMeds: string
+  cbcDone: boolean
+  neutrophils: string
+  neutrophilsPrevious: string
+  neutrophilsFlagged: boolean
+  platelets: string
+  plateletsPrevious: string
+  plateletsFlagged: boolean
+  hematocrit: string
+  hematocritPrevious: string
+  hematocritFlagged: boolean
+  creatinine: string
+  creatininePrevious: string
+  creatinineFlagged: boolean
+  alt: string
+  altPrevious: string
+  altFlagged: boolean
+  alp: string
+  alpPrevious: string
+  alpFlagged: boolean
+  bilirubin: string
+  bilirubinPrevious: string
+  bilirubinFlagged: boolean
+  previousToxicity: string
+  notes: string
+  reviewItems: string[]
+}
+
+function PreChemoChecklist({
+  patients,
+}: {
+  patients: PatientRecord[]
+}) {
+  const storageKey = 'vet_prechemo_checklists_v28'
+
+  const emptyFlags = {
+    neutrophilsFlagged: false,
+    plateletsFlagged: false,
+    hematocritFlagged: false,
+    creatinineFlagged: false,
+    altFlagged: false,
+    alpFlagged: false,
+    bilirubinFlagged: false,
+  }
+
+  const [patientId, setPatientId] = useState('')
+  const [manualPatientName, setManualPatientName] = useState('')
+  const [protocol, setProtocol] = useState('')
+  const [cycle, setCycle] = useState('')
+  const [currentWeight, setCurrentWeight] = useState('')
+  const [previousWeight, setPreviousWeight] = useState('')
+  const [temperature, setTemperature] = useState('')
+  const [appetite, setAppetite] = useState('Normal')
+  const [vomiting, setVomiting] = useState('Não')
+  const [diarrhea, setDiarrhea] = useState('Não')
+  const [activity, setActivity] = useState('Normal')
+  const [intercurrences, setIntercurrences] = useState('')
+  const [currentMeds, setCurrentMeds] = useState('')
+  const [cbcDone, setCbcDone] = useState(false)
+
+  const [neutrophils, setNeutrophils] = useState('')
+  const [neutrophilsPrevious, setNeutrophilsPrevious] = useState('')
+  const [platelets, setPlatelets] = useState('')
+  const [plateletsPrevious, setPlateletsPrevious] = useState('')
+  const [hematocrit, setHematocrit] = useState('')
+  const [hematocritPrevious, setHematocritPrevious] = useState('')
+  const [creatinine, setCreatinine] = useState('')
+  const [creatininePrevious, setCreatininePrevious] = useState('')
+  const [alt, setAlt] = useState('')
+  const [altPrevious, setAltPrevious] = useState('')
+  const [alp, setAlp] = useState('')
+  const [alpPrevious, setAlpPrevious] = useState('')
+  const [bilirubin, setBilirubin] = useState('')
+  const [bilirubinPrevious, setBilirubinPrevious] = useState('')
+
+  const [flags, setFlags] = useState(emptyFlags)
+  const [previousToxicity, setPreviousToxicity] = useState('Nenhuma relatada')
+  const [notes, setNotes] = useState('')
+  const [result, setResult] = useState<string[] | null>(null)
+  const [history, setHistory] = useState<PreChemoChecklistRecord[]>(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const saved = localStorage.getItem(storageKey)
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  const selectedPatient = patients.find(p => p.id === patientId)
+  const patientName = selectedPatient?.petName || manualPatientName.trim()
+
+  const pctChange = (current: string, previous: string) => {
+    const c = Number(current.replace(',', '.'))
+    const p = Number(previous.replace(',', '.'))
+    if (!Number.isFinite(c) || !Number.isFinite(p) || p === 0) return null
+    return ((c - p) / p) * 100
+  }
+
+  const trend = (current: string, previous: string) => {
+    const change = pctChange(current, previous)
+    if (change === null) return '—'
+    if (Math.abs(change) < 0.1) return '→ sem mudança relevante'
+    return `${change > 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(1)}%`
+  }
+
+  const weightTrend = trend(currentWeight, previousWeight)
+
+  const buildReviewItems = () => {
+    const items: string[] = []
+
+    if (!cbcDone) items.push('Hemograma ainda não confirmado como disponível/revisado.')
+    if (appetite !== 'Normal') items.push(`Apetite informado como: ${appetite}.`)
+    if (vomiting !== 'Não') items.push(`Vômito desde o último ciclo: ${vomiting}.`)
+    if (diarrhea !== 'Não') items.push(`Diarreia desde o último ciclo: ${diarrhea}.`)
+    if (activity !== 'Normal') items.push(`Atividade/estado geral informado como: ${activity}.`)
+    if (intercurrences.trim()) items.push('Há intercorrências clínicas registradas para revisão.')
+    if (currentMeds.trim()) items.push('Há medicações de uso atual registradas; revisar interações e compatibilidade com o protocolo.')
+    if (previousToxicity !== 'Nenhuma relatada') items.push(`Toxicidade do ciclo anterior: ${previousToxicity}.`)
+
+    const labFlags: Array<[boolean, string]> = [
+      [flags.neutrophilsFlagged, 'Neutrófilos'],
+      [flags.plateletsFlagged, 'Plaquetas'],
+      [flags.hematocritFlagged, 'Hematócrito'],
+      [flags.creatinineFlagged, 'Creatinina'],
+      [flags.altFlagged, 'ALT'],
+      [flags.alpFlagged, 'FA'],
+      [flags.bilirubinFlagged, 'Bilirrubina'],
+    ]
+    labFlags.forEach(([flagged, label]) => {
+      if (flagged) items.push(`${label}: marcado como fora do intervalo de referência do laboratório/laudo.`)
+    })
+
+    if (currentWeight && previousWeight && weightTrend !== '—') {
+      items.push(`Peso: ${weightTrend} em relação ao registro anterior.`)
+    }
+
+    if (temperature.trim()) {
+      items.push(`Temperatura registrada: ${temperature} °C — interpretar conforme espécie, contexto e exame clínico.`)
+    }
+
+    if (items.length === 0) {
+      items.push('Checklist preenchido sem alertas automáticos registrados. A decisão clínica permanece dependente da avaliação do paciente, protocolo e laudos.')
+    }
+    return items
+  }
+
+  const evaluate = () => {
+    setResult(buildReviewItems())
+  }
+
+  const saveChecklist = () => {
+    if (!patientName) {
+      alert('Informe ou selecione o paciente antes de salvar.')
+      return
+    }
+    const reviewItems = buildReviewItems()
+    const record: PreChemoChecklistRecord = {
+      id: `prechemo-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      patientId,
+      patientName,
+      protocol,
+      cycle,
+      currentWeight,
+      previousWeight,
+      temperature,
+      appetite,
+      vomiting,
+      diarrhea,
+      activity,
+      intercurrences,
+      currentMeds,
+      cbcDone,
+      neutrophils,
+      neutrophilsPrevious,
+      neutrophilsFlagged: flags.neutrophilsFlagged,
+      platelets,
+      plateletsPrevious,
+      plateletsFlagged: flags.plateletsFlagged,
+      hematocrit,
+      hematocritPrevious,
+      hematocritFlagged: flags.hematocritFlagged,
+      creatinine,
+      creatininePrevious,
+      creatinineFlagged: flags.creatinineFlagged,
+      alt,
+      altPrevious,
+      altFlagged: flags.altFlagged,
+      alp,
+      alpPrevious,
+      alpFlagged: flags.alpFlagged,
+      bilirubin,
+      bilirubinPrevious,
+      bilirubinFlagged: flags.bilirubinFlagged,
+      previousToxicity,
+      notes,
+      reviewItems,
+    }
+    const next = [record, ...history].slice(0, 100)
+    setHistory(next)
+    setResult(reviewItems)
+    if (typeof window !== 'undefined') localStorage.setItem(storageKey, JSON.stringify(next))
+    alert('Checklist pré-quimioterapia salvo.')
+  }
+
+  const clear = () => {
+    setPatientId('')
+    setManualPatientName('')
+    setProtocol('')
+    setCycle('')
+    setCurrentWeight('')
+    setPreviousWeight('')
+    setTemperature('')
+    setAppetite('Normal')
+    setVomiting('Não')
+    setDiarrhea('Não')
+    setActivity('Normal')
+    setIntercurrences('')
+    setCurrentMeds('')
+    setCbcDone(false)
+    setNeutrophils('')
+    setNeutrophilsPrevious('')
+    setPlatelets('')
+    setPlateletsPrevious('')
+    setHematocrit('')
+    setHematocritPrevious('')
+    setCreatinine('')
+    setCreatininePrevious('')
+    setAlt('')
+    setAltPrevious('')
+    setAlp('')
+    setAlpPrevious('')
+    setBilirubin('')
+    setBilirubinPrevious('')
+    setFlags(emptyFlags)
+    setPreviousToxicity('Nenhuma relatada')
+    setNotes('')
+    setResult(null)
+  }
+
+  const loadHistory = (item: PreChemoChecklistRecord) => {
+    setPatientId(item.patientId || '')
+    setManualPatientName(item.patientName || '')
+    setProtocol(item.protocol || '')
+    setCycle(item.cycle || '')
+    setCurrentWeight(item.currentWeight || '')
+    setPreviousWeight(item.previousWeight || '')
+    setTemperature(item.temperature || '')
+    setAppetite(item.appetite || 'Normal')
+    setVomiting(item.vomiting || 'Não')
+    setDiarrhea(item.diarrhea || 'Não')
+    setActivity(item.activity || 'Normal')
+    setIntercurrences(item.intercurrences || '')
+    setCurrentMeds(item.currentMeds || '')
+    setCbcDone(!!item.cbcDone)
+    setNeutrophils(item.neutrophils || '')
+    setNeutrophilsPrevious(item.neutrophilsPrevious || '')
+    setPlatelets(item.platelets || '')
+    setPlateletsPrevious(item.plateletsPrevious || '')
+    setHematocrit(item.hematocrit || '')
+    setHematocritPrevious(item.hematocritPrevious || '')
+    setCreatinine(item.creatinine || '')
+    setCreatininePrevious(item.creatininePrevious || '')
+    setAlt(item.alt || '')
+    setAltPrevious(item.altPrevious || '')
+    setAlp(item.alp || '')
+    setAlpPrevious(item.alpPrevious || '')
+    setBilirubin(item.bilirubin || '')
+    setBilirubinPrevious(item.bilirubinPrevious || '')
+    setFlags({
+      neutrophilsFlagged: !!item.neutrophilsFlagged,
+      plateletsFlagged: !!item.plateletsFlagged,
+      hematocritFlagged: !!item.hematocritFlagged,
+      creatinineFlagged: !!item.creatinineFlagged,
+      altFlagged: !!item.altFlagged,
+      alpFlagged: !!item.alpFlagged,
+      bilirubinFlagged: !!item.bilirubinFlagged,
+    })
+    setPreviousToxicity(item.previousToxicity || 'Nenhuma relatada')
+    setNotes(item.notes || '')
+    setResult(item.reviewItems || null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const labRow = (
+    label: string,
+    current: string,
+    setCurrent: React.Dispatch<React.SetStateAction<string>>,
+    previous: string,
+    setPrevious: React.Dispatch<React.SetStateAction<string>>,
+    flagKey: keyof typeof flags,
+    unit: string
+  ) => (
+    <div className="grid grid-cols-1 md:grid-cols-[1.1fr_1fr_1fr_0.9fr] gap-2 items-end bg-white border border-pink-100 rounded-xl p-3">
+      <div>
+        <div className="text-xs font-extrabold text-pink-950">{label}</div>
+        <div className="text-[10px] text-stone-400">{unit}</div>
+      </div>
+      <div>
+        <label className="text-[10px] font-bold text-stone-500 block mb-1">Anterior</label>
+        <input value={previous} onChange={e => setPrevious(e.target.value)} className="w-full bg-pink-50/40 border border-pink-200 rounded-lg px-2.5 py-2 text-xs focus:outline-none" />
+      </div>
+      <div>
+        <label className="text-[10px] font-bold text-stone-500 block mb-1">Atual</label>
+        <input value={current} onChange={e => setCurrent(e.target.value)} className="w-full bg-pink-50/40 border border-pink-200 rounded-lg px-2.5 py-2 text-xs focus:outline-none" />
+        <div className="text-[10px] font-bold text-pink-700 mt-1">{trend(current, previous)}</div>
+      </div>
+      <label className="flex items-center gap-2 text-[10px] font-bold text-stone-600 cursor-pointer p-2 rounded-lg bg-amber-50 border border-amber-100">
+        <input
+          type="checkbox"
+          checked={flags[flagKey]}
+          onChange={e => setFlags(prev => ({ ...prev, [flagKey]: e.target.checked }))}
+          className="accent-pink-500"
+        />
+        Fora da referência do laudo
+      </label>
+    </div>
+  )
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-7 rounded-3xl shadow-sm space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-pink-100 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm">
+              <ClipboardList className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-base font-extrabold text-pink-950">Checklist Pré-Quimioterapia</h2>
+              <p className="text-xs text-pink-500 font-medium">Conferência clínica, laboratorial e de toxicidade antes do próximo ciclo</p>
+            </div>
+          </div>
+          <button type="button" onClick={clear} className="bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-800 px-4 py-2.5 rounded-xl text-xs font-bold">
+            Limpar checklist
+          </button>
+        </div>
+
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-[11px] text-amber-900 leading-relaxed">
+          <strong>Importante:</strong> esta ferramenta não usa intervalos laboratoriais universais. Marque “fora da referência do laudo” conforme o laboratório que realizou o exame. O resumo organiza os pontos de revisão e não substitui a decisão clínica sobre realizar, adiar ou ajustar o ciclo.
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-bold text-stone-700 block mb-1">Paciente cadastrado (opcional)</label>
+            <select
+              value={patientId}
+              onChange={e => {
+                const id = e.target.value
+                setPatientId(id)
+                const p = patients.find(x => x.id === id)
+                if (p) setManualPatientName(p.petName)
+              }}
+              className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none"
+            >
+              <option value="">Digitar nome manualmente</option>
+              {patients.map(p => <option key={p.id} value={p.id}>{p.petName} — {p.tutor}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-700 block mb-1">Nome do paciente</label>
+            <input value={manualPatientName} onChange={e => { setManualPatientName(e.target.value); if (patientId) setPatientId('') }} placeholder="Ex: Mel" className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-700 block mb-1">Protocolo / quimioterápico</label>
+            <input value={protocol} onChange={e => setProtocol(e.target.value)} placeholder="Ex: CHOP / Doxorrubicina..." className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-700 block mb-1">Ciclo / semana</label>
+            <input value={cycle} onChange={e => setCycle(e.target.value)} placeholder="Ex: Ciclo 3 / Semana 5" className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none" />
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-xs font-extrabold text-pink-950 uppercase tracking-wider mb-3">1. Estado clínico desde o último ciclo</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="text-[11px] font-bold text-stone-600 block mb-1">Peso anterior (kg)</label>
+              <input value={previousWeight} onChange={e => setPreviousWeight(e.target.value)} className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3 py-2.5 text-xs" />
+            </div>
+            <div>
+              <label className="text-[11px] font-bold text-stone-600 block mb-1">Peso atual (kg)</label>
+              <input value={currentWeight} onChange={e => setCurrentWeight(e.target.value)} className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3 py-2.5 text-xs" />
+              <div className="text-[10px] font-bold text-pink-700 mt-1">{weightTrend}</div>
+            </div>
+            <div>
+              <label className="text-[11px] font-bold text-stone-600 block mb-1">Temperatura (°C)</label>
+              <input value={temperature} onChange={e => setTemperature(e.target.value)} className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3 py-2.5 text-xs" />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-stone-600 block mb-1">Apetite</label>
+              <select value={appetite} onChange={e => setAppetite(e.target.value)} className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3 py-2.5 text-xs">
+                <option>Normal</option><option>Reduzido</option><option>Ausente</option><option>Aumentado</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] font-bold text-stone-600 block mb-1">Vômito</label>
+              <select value={vomiting} onChange={e => setVomiting(e.target.value)} className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3 py-2.5 text-xs">
+                <option>Não</option><option>Episódio isolado</option><option>Recorrente</option><option>Persistente / importante</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] font-bold text-stone-600 block mb-1">Diarreia</label>
+              <select value={diarrhea} onChange={e => setDiarrhea(e.target.value)} className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3 py-2.5 text-xs">
+                <option>Não</option><option>Leve / ocasional</option><option>Recorrente</option><option>Persistente / importante</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] font-bold text-stone-600 block mb-1">Atividade / estado geral</label>
+              <select value={activity} onChange={e => setActivity(e.target.value)} className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3 py-2.5 text-xs">
+                <option>Normal</option><option>Discretamente reduzida</option><option>Apático</option><option>Muito comprometido</option>
+              </select>
+            </div>
+            <div className="md:col-span-2">
+              <label className="text-[11px] font-bold text-stone-600 block mb-1">Intercorrências desde o último ciclo</label>
+              <input value={intercurrences} onChange={e => setIntercurrences(e.target.value)} placeholder="Infecção, internação, sangramento, dor, outros..." className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3 py-2.5 text-xs" />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-xs font-extrabold text-pink-950 uppercase tracking-wider mb-3">2. Exames — compare com o laudo do próprio laboratório</h3>
+          <label className="flex items-center gap-2 mb-3 text-xs font-bold text-stone-700 bg-pink-50/50 border border-pink-100 rounded-xl p-3 cursor-pointer">
+            <input type="checkbox" checked={cbcDone} onChange={e => setCbcDone(e.target.checked)} className="accent-pink-500" />
+            Hemograma disponível e revisado
+          </label>
+          <div className="space-y-2">
+            {labRow('Neutrófilos', neutrophils, setNeutrophils, neutrophilsPrevious, setNeutrophilsPrevious, 'neutrophilsFlagged', 'usar unidade do laboratório')}
+            {labRow('Plaquetas', platelets, setPlatelets, plateletsPrevious, setPlateletsPrevious, 'plateletsFlagged', 'usar unidade do laboratório')}
+            {labRow('Hematócrito', hematocrit, setHematocrit, hematocritPrevious, setHematocritPrevious, 'hematocritFlagged', '%')}
+            {labRow('Creatinina', creatinine, setCreatinine, creatininePrevious, setCreatininePrevious, 'creatinineFlagged', 'usar unidade do laboratório')}
+            {labRow('ALT', alt, setAlt, altPrevious, setAltPrevious, 'altFlagged', 'usar unidade do laboratório')}
+            {labRow('FA', alp, setAlp, alpPrevious, setAlpPrevious, 'alpFlagged', 'usar unidade do laboratório')}
+            {labRow('Bilirrubina', bilirubin, setBilirubin, bilirubinPrevious, setBilirubinPrevious, 'bilirubinFlagged', 'usar unidade do laboratório')}
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-xs font-extrabold text-pink-950 uppercase tracking-wider mb-3">3. Toxicidade e medicações atuais</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[11px] font-bold text-stone-600 block mb-1">Toxicidade do ciclo anterior</label>
+              <select value={previousToxicity} onChange={e => setPreviousToxicity(e.target.value)} className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3 py-2.5 text-xs">
+                <option>Nenhuma relatada</option>
+                <option>Leve — revisar</option>
+                <option>Moderada — revisar antes do ciclo</option>
+                <option>Importante — requer reavaliação</option>
+                <option>Classificada no módulo VCOG-CTCAE</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] font-bold text-stone-600 block mb-1">Medicações em uso</label>
+              <input value={currentMeds} onChange={e => setCurrentMeds(e.target.value)} placeholder="AINE, corticoide, antibiótico, anticonvulsivante..." className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3 py-2.5 text-xs" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <label className="text-[11px] font-bold text-stone-600 block mb-1">Observações clínicas</label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3 py-2.5 text-xs resize-none" />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={evaluate} className="bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5">
+            <ClipboardList className="w-4 h-4" /> Gerar resumo pré-quimio
+          </button>
+          <button type="button" onClick={saveChecklist} className="bg-stone-800 hover:bg-stone-900 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5">
+            <Save className="w-4 h-4" /> Salvar checklist
+          </button>
+        </div>
+
+        {result && (
+          <div className="bg-pink-50/70 border border-pink-200 rounded-2xl p-5 space-y-3">
+            <div className="font-extrabold text-sm text-pink-950">Resumo para revisão antes do próximo ciclo</div>
+            <ul className="space-y-2">
+              {result.map((item, idx) => (
+                <li key={idx} className="flex items-start gap-2 text-xs text-stone-700">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="text-[10px] text-stone-500 border-t border-pink-100 pt-3">
+              O sistema organiza dados e tendências. A interpretação dos exames deve seguir o intervalo de referência informado no laudo e o contexto clínico do paciente.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {history.length > 0 && (
+        <div className="bg-white/95 border border-pink-100 p-6 rounded-3xl shadow-sm space-y-3">
+          <h3 className="text-sm font-extrabold text-pink-950">Checklists salvos</h3>
+          <div className="space-y-2">
+            {history.slice(0, 10).map(item => (
+              <div key={item.id} className="flex flex-col md:flex-row md:items-center justify-between gap-3 border border-pink-100 rounded-xl p-3">
+                <div>
+                  <div className="text-xs font-extrabold text-pink-950">{item.patientName}</div>
+                  <div className="text-[10px] text-stone-500">
+                    {new Date(item.createdAt).toLocaleString('pt-BR')} {item.protocol ? `• ${item.protocol}` : ''} {item.cycle ? `• ${item.cycle}` : ''}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => loadHistory(item)} className="bg-pink-50 hover:bg-pink-100 text-pink-800 border border-pink-200 px-3 py-1.5 rounded-lg text-[11px] font-bold">Abrir</button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!confirm('Excluir este checklist salvo?')) return
+                      const next = history.filter(x => x.id !== item.id)
+                      setHistory(next)
+                      if (typeof window !== 'undefined') localStorage.setItem(storageKey, JSON.stringify(next))
+                    }}
+                    className="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-lg text-[11px] font-bold"
+                  >
+                    Excluir
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function VetWorkspaceBeatrizV28() {
   const [isMounted, setIsMounted] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
@@ -3736,7 +4277,7 @@ export default function VetWorkspaceBeatrizV28() {
           <div className="pt-2 border-t border-pink-100/60 mt-2 space-y-1">
             <div className="px-3 py-1 text-[10px] font-extrabold text-pink-400 uppercase tracking-widest">🔬 Oncologia Avançada</div>
             <button onClick={() => setActiveTab('labref')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'labref' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
-              <FlaskConical className="w-4 h-4" /> Guia de Parâmetros Laboratoriais
+              <ClipboardList className="w-4 h-4" /> Checklist Pré-Quimioterapia
             </button>
             <button onClick={() => setActiveTab('protocolos')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'protocolos' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
               <Syringe className="w-4 h-4" /> Simulador Protocolos (CHOP etc.)
@@ -5798,118 +6339,7 @@ export default function VetWorkspaceBeatrizV28() {
           )}
 
           {activeTab === 'labref' && (
-            <div className="max-w-5xl mx-auto space-y-6">
-              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
-                <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><FlaskConical className="w-6 h-6" /></div>
-                  <div>
-                    <h2 className="text-base font-extrabold text-pink-950">🔬 Guia Rápido de Parâmetros Laboratoriais</h2>
-                    <p className="text-xs text-pink-500 font-medium">Valores de referência de hemograma e bioquímicos para cães e gatos — consulta rápida para cruzar com os prontuários</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* HEMOGRAMA */}
-                  <div className="space-y-4">
-                    <h3 className="text-xs font-extrabold text-pink-900 uppercase tracking-wider flex items-center gap-1.5">🩸 Hemograma Completo</h3>
-                    <div className="overflow-hidden rounded-2xl border border-pink-100">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="bg-pink-50">
-                            <th className="px-3 py-2.5 text-left font-extrabold text-pink-900">Parâmetro</th>
-                            <th className="px-3 py-2.5 text-left font-extrabold text-pink-700">🐕 Cão</th>
-                            <th className="px-3 py-2.5 text-left font-extrabold text-pink-700">🐈 Gato</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-pink-50">
-                          {[
-                            ['Eritrócitos (x10⁶/µL)', '5,5 – 8,5', '5,0 – 10,0'],
-                            ['Hemoglobina (g/dL)', '12 – 18', '8 – 15'],
-                            ['Hematócrito (%)', '37 – 55', '24 – 45'],
-                            ['VGM (fL)', '60 – 77', '39 – 55'],
-                            ['CHGM (g/dL)', '32 – 36', '30 – 36'],
-                            ['Leucócitos (x10³/µL)', '6 – 17', '5,5 – 19,5'],
-                            ['Neutrófilos Segm. (%)', '60 – 77', '35 – 75'],
-                            ['Neutrófilos Bastão (%)', '0 – 3', '0 – 3'],
-                            ['Linfócitos (%)', '12 – 30', '20 – 55'],
-                            ['Monócitos (%)', '3 – 10', '1 – 4'],
-                            ['Eosinófilos (%)', '2 – 10', '2 – 12'],
-                            ['Plaquetas (x10³/µL)', '200 – 500', '300 – 700'],
-                          ].map(([param, cao, gato], i) => (
-                            <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-pink-50/30'}>
-                              <td className="px-3 py-2 font-semibold text-stone-700">{param}</td>
-                              <td className="px-3 py-2 text-pink-800 font-bold">{cao}</td>
-                              <td className="px-3 py-2 text-pink-600 font-bold">{gato}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* BIOQUÍMICOS */}
-                  <div className="space-y-4">
-                    <h3 className="text-xs font-extrabold text-pink-900 uppercase tracking-wider flex items-center gap-1.5">🧪 Bioquímicos (ALT, FA, Creatinina, Ureia, Eletrólitos)</h3>
-                    <div className="overflow-hidden rounded-2xl border border-pink-100">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="bg-pink-50">
-                            <th className="px-3 py-2.5 text-left font-extrabold text-pink-900">Parâmetro</th>
-                            <th className="px-3 py-2.5 text-left font-extrabold text-pink-700">🐕 Cão</th>
-                            <th className="px-3 py-2.5 text-left font-extrabold text-pink-700">🐈 Gato</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-pink-50">
-                          {[
-                            ['ALT / TGP (U/L)', '10 – 88', '12 – 130'],
-                            ['AST / TGO (U/L)', '0 – 50', '0 – 48'],
-                            ['Fosfatase Alcalina (U/L)', '20 – 150', '14 – 111'],
-                            ['GGT (U/L)', '0 – 14', '0 – 4'],
-                            ['Bilirrubina Total (mg/dL)', '0,1 – 0,6', '0,15 – 0,5'],
-                            ['Creatinina (mg/dL)', '0,5 – 1,5', '0,8 – 1,8'],
-                            ['Ureia (mg/dL)', '21 – 60', '30 – 65'],
-                            ['Sódio (mEq/L)', '140 – 155', '145 – 158'],
-                            ['Potássio (mEq/L)', '3,5 – 5,8', '3,5 – 5,8'],
-                            ['Cloro (mEq/L)', '105 – 122', '107 – 129'],
-                            ['Cálcio Total (mg/dL)', '7,9 – 12,0', '7,5 – 11,3'],
-                            ['Fósforo (mg/dL)', '2,5 – 6,8', '2,4 – 8,2'],
-                            ['Glicose (mg/dL)', '70 – 138', '63 – 170'],
-                            ['Albumina (g/dL)', '2,6 – 4,0', '2,1 – 4,0'],
-                            ['Proteína Total (g/dL)', '5,0 – 7,4', '5,0 – 8,8'],
-                          ].map(([param, cao, gato], i) => (
-                            <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-pink-50/30'}>
-                              <td className="px-3 py-2 font-semibold text-stone-700">{param}</td>
-                              <td className="px-3 py-2 text-pink-800 font-bold">{cao}</td>
-                              <td className="px-3 py-2 text-pink-600 font-bold">{gato}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Cruzamento com Pacientes */}
-                <div className="bg-amber-50 border border-amber-200 p-5 rounded-2xl space-y-2">
-                  <div className="font-extrabold text-amber-900 flex items-center gap-2 text-xs">
-                    <AlertTriangle className="w-4 h-4 text-amber-600" /> Interpretação Oncológica Rápida
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
-                    {[
-                      { param: 'Neutrófilos < 1.500/µL', label: 'Neutropenia Grave', action: 'Adiar quimioterapia. Iniciar antibioticoprofilaxia. Repetir hemograma em 48h.' },
-                      { param: 'Plaquetas < 50.000/µL', label: 'Trombocitopenia Grave', action: 'Suspender QT. Avaliar sangramento. Considerar transfusão.' },
-                      { param: 'ALT > 3x valor normal', label: 'Hepatotoxicidade', action: 'Reduzir dose de Lomustina/Clorambucil em 25-50%. Reavaliar com hepatoprotetor.' },
-                    ].map((item, i) => (
-                      <div key={i} className="bg-white border border-amber-200 p-3 rounded-xl text-xs space-y-1">
-                        <div className="font-extrabold text-amber-900">{item.param}</div>
-                        <div className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold inline-block">{item.label}</div>
-                        <p className="text-stone-700 leading-relaxed">{item.action}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <PreChemoChecklist patients={patients} />
           )}
 
           {activeTab === 'protocolos' && (
