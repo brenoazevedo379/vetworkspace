@@ -144,6 +144,33 @@ interface PatientRecord {
   continuousMedications?: string[]
 }
 
+interface PrescriptionMedication {
+  id: string
+  name: string
+  presentation: string
+  dose: string
+  frequency: string
+  duration: string
+  instructions: string
+}
+
+interface VetPrescription {
+  id: string
+  createdAt: string
+  updatedAt: string
+  patientId: string
+  patientName: string
+  tutorName: string
+  species: string
+  date: string
+  veterinarian: string
+  crmv: string
+  diagnosis: string
+  medications: PrescriptionMedication[]
+  generalInstructions: string
+  notes: string
+}
+
 interface VetDrug {
   name: string
   category: string
@@ -1192,6 +1219,15 @@ const DOG_TOXINS = [
   { name: 'Cebola / alho / cebolinha / alho-poró', risk: 'ALTO', effect: 'Oxidantes de Allium podem causar hemólise e anemia, inclusive após formas cozidas ou desidratadas.', action: 'Registrar forma e quantidade ingerida; procurar orientação veterinária, sobretudo se houver fraqueza, palidez ou icterícia.' },
   { name: 'Macadâmia', risk: 'MODERADO', effect: 'Pode causar vômito, fraqueza, ataxia, tremores e hipertermia em cães.', action: 'Contatar veterinário para avaliação; quadros graves podem necessitar suporte.' },
   { name: 'Massa crua com fermento', risk: 'ALTO', effect: 'Pode expandir no estômago e produzir etanol, levando a distensão e intoxicação alcoólica.', action: 'Atendimento veterinário imediato.' },
+  { name: 'Álcool / bebidas alcoólicas', risk: 'CRÍTICO', effect: 'Pode causar vômito, depressão do sistema nervoso central, incoordenação, hipotermia, dificuldade respiratória, coma e morte.', action: 'Atendimento veterinário imediato. Informar tipo de bebida/alimento, teor alcoólico, quantidade e horário.' },
+  { name: 'Café / cafeína / energéticos / chá concentrado', risk: 'ALTO', effect: 'Metilxantinas podem causar agitação, taquicardia, hipertensão, arritmias, tremores, hipertermia e convulsões.', action: 'Contato veterinário rápido. Levar embalagem ou informar concentração, quantidade e horário.' },
+  { name: 'Lúpulo / resíduos de fabricação de cerveja', risk: 'CRÍTICO', effect: 'Pode provocar hipertermia grave, taquicardia, ansiedade, ofegação e deterioração rápida.', action: 'Emergência veterinária. Não aguardar surgimento de sinais.' },
+  { name: 'Excesso de sal / massa de sal / água muito salgada', risk: 'ALTO', effect: 'Pode causar vômito, diarreia, sede intensa, alterações neurológicas, tremores e convulsões.', action: 'Avaliação veterinária urgente. A correção de sódio deve ser controlada.' },
+  { name: 'Alimentos mofados / lixo orgânico / composto', risk: 'ALTO', effect: 'Alguns fungos produzem micotoxinas tremorgênicas, com risco de vômito, agitação, tremores, hipertermia e convulsões.', action: 'Atendimento veterinário rápido. Se possível, levar foto ou informação sobre o material ingerido.' },
+  { name: 'Noz-moscada em grande quantidade', risk: 'MODERADO', effect: 'Exposições relevantes podem provocar sinais gastrointestinais e neurológicos, como desorientação e tremores.', action: 'Contatar o veterinário com quantidade, forma do produto, peso e horário.' },
+  { name: 'Abacate — caroço, casca e grande quantidade', risk: 'MODERADO', effect: 'Em cães, pode causar sinais gastrointestinais; o caroço representa importante risco de obstrução gastrointestinal.', action: 'Se houve ingestão do caroço, grande quantidade ou vômitos/dor abdominal, procurar avaliação veterinária.' },
+  { name: 'Comestíveis com cannabis / THC', risk: 'ALTO', effect: 'Podem causar depressão, ataxia, hipersensibilidade, alterações de frequência cardíaca, hipotermia e incontinência; chocolate ou xilitol no produto somam riscos.', action: 'Procurar atendimento veterinário e informar composição, quantidade e horário.' },
+  { name: 'Cogumelos silvestres / desconhecidos', risk: 'CRÍTICO', effect: 'A toxicidade varia conforme a espécie e pode incluir sinais gastrointestinais, neurológicos, hepáticos ou renais graves.', action: 'Atendimento veterinário imediato. Fotografar o cogumelo e, se seguro, levar uma amostra separada para identificação.' },
 ]
 
 export function CanineNutritionFeature({ mode, patients, onAddTimelineEvent }: CanineNutritionFeatureProps) {
@@ -1309,14 +1345,108 @@ function BCSCalculator({ patients, onAddTimelineEvent }: Pick<CanineNutritionFea
 }
 
 function ToxicFoods() {
+  type CustomToxin = {
+    id: string
+    name: string
+    risk: 'CRÍTICO' | 'ALTO' | 'MODERADO'
+    effect: string
+    action: string
+  }
+
+  const storageKey = 'vet_custom_dog_toxins_v1'
   const [query, setQuery] = useState('')
-  const filtered = DOG_TOXINS.filter(x => `${x.name} ${x.effect}`.toLowerCase().includes(query.toLowerCase()))
+  const [showForm, setShowForm] = useState(false)
+  const [customFoods, setCustomFoods] = useState<CustomToxin[]>(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const saved = localStorage.getItem(storageKey)
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+  const [newName, setNewName] = useState('')
+  const [newRisk, setNewRisk] = useState<'CRÍTICO' | 'ALTO' | 'MODERADO'>('ALTO')
+  const [newEffect, setNewEffect] = useState('')
+  const [newAction, setNewAction] = useState('')
+
+  const allFoods = useMemo(() => [
+    ...DOG_TOXINS.map((item, index) => ({ ...item, id: `default-${index}`, custom: false })),
+    ...customFoods.map(item => ({ ...item, custom: true })),
+  ], [customFoods])
+
+  const filtered = allFoods.filter(item =>
+    `${item.name} ${item.risk} ${item.effect} ${item.action}`.toLowerCase().includes(query.trim().toLowerCase())
+  )
+
+  const persistCustomFoods = (next: CustomToxin[]) => {
+    setCustomFoods(next)
+    if (typeof window !== 'undefined') localStorage.setItem(storageKey, JSON.stringify(next))
+  }
+
+  const handleAddFood = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newName.trim() || !newEffect.trim() || !newAction.trim()) return
+    if (allFoods.some(item => item.name.trim().toLowerCase() === newName.trim().toLowerCase())) {
+      alert('Esse alimento já está cadastrado na lista.')
+      return
+    }
+    persistCustomFoods([...customFoods, {
+      id: `custom-toxin-${Date.now()}`,
+      name: newName.trim(),
+      risk: newRisk,
+      effect: newEffect.trim(),
+      action: newAction.trim(),
+    }])
+    setNewName('')
+    setNewRisk('ALTO')
+    setNewEffect('')
+    setNewAction('')
+    setShowForm(false)
+  }
+
+  const riskClass = (risk: string) => risk === 'CRÍTICO'
+    ? 'bg-rose-100 text-rose-800 border-rose-200'
+    : risk === 'ALTO'
+      ? 'bg-orange-100 text-orange-800 border-orange-200'
+      : 'bg-amber-100 text-amber-800 border-amber-200'
+
   return (
-    <div className="max-w-5xl mx-auto"><div className={cardClass}>
-      <ModuleHeader icon={<AlertTriangle className="w-6 h-6" />} title="Consulta Rápida — Alimentos Tóxicos para Cães" subtitle="Busca rápida de exposições alimentares comuns e conduta inicial segura" />
-      <SafetyBanner>Em suspeita de intoxicação, a conduta depende de quantidade, concentração, peso, tempo desde a ingestão e estado clínico. Não induza vômito nem administre “antídotos caseiros” sem orientação veterinária.</SafetyBanner>
-      <div className="relative mt-5 mb-4"><Search className="absolute left-3.5 top-3 w-4 h-4 text-pink-400" /><input value={query} onChange={e => setQuery(e.target.value)} className={`${inputClass} pl-10`} placeholder="Buscar xilitol, chocolate, uva, alho..." /></div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{filtered.map(item => <div key={item.name} className="bg-white border border-pink-200 rounded-2xl p-4 space-y-2"><div className="flex items-center justify-between"><h3 className="font-extrabold text-sm text-pink-950">{item.name}</h3><span className={`text-[10px] font-extrabold px-2 py-1 rounded-full ${item.risk === 'CRÍTICO' ? 'bg-rose-100 text-rose-800' : item.risk === 'ALTO' ? 'bg-orange-100 text-orange-800' : 'bg-amber-100 text-amber-800'}`}>{item.risk}</span></div><p className="text-xs text-stone-700 leading-relaxed"><strong>Efeito:</strong> {item.effect}</p><div className="bg-pink-50 rounded-xl p-3 text-[11px] text-pink-900 leading-relaxed"><strong>Conduta inicial:</strong> {item.action}</div></div>)}</div>
+    <div className="max-w-6xl mx-auto"><div className={cardClass}>
+      <ModuleHeader icon={<AlertTriangle className="w-6 h-6" />} title="Consulta Rápida — Alimentos Tóxicos para Cães" subtitle="Banco ampliado de exposições alimentares + cadastro de novos itens" />
+      <SafetyBanner>Em suspeita de intoxicação, a conduta depende de quantidade, concentração, peso, tempo desde a ingestão e estado clínico. Não induza vômito nem administre “antídotos caseiros” sem orientação veterinária. Esta tela é uma referência rápida e não substitui avaliação toxicológica individual.</SafetyBanner>
+
+      <div className="flex flex-col md:flex-row gap-3 mt-5 mb-4">
+        <div className="relative flex-1"><Search className="absolute left-3.5 top-3 w-4 h-4 text-pink-400" /><input value={query} onChange={e => setQuery(e.target.value)} className={`${inputClass} pl-10`} placeholder="Buscar xilitol, chocolate, uva, café, álcool, cogumelo..." /></div>
+        <button type="button" onClick={() => setShowForm(v => !v)} className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm">
+          {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />} {showForm ? 'Fechar cadastro' : 'Adicionar alimento'}
+        </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-5 text-[10px]">
+        <span className="font-bold text-stone-500">{allFoods.length} itens cadastrados</span>
+        <span className="px-2 py-1 rounded-full bg-rose-100 text-rose-800 font-bold">CRÍTICO</span>
+        <span className="px-2 py-1 rounded-full bg-orange-100 text-orange-800 font-bold">ALTO</span>
+        <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-800 font-bold">MODERADO</span>
+        {customFoods.length > 0 && <span className="px-2 py-1 rounded-full bg-pink-100 text-pink-800 font-bold">+ {customFoods.length} personalizado{customFoods.length !== 1 ? 's' : ''}</span>}
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleAddFood} className="mb-6 bg-pink-50/70 border border-pink-200 rounded-2xl p-5 space-y-4">
+          <div><h3 className="text-sm font-extrabold text-pink-950">➕ Adicionar novo alimento / exposição</h3><p className="text-[11px] text-stone-500 mt-1">O item personalizado fica salvo neste navegador e reaparece nas próximas consultas.</p></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="md:col-span-2"><label className={labelClass}>Alimento / produto</label><input value={newName} onChange={e => setNewName(e.target.value)} className={inputClass} placeholder="Nome do alimento ou produto" required /></div>
+            <div><label className={labelClass}>Nível de risco</label><select value={newRisk} onChange={e => setNewRisk(e.target.value as any)} className={inputClass}><option value="CRÍTICO">CRÍTICO</option><option value="ALTO">ALTO</option><option value="MODERADO">MODERADO</option></select></div>
+          </div>
+          <div><label className={labelClass}>Toxicidade / principais efeitos</label><textarea rows={3} value={newEffect} onChange={e => setNewEffect(e.target.value)} className={inputClass} placeholder="Descreva os principais riscos e sinais clínicos..." required /></div>
+          <div><label className={labelClass}>Conduta inicial / observações</label><textarea rows={3} value={newAction} onChange={e => setNewAction(e.target.value)} className={inputClass} placeholder="Descreva a conduta inicial ou o que deve ser avaliado..." required /></div>
+          <div className="flex gap-2"><button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5"><Save className="w-4 h-4" /> Salvar alimento</button><button type="button" onClick={() => setShowForm(false)} className="bg-white border border-stone-200 text-stone-600 px-4 py-2.5 rounded-xl text-xs font-bold">Cancelar</button></div>
+        </form>
+      )}
+
+      {filtered.length === 0 ? <div className="bg-pink-50/50 border border-dashed border-pink-200 rounded-2xl py-10 text-center text-xs text-stone-500">Nenhum alimento encontrado. Limpe a busca ou cadastre um novo item.</div> : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{filtered.map(item => <div key={item.id} className="bg-white border border-pink-200 rounded-2xl p-4 space-y-2"><div className="flex items-start justify-between gap-3"><div><h3 className="font-extrabold text-sm text-pink-950">{item.name}</h3>{item.custom && <span className="inline-block mt-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-pink-50 border border-pink-200 text-pink-700">PERSONALIZADO</span>}</div><div className="flex items-center gap-1.5"><span className={`text-[10px] font-extrabold px-2 py-1 rounded-full border ${riskClass(item.risk)}`}>{item.risk}</span>{item.custom && <button type="button" title="Excluir alimento personalizado" onClick={() => { if (confirm('Excluir este alimento personalizado?')) persistCustomFoods(customFoods.filter(x => x.id !== item.id)) }} className="p-1.5 rounded-lg text-stone-400 hover:text-red-500 hover:bg-red-50"><Trash2 className="w-3.5 h-3.5" /></button>}</div></div><p className="text-xs text-stone-700 leading-relaxed"><strong>Efeito:</strong> {item.effect}</p><div className="bg-pink-50 rounded-xl p-3 text-[11px] text-pink-900 leading-relaxed"><strong>Conduta inicial:</strong> {item.action}</div></div>)}</div>
+      )}
     </div></div>
   )
 }
@@ -1525,6 +1655,437 @@ export function PatientTimeline({
 }
 
 
+
+const PRESCRIPTION_TEMPLATES: Array<{
+  id: string
+  name: string
+  description: string
+  diagnosis: string
+  medications: Omit<PrescriptionMedication, 'id'>[]
+  generalInstructions: string
+}> = [
+  {
+    id: 'blank',
+    name: 'Receita em branco',
+    description: 'Começar do zero e preencher todos os campos manualmente.',
+    diagnosis: '',
+    medications: [],
+    generalInstructions: '',
+  },
+  {
+    id: 'gastro-support',
+    name: 'Suporte gastrointestinal',
+    description: 'Modelo editável para pacientes com sinais gastrointestinais. Doses ficam em branco para confirmação clínica.',
+    diagnosis: 'Afecção gastrointestinal — confirmar diagnóstico e gravidade',
+    medications: [
+      { name: 'Antiemético', presentation: '', dose: '[definir dose]', frequency: '[definir frequência]', duration: '[definir duração]', instructions: 'Administrar conforme avaliação clínica.' },
+      { name: 'Protetor gastrointestinal (se indicado)', presentation: '', dose: '[definir dose]', frequency: '[definir frequência]', duration: '[definir duração]', instructions: 'Usar somente quando houver indicação clínica.' },
+    ],
+    generalInstructions: 'Manter hidratação conforme orientação. Retornar imediatamente se houver piora, hematêmese, melena, prostração importante, dor abdominal intensa ou incapacidade de manter água/alimento.',
+  },
+  {
+    id: 'post-op',
+    name: 'Pós-operatório',
+    description: 'Modelo para alta pós-operatória com analgesia e cuidados locais, sempre editável.',
+    diagnosis: 'Pós-operatório — procedimento: [preencher]',
+    medications: [
+      { name: 'Analgésico', presentation: '', dose: '[definir dose]', frequency: '[definir frequência]', duration: '[definir duração]', instructions: 'Administrar conforme prescrição e reavaliação.' },
+      { name: 'Medicação adicional (se indicada)', presentation: '', dose: '[definir dose]', frequency: '[definir frequência]', duration: '[definir duração]', instructions: 'Preencher somente se houver indicação.' },
+    ],
+    generalInstructions: 'Manter repouso conforme orientação. Impedir lambedura da ferida. Observar sangramento, secreção, edema progressivo, abertura de pontos, dor intensa, vômitos persistentes ou apatia importante.',
+  },
+  {
+    id: 'derm',
+    name: 'Dermatologia — cuidados domiciliares',
+    description: 'Modelo para tratamento dermatológico com espaço para terapia tópica e sistêmica.',
+    diagnosis: 'Dermatopatia — diagnóstico: [preencher]',
+    medications: [
+      { name: 'Terapia tópica', presentation: '', dose: '[produto/concentração]', frequency: '[definir frequência]', duration: '[definir duração]', instructions: 'Descrever modo de aplicação e tempo de contato, quando aplicável.' },
+      { name: 'Medicação sistêmica (se indicada)', presentation: '', dose: '[definir dose]', frequency: '[definir frequência]', duration: '[definir duração]', instructions: 'Ajustar ao diagnóstico e ao paciente.' },
+    ],
+    generalInstructions: 'Evitar produtos não prescritos. Observar piora do prurido, surgimento de pústulas, secreção, dor, edema facial ou outros sinais adversos.',
+  },
+  {
+    id: 'onco-support',
+    name: 'Pós-quimioterapia — suporte',
+    description: 'Modelo de medicações de suporte e orientações após quimioterapia, sem doses automáticas.',
+    diagnosis: 'Paciente oncológico — protocolo/ciclo: [preencher]',
+    medications: [
+      { name: 'Antiemético / suporte gastrointestinal (se indicado)', presentation: '', dose: '[definir dose]', frequency: '[definir frequência]', duration: '[definir duração]', instructions: 'Confirmar necessidade conforme protocolo e paciente.' },
+      { name: 'Outro suporte', presentation: '', dose: '[definir dose]', frequency: '[definir frequência]', duration: '[definir duração]', instructions: 'Preencher conforme necessidade individual.' },
+    ],
+    generalInstructions: 'Monitorar apetite, vômitos, diarreia, apatia e temperatura quando orientado. Procurar atendimento se houver febre, prostração intensa, vômitos/diarreia persistentes, sangramento ou qualquer piora importante. Seguir as orientações de manejo de excretas fornecidas pela equipe.',
+  },
+]
+
+function PrescriptionModule({
+  patients,
+  recipes,
+  setRecipes,
+  markMutation,
+}: {
+  patients: PatientRecord[]
+  recipes: VetPrescription[]
+  setRecipes: React.Dispatch<React.SetStateAction<VetPrescription[]>>
+  markMutation: () => void
+}) {
+  const today = new Date().toISOString().slice(0, 10)
+  const blankMedication = (): PrescriptionMedication => ({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    name: '',
+    presentation: '',
+    dose: '',
+    frequency: '',
+    duration: '',
+    instructions: '',
+  })
+
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [patientId, setPatientId] = useState('')
+  const [date, setDate] = useState(today)
+  const [veterinarian, setVeterinarian] = useState('Dra. Beatriz Contreiras')
+  const [crmv, setCrmv] = useState('')
+  const [diagnosis, setDiagnosis] = useState('')
+  const [medications, setMedications] = useState<PrescriptionMedication[]>([blankMedication()])
+  const [generalInstructions, setGeneralInstructions] = useState('')
+  const [notes, setNotes] = useState('')
+  const [historyQuery, setHistoryQuery] = useState('')
+
+  const patient = patients.find(p => p.id === patientId)
+
+  const resetForm = () => {
+    setEditingId(null)
+    setPatientId('')
+    setDate(today)
+    setDiagnosis('')
+    setMedications([blankMedication()])
+    setGeneralInstructions('')
+    setNotes('')
+  }
+
+  const applyTemplate = (templateId: string) => {
+    const template = PRESCRIPTION_TEMPLATES.find(t => t.id === templateId)
+    if (!template) return
+    setDiagnosis(template.diagnosis)
+    setMedications(
+      template.medications.length
+        ? template.medications.map(m => ({ ...m, id: `${Date.now()}-${Math.random().toString(36).slice(2)}` }))
+        : [blankMedication()]
+    )
+    setGeneralInstructions(template.generalInstructions)
+  }
+
+  const updateMedication = (id: string, field: keyof PrescriptionMedication, value: string) => {
+    setMedications(prev => prev.map(m => m.id === id ? { ...m, [field]: value } : m))
+  }
+
+  const removeMedication = (id: string) => {
+    setMedications(prev => prev.length > 1 ? prev.filter(m => m.id !== id) : [blankMedication()])
+  }
+
+  const buildRecipe = (): VetPrescription | null => {
+    if (!patient) {
+      alert('Selecione um paciente para a receita.')
+      return null
+    }
+    const validMeds = medications.filter(m => m.name.trim())
+    if (validMeds.length === 0) {
+      alert('Adicione pelo menos uma medicação ou item de prescrição.')
+      return null
+    }
+    if (validMeds.some(m => !m.dose.trim() || !m.frequency.trim() || !m.duration.trim())) {
+      alert('Revise dose, frequência e duração de todos os itens antes de salvar ou imprimir.')
+      return null
+    }
+
+    const now = new Date().toISOString()
+    return {
+      id: editingId || `rx-${Date.now()}`,
+      createdAt: recipes.find(r => r.id === editingId)?.createdAt || now,
+      updatedAt: now,
+      patientId: patient.id,
+      patientName: patient.petName,
+      tutorName: patient.tutor,
+      species: patient.species,
+      date,
+      veterinarian: veterinarian.trim() || 'Médico(a)-veterinário(a)',
+      crmv: crmv.trim(),
+      diagnosis: diagnosis.trim(),
+      medications: validMeds,
+      generalInstructions: generalInstructions.trim(),
+      notes: notes.trim(),
+    }
+  }
+
+  const saveRecipe = () => {
+    const recipe = buildRecipe()
+    if (!recipe) return
+    markMutation()
+    setRecipes(prev => {
+      const exists = prev.some(r => r.id === recipe.id)
+      return exists ? prev.map(r => r.id === recipe.id ? recipe : r) : [recipe, ...prev]
+    })
+    setEditingId(recipe.id)
+    alert('Receita salva com sucesso.')
+  }
+
+  const escapeHtml = (value: string) =>
+    value.replace(/[&<>"']/g, char => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;',
+    }[char] || char))
+
+  const printRecipe = (recipeArg?: VetPrescription) => {
+    const recipe = recipeArg || buildRecipe()
+    if (!recipe) return
+
+    const w = window.open('', '_blank')
+    if (!w) {
+      alert('O navegador bloqueou a janela de impressão. Permita pop-ups para este site.')
+      return
+    }
+
+    const medsHtml = recipe.medications.map((m, index) => `
+      <div class="med">
+        <div class="med-title">${index + 1}. ${escapeHtml(m.name)}</div>
+        ${m.presentation ? `<div><strong>Apresentação:</strong> ${escapeHtml(m.presentation)}</div>` : ''}
+        <div><strong>Dose:</strong> ${escapeHtml(m.dose)}</div>
+        <div><strong>Frequência:</strong> ${escapeHtml(m.frequency)} &nbsp; <strong>Duração:</strong> ${escapeHtml(m.duration)}</div>
+        ${m.instructions ? `<div class="instructions">${escapeHtml(m.instructions)}</div>` : ''}
+      </div>
+    `).join('')
+
+    const html = `<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>Receita Veterinária - ${escapeHtml(recipe.patientName)}</title>
+<style>
+  @page { size: A4; margin: 18mm; }
+  body { font-family: Arial, sans-serif; color: #222; font-size: 13px; line-height: 1.45; }
+  .header { border-bottom: 2px solid #db2777; padding-bottom: 12px; margin-bottom: 18px; }
+  h1 { margin: 0; font-size: 22px; color: #9d174d; }
+  .muted { color: #666; font-size: 12px; }
+  .patient { background: #fdf2f8; border: 1px solid #fbcfe8; padding: 12px; border-radius: 8px; margin-bottom: 18px; }
+  .med { border-bottom: 1px solid #eee; padding: 10px 0; page-break-inside: avoid; }
+  .med-title { font-size: 14px; font-weight: bold; margin-bottom: 4px; }
+  .instructions { margin-top: 4px; white-space: pre-wrap; }
+  .box { margin-top: 18px; padding: 12px; border: 1px solid #ddd; border-radius: 8px; white-space: pre-wrap; }
+  .sign { margin-top: 55px; text-align: center; }
+  .sign-line { border-top: 1px solid #333; width: 280px; margin: 0 auto 6px; }
+  .footer { margin-top: 28px; font-size: 10px; color: #777; text-align: center; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>Receita Veterinária</h1>
+    <div class="muted">${escapeHtml(recipe.veterinarian)}${recipe.crmv ? ` • CRMV ${escapeHtml(recipe.crmv)}` : ''}</div>
+  </div>
+
+  <div class="patient">
+    <div><strong>Paciente:</strong> ${escapeHtml(recipe.patientName)} &nbsp; <strong>Espécie:</strong> ${escapeHtml(recipe.species)}</div>
+    <div><strong>Tutor(a):</strong> ${escapeHtml(recipe.tutorName)}</div>
+    <div><strong>Data:</strong> ${escapeHtml(recipe.date.split('-').reverse().join('/'))}</div>
+    ${recipe.diagnosis ? `<div><strong>Diagnóstico/indicação:</strong> ${escapeHtml(recipe.diagnosis)}</div>` : ''}
+  </div>
+
+  <h2 style="font-size:16px">Prescrição</h2>
+  ${medsHtml}
+
+  ${recipe.generalInstructions ? `<div class="box"><strong>Orientações gerais</strong><br>${escapeHtml(recipe.generalInstructions)}</div>` : ''}
+  ${recipe.notes ? `<div class="box"><strong>Observações</strong><br>${escapeHtml(recipe.notes)}</div>` : ''}
+
+  <div class="sign">
+    <div class="sign-line"></div>
+    <strong>${escapeHtml(recipe.veterinarian)}</strong><br>
+    ${recipe.crmv ? `CRMV ${escapeHtml(recipe.crmv)}` : 'CRMV: __________________'}
+  </div>
+
+  <div class="footer">Documento gerado pelo VetWorkspace. Revise integralmente a prescrição antes de assinar/entregar.</div>
+  <script>window.onload = () => window.print();</script>
+</body>
+</html>`
+    w.document.write(html)
+    w.document.close()
+  }
+
+  const loadRecipe = (recipe: VetPrescription) => {
+    setEditingId(recipe.id)
+    setPatientId(recipe.patientId)
+    setDate(recipe.date)
+    setVeterinarian(recipe.veterinarian)
+    setCrmv(recipe.crmv)
+    setDiagnosis(recipe.diagnosis)
+    setMedications(recipe.medications.length ? recipe.medications : [blankMedication()])
+    setGeneralInstructions(recipe.generalInstructions)
+    setNotes(recipe.notes)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const deleteRecipe = (id: string) => {
+    if (!confirm('Excluir esta receita salva?')) return
+    markMutation()
+    setRecipes(prev => prev.filter(r => r.id !== id))
+    if (editingId === id) resetForm()
+  }
+
+  const filteredHistory = recipes.filter(r =>
+    `${r.patientName} ${r.tutorName} ${r.diagnosis} ${r.date}`.toLowerCase().includes(historyQuery.toLowerCase())
+  )
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-7 rounded-3xl shadow-sm space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-pink-100 pb-4">
+          <div>
+            <div className="text-[10px] font-extrabold text-pink-500 uppercase tracking-widest">🧾 Prescrição</div>
+            <h2 className="text-xl font-extrabold text-pink-950">Receitas Veterinárias</h2>
+            <p className="text-xs text-stone-500 mt-1">Crie, salve, edite e imprima receitas. Na janela de impressão, escolha “Salvar como PDF” para gerar o arquivo.</p>
+          </div>
+          <button type="button" onClick={resetForm} className="bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-800 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5">
+            <Plus className="w-4 h-4" /> Nova receita
+          </button>
+        </div>
+
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-[11px] text-amber-900 leading-relaxed">
+          <strong>Segurança:</strong> os modelos automáticos são rascunhos editáveis e não definem automaticamente dose clínica. Confirme paciente, fármaco, apresentação, dose, frequência, duração, contraindicações e interações antes de salvar, imprimir ou entregar ao tutor.
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-stone-700 block mb-1">Modelos automáticos</label>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+            {PRESCRIPTION_TEMPLATES.map(t => (
+              <button key={t.id} type="button" onClick={() => applyTemplate(t.id)} className="text-left bg-pink-50/60 hover:bg-pink-100 border border-pink-200 rounded-xl p-3 transition">
+                <div className="text-xs font-extrabold text-pink-950">{t.name}</div>
+                <div className="text-[10px] text-stone-500 mt-1 leading-relaxed">{t.description}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="md:col-span-2">
+            <label className="text-xs font-bold text-stone-700 block mb-1">Paciente</label>
+            <select value={patientId} onChange={e => setPatientId(e.target.value)} className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none" required>
+              <option value="">Selecione o paciente...</option>
+              {patients.map(p => <option key={p.id} value={p.id}>{p.petName} — {p.tutor} ({p.species})</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-700 block mb-1">Data</label>
+            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-700 block mb-1">CRMV</label>
+            <input value={crmv} onChange={e => setCrmv(e.target.value)} placeholder="Ex: BA 00000" className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none" />
+          </div>
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-stone-700 block mb-1">Médico(a)-veterinário(a)</label>
+          <input value={veterinarian} onChange={e => setVeterinarian(e.target.value)} className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none" />
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-stone-700 block mb-1">Diagnóstico / indicação</label>
+          <input value={diagnosis} onChange={e => setDiagnosis(e.target.value)} placeholder="Diagnóstico, suspeita clínica ou indicação da prescrição..." className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none" />
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-extrabold text-pink-950 uppercase tracking-wider">Itens da prescrição</h3>
+            <button type="button" onClick={() => setMedications(prev => [...prev, blankMedication()])} className="bg-pink-500 hover:bg-pink-600 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1">
+              <Plus className="w-3.5 h-3.5" /> Adicionar item
+            </button>
+          </div>
+
+          {medications.map((m, index) => (
+            <div key={m.id} className="bg-pink-50/40 border border-pink-200 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-pink-900">Item {index + 1}</span>
+                <button type="button" onClick={() => removeMedication(m.id)} className="text-stone-400 hover:text-red-500 p-1"><Trash2 className="w-4 h-4" /></button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input value={m.name} onChange={e => updateMedication(m.id, 'name', e.target.value)} placeholder="Medicamento / produto" className="bg-white border border-pink-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none" />
+                <input value={m.presentation} onChange={e => updateMedication(m.id, 'presentation', e.target.value)} placeholder="Apresentação (ex: comprimido, solução...)" className="bg-white border border-pink-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <input value={m.dose} onChange={e => updateMedication(m.id, 'dose', e.target.value)} placeholder="Dose (obrigatório)" className="bg-white border border-pink-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none" />
+                <input value={m.frequency} onChange={e => updateMedication(m.id, 'frequency', e.target.value)} placeholder="Frequência (obrigatório)" className="bg-white border border-pink-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none" />
+                <input value={m.duration} onChange={e => updateMedication(m.id, 'duration', e.target.value)} placeholder="Duração (obrigatório)" className="bg-white border border-pink-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none" />
+              </div>
+              <textarea value={m.instructions} onChange={e => updateMedication(m.id, 'instructions', e.target.value)} rows={2} placeholder="Modo de uso / observações deste item..." className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none resize-none" />
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-bold text-stone-700 block mb-1">Orientações gerais ao tutor</label>
+            <textarea value={generalInstructions} onChange={e => setGeneralInstructions(e.target.value)} rows={5} className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none resize-none" placeholder="Cuidados domiciliares, retorno, sinais de alarme..." />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-700 block mb-1">Observações</label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={5} className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none resize-none" placeholder="Observações adicionais..." />
+          </div>
+        </div>
+
+        {patient && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-900">
+            Receita vinculada a <strong>{patient.petName}</strong>, tutor(a) <strong>{patient.tutor}</strong> — {patient.species}, {patient.breed}.
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={saveRecipe} className="bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm">
+            <Save className="w-4 h-4" /> {editingId ? 'Atualizar receita' : 'Salvar receita'}
+          </button>
+          <button type="button" onClick={() => printRecipe()} className="bg-stone-800 hover:bg-stone-900 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm">
+            <Printer className="w-4 h-4" /> Imprimir / Salvar PDF
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white/95 border border-pink-100 p-6 rounded-3xl shadow-sm space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-extrabold text-pink-950">Receitas salvas</h3>
+            <p className="text-[11px] text-stone-500">Reabra uma receita para editar, imprimir novamente ou excluir.</p>
+          </div>
+          <div className="relative md:w-80">
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-pink-400" />
+            <input value={historyQuery} onChange={e => setHistoryQuery(e.target.value)} placeholder="Buscar paciente, tutor, diagnóstico..." className="w-full bg-pink-50/40 border border-pink-200 rounded-xl pl-9 pr-3 py-2.5 text-xs focus:outline-none" />
+          </div>
+        </div>
+
+        {filteredHistory.length === 0 ? (
+          <div className="text-center py-8 text-xs text-stone-400 bg-pink-50/30 border border-dashed border-pink-200 rounded-2xl">Nenhuma receita salva ainda.</div>
+        ) : (
+          <div className="space-y-2">
+            {filteredHistory.map(recipe => (
+              <div key={recipe.id} className="border border-pink-100 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div>
+                  <div className="font-extrabold text-sm text-pink-950">🐾 {recipe.patientName}</div>
+                  <div className="text-[11px] text-stone-500">Tutor: {recipe.tutorName} • {recipe.date.split('-').reverse().join('/')} • {recipe.medications.length} item(ns)</div>
+                  {recipe.diagnosis && <div className="text-[11px] text-pink-700 mt-1">{recipe.diagnosis}</div>}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={() => loadRecipe(recipe)} className="bg-pink-50 hover:bg-pink-100 text-pink-800 border border-pink-200 px-3 py-2 rounded-xl text-xs font-bold">Abrir / Editar</button>
+                  <button type="button" onClick={() => printRecipe(recipe)} className="bg-stone-100 hover:bg-stone-200 text-stone-700 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1"><Printer className="w-3.5 h-3.5" /> PDF</button>
+                  <button type="button" onClick={() => deleteRecipe(recipe.id)} className="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2 rounded-xl text-xs font-bold"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function VetWorkspaceBeatrizV28() {
   const [isMounted, setIsMounted] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
@@ -1535,7 +2096,7 @@ export default function VetWorkspaceBeatrizV28() {
     setIsMounted(true)
   }, [])
 
-  const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'bsa' | 'ia' | 'condolencias' | 'tarefas' | 'calendario' | 'financas' | 'wishlist' | 'clinicas' | 'especialistas' | 'pessoal' | 'labref' | 'protocolos' | 'nadir' | 'extravasamento' | 'ajustes' | 'funcaorganica' | 'toxicidadevcog' | 'interacoesonco' | 'posquimio' | 'histologia' | 'nutricaoenergia' | 'nutricaoecc' | 'nutricaotoxicos' | 'nutricaodieta'>('painel')
+  const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'bsa' | 'ia' | 'condolencias' | 'tarefas' | 'calendario' | 'financas' | 'wishlist' | 'clinicas' | 'especialistas' | 'pessoal' | 'labref' | 'protocolos' | 'nadir' | 'extravasamento' | 'ajustes' | 'funcaorganica' | 'toxicidadevcog' | 'interacoesonco' | 'posquimio' | 'histologia' | 'nutricaoenergia' | 'nutricaoecc' | 'nutricaotoxicos' | 'nutricaodieta' | 'receitas'>('painel')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isPersonalSidebarOpen, setIsPersonalSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Sincronizado')
@@ -1967,6 +2528,13 @@ export default function VetWorkspaceBeatrizV28() {
     }
     return []
   })
+  const [recipes, setRecipes] = useState<VetPrescription[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_recipes_v28')
+      if (saved) try { return JSON.parse(saved) } catch(e) {}
+    }
+    return []
+  })
   const [newPetName, setNewPetName] = useState('')
   const [newSpecies, setNewSpecies] = useState('Canino')
   const [newBreed, setNewBreed] = useState('')
@@ -2213,6 +2781,7 @@ export default function VetWorkspaceBeatrizV28() {
           const d = data.data
           if (d.items) { setItems(d.items); localStorage.setItem('vet_items_v28', JSON.stringify(d.items)); }
           if (d.patients) { setPatients(d.patients); localStorage.setItem('vet_patients_v28', JSON.stringify(d.patients)); }
+          if (d.recipes) { setRecipes(d.recipes); localStorage.setItem('vet_recipes_v28', JSON.stringify(d.recipes)); }
           if (d.customDrugs) { setCustomDrugs(d.customDrugs); localStorage.setItem('vet_custom_drugs_v28', JSON.stringify(d.customDrugs)); }
           if (d.monthlyIncome !== undefined) { 
             setMonthlyIncome(d.monthlyIncome); 
@@ -2257,6 +2826,7 @@ export default function VetWorkspaceBeatrizV28() {
             const d = payload.new.data
             if (d.items) { setItems(d.items); localStorage.setItem('vet_items_v28', JSON.stringify(d.items)); }
             if (d.patients) { setPatients(d.patients); localStorage.setItem('vet_patients_v28', JSON.stringify(d.patients)); }
+          if (d.recipes) { setRecipes(d.recipes); localStorage.setItem('vet_recipes_v28', JSON.stringify(d.recipes)); }
             if (d.customDrugs) { setCustomDrugs(d.customDrugs); localStorage.setItem('vet_custom_drugs_v28', JSON.stringify(d.customDrugs)); }
             if (d.monthlyIncome !== undefined) { 
               setMonthlyIncome(d.monthlyIncome); 
@@ -2310,6 +2880,7 @@ export default function VetWorkspaceBeatrizV28() {
 
     localStorage.setItem('vet_items_v28', JSON.stringify(items))
     localStorage.setItem('vet_patients_v28', JSON.stringify(patients))
+    localStorage.setItem('vet_recipes_v28', JSON.stringify(recipes))
     localStorage.setItem('vet_custom_drugs_v28', JSON.stringify(customDrugs))
     localStorage.setItem('vet_income_v28', monthlyIncome.toString())
     localStorage.setItem('vet_cofrinho_v28', cofrinhoAmount.toString())
@@ -2338,6 +2909,7 @@ export default function VetWorkspaceBeatrizV28() {
         const payload = {
           items,
           patients,
+          recipes,
           customDrugs,
           monthlyIncome,
           cofrinhoAmount,
@@ -2375,7 +2947,7 @@ export default function VetWorkspaceBeatrizV28() {
 
     const timer = setTimeout(syncToCloud, 800)
     return () => clearTimeout(timer)
-  }, [isInitialized, items, patients, customDrugs, monthlyIncome, cofrinhoAmount, finances, tasks, events, chatSessions, clinics, shifts, specialistConsultations, personalPets, skincareDone, mimosWishlist, descompressaoNotes])
+  }, [isInitialized, items, patients, recipes, customDrugs, monthlyIncome, cofrinhoAmount, finances, tasks, events, chatSessions, clinics, shifts, specialistConsultations, personalPets, skincareDone, mimosWishlist, descompressaoNotes])
 
   const selectedItem = items.find(i => i.id === selectedItemId && i.type === 'page') || items.find(i => i.type === 'page')
 
@@ -3080,6 +3652,10 @@ export default function VetWorkspaceBeatrizV28() {
           </button>
           <button onClick={() => setActiveTab('financas')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'financas' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
             <DollarSign className="w-4 h-4" /> Finanças & Gráficos
+          </button>
+
+          <button onClick={() => setActiveTab('receitas')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'receitas' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+            <FileText className="w-4 h-4" /> Receitas Veterinárias 🧾
           </button>
 
           <div className="pt-2 border-t border-pink-100/60 mt-2 space-y-1">
@@ -4346,6 +4922,15 @@ export default function VetWorkspaceBeatrizV28() {
 
           {activeTab === 'wishlist' && (
             <WishlistTab />
+          )}
+
+          {activeTab === 'receitas' && (
+            <PrescriptionModule
+              patients={patients}
+              recipes={recipes}
+              setRecipes={setRecipes}
+              markMutation={() => { lastLocalMutationRef.current = Date.now() }}
+            />
           )}
 
           {activeTab === 'pacientes' && (
