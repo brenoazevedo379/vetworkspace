@@ -56,7 +56,12 @@ import {
   PiggyBank,
   Copy,
   Check,
-  GripVertical
+  GripVertical,
+  FlaskConical,
+  Activity,
+  ShieldAlert,
+  Syringe,
+  ClipboardList
 } from 'lucide-react'
 import WishlistTab from '@/components/WishlistTab'
 
@@ -380,7 +385,7 @@ export default function VetWorkspaceBeatrizV28() {
     setIsMounted(true)
   }, [])
 
-  const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'bsa' | 'ia' | 'condolencias' | 'tarefas' | 'calendario' | 'financas' | 'wishlist' | 'clinicas' | 'especialistas' | 'pessoal'>('painel')
+  const [activeTab, setActiveTab] = useState<'painel' | 'estudos' | 'pacientes' | 'calculadora' | 'bsa' | 'ia' | 'condolencias' | 'tarefas' | 'calendario' | 'financas' | 'wishlist' | 'clinicas' | 'especialistas' | 'pessoal' | 'labref' | 'protocolos' | 'nadir' | 'extravasamento' | 'ajustes' | 'funcaorganica'>('painel')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isPersonalSidebarOpen, setIsPersonalSidebarOpen] = useState(true)
   const [saveStatus, setSaveStatus] = useState('Sincronizado')
@@ -1862,6 +1867,28 @@ export default function VetWorkspaceBeatrizV28() {
           <button onClick={() => setActiveTab('financas')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'financas' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
             <DollarSign className="w-4 h-4" /> Finanças & Gráficos
           </button>
+
+          <div className="pt-2 border-t border-pink-100/60 mt-2 space-y-1">
+            <div className="px-3 py-1 text-[10px] font-extrabold text-pink-400 uppercase tracking-widest">🔬 Oncologia Avançada</div>
+            <button onClick={() => setActiveTab('labref')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'labref' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+              <FlaskConical className="w-4 h-4" /> Guia de Parâmetros Laboratoriais
+            </button>
+            <button onClick={() => setActiveTab('protocolos')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'protocolos' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+              <Syringe className="w-4 h-4" /> Simulador Protocolos (CHOP etc.)
+            </button>
+            <button onClick={() => setActiveTab('nadir')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'nadir' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+              <Activity className="w-4 h-4" /> Calculadora de Nadir & Hemograma
+            </button>
+            <button onClick={() => setActiveTab('extravasamento')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'extravasamento' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+              <ShieldAlert className="w-4 h-4" /> Guia de Extravasamento
+            </button>
+            <button onClick={() => setActiveTab('ajustes')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'ajustes' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+              <Scale className="w-4 h-4" /> Ajustes para Pacientes Extremos
+            </button>
+            <button onClick={() => setActiveTab('funcaorganica')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold transition ${activeTab === 'funcaorganica' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-900/70 hover:bg-pink-50'}`}>
+              <ClipboardList className="w-4 h-4" /> Cruzamento Função Orgânica
+            </button>
+          </div>
         </div>
 
         <div className="p-3 border-t border-pink-100 space-y-2 text-xs bg-pink-50/20">
@@ -3788,6 +3815,782 @@ export default function VetWorkspaceBeatrizV28() {
                     })
                   )}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'labref' && (
+            <div className="max-w-5xl mx-auto space-y-6">
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
+                <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><FlaskConical className="w-6 h-6" /></div>
+                  <div>
+                    <h2 className="text-base font-extrabold text-pink-950">🔬 Guia Rápido de Parâmetros Laboratoriais</h2>
+                    <p className="text-xs text-pink-500 font-medium">Valores de referência de hemograma e bioquímicos para cães e gatos — consulta rápida para cruzar com os prontuários</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* HEMOGRAMA */}
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-extrabold text-pink-900 uppercase tracking-wider flex items-center gap-1.5">🩸 Hemograma Completo</h3>
+                    <div className="overflow-hidden rounded-2xl border border-pink-100">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-pink-50">
+                            <th className="px-3 py-2.5 text-left font-extrabold text-pink-900">Parâmetro</th>
+                            <th className="px-3 py-2.5 text-left font-extrabold text-pink-700">🐕 Cão</th>
+                            <th className="px-3 py-2.5 text-left font-extrabold text-pink-700">🐈 Gato</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-pink-50">
+                          {[
+                            ['Eritrócitos (x10⁶/µL)', '5,5 – 8,5', '5,0 – 10,0'],
+                            ['Hemoglobina (g/dL)', '12 – 18', '8 – 15'],
+                            ['Hematócrito (%)', '37 – 55', '24 – 45'],
+                            ['VGM (fL)', '60 – 77', '39 – 55'],
+                            ['CHGM (g/dL)', '32 – 36', '30 – 36'],
+                            ['Leucócitos (x10³/µL)', '6 – 17', '5,5 – 19,5'],
+                            ['Neutrófilos Segm. (%)', '60 – 77', '35 – 75'],
+                            ['Neutrófilos Bastão (%)', '0 – 3', '0 – 3'],
+                            ['Linfócitos (%)', '12 – 30', '20 – 55'],
+                            ['Monócitos (%)', '3 – 10', '1 – 4'],
+                            ['Eosinófilos (%)', '2 – 10', '2 – 12'],
+                            ['Plaquetas (x10³/µL)', '200 – 500', '300 – 700'],
+                          ].map(([param, cao, gato], i) => (
+                            <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-pink-50/30'}>
+                              <td className="px-3 py-2 font-semibold text-stone-700">{param}</td>
+                              <td className="px-3 py-2 text-pink-800 font-bold">{cao}</td>
+                              <td className="px-3 py-2 text-pink-600 font-bold">{gato}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* BIOQUÍMICOS */}
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-extrabold text-pink-900 uppercase tracking-wider flex items-center gap-1.5">🧪 Bioquímicos (ALT, FA, Creatinina, Ureia, Eletrólitos)</h3>
+                    <div className="overflow-hidden rounded-2xl border border-pink-100">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-pink-50">
+                            <th className="px-3 py-2.5 text-left font-extrabold text-pink-900">Parâmetro</th>
+                            <th className="px-3 py-2.5 text-left font-extrabold text-pink-700">🐕 Cão</th>
+                            <th className="px-3 py-2.5 text-left font-extrabold text-pink-700">🐈 Gato</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-pink-50">
+                          {[
+                            ['ALT / TGP (U/L)', '10 – 88', '12 – 130'],
+                            ['AST / TGO (U/L)', '0 – 50', '0 – 48'],
+                            ['Fosfatase Alcalina (U/L)', '20 – 150', '14 – 111'],
+                            ['GGT (U/L)', '0 – 14', '0 – 4'],
+                            ['Bilirrubina Total (mg/dL)', '0,1 – 0,6', '0,15 – 0,5'],
+                            ['Creatinina (mg/dL)', '0,5 – 1,5', '0,8 – 1,8'],
+                            ['Ureia (mg/dL)', '21 – 60', '30 – 65'],
+                            ['Sódio (mEq/L)', '140 – 155', '145 – 158'],
+                            ['Potássio (mEq/L)', '3,5 – 5,8', '3,5 – 5,8'],
+                            ['Cloro (mEq/L)', '105 – 122', '107 – 129'],
+                            ['Cálcio Total (mg/dL)', '7,9 – 12,0', '7,5 – 11,3'],
+                            ['Fósforo (mg/dL)', '2,5 – 6,8', '2,4 – 8,2'],
+                            ['Glicose (mg/dL)', '70 – 138', '63 – 170'],
+                            ['Albumina (g/dL)', '2,6 – 4,0', '2,1 – 4,0'],
+                            ['Proteína Total (g/dL)', '5,0 – 7,4', '5,0 – 8,8'],
+                          ].map(([param, cao, gato], i) => (
+                            <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-pink-50/30'}>
+                              <td className="px-3 py-2 font-semibold text-stone-700">{param}</td>
+                              <td className="px-3 py-2 text-pink-800 font-bold">{cao}</td>
+                              <td className="px-3 py-2 text-pink-600 font-bold">{gato}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cruzamento com Pacientes */}
+                <div className="bg-amber-50 border border-amber-200 p-5 rounded-2xl space-y-2">
+                  <div className="font-extrabold text-amber-900 flex items-center gap-2 text-xs">
+                    <AlertTriangle className="w-4 h-4 text-amber-600" /> Interpretação Oncológica Rápida
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
+                    {[
+                      { param: 'Neutrófilos < 1.500/µL', label: 'Neutropenia Grave', action: 'Adiar quimioterapia. Iniciar antibioticoprofilaxia. Repetir hemograma em 48h.' },
+                      { param: 'Plaquetas < 50.000/µL', label: 'Trombocitopenia Grave', action: 'Suspender QT. Avaliar sangramento. Considerar transfusão.' },
+                      { param: 'ALT > 3x valor normal', label: 'Hepatotoxicidade', action: 'Reduzir dose de Lomustina/Clorambucil em 25-50%. Reavaliar com hepatoprotetor.' },
+                    ].map((item, i) => (
+                      <div key={i} className="bg-white border border-amber-200 p-3 rounded-xl text-xs space-y-1">
+                        <div className="font-extrabold text-amber-900">{item.param}</div>
+                        <div className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold inline-block">{item.label}</div>
+                        <p className="text-stone-700 leading-relaxed">{item.action}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'protocolos' && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
+                <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Syringe className="w-6 h-6" /></div>
+                  <div>
+                    <h2 className="text-base font-extrabold text-pink-950">💉 Simulador de Protocolos Combinados (CHOP e outros)</h2>
+                    <p className="text-xs text-pink-500 font-medium">Selecione o protocolo, informe o peso — o sistema calcula automaticamente a dose de cada fármaco da sessão</p>
+                  </div>
+                </div>
+
+                {(() => {
+                  const CHOP_PROTOCOLS = [
+                    {
+                      name: 'CHOP – Semana 1 (Vincristina + Prednisona)',
+                      drugs: [
+                        { drug: 'Vincristina', dosePerM2: 0.7, conc: 1, unit: 'mg/m²', route: 'IV lento' },
+                        { drug: 'Prednisona', dosePerKg: 2, unit: 'mg/kg/dia', oral: true, days: 7, conc: 5 },
+                      ]
+                    },
+                    {
+                      name: 'CHOP – Semana 2 (Ciclofosfamida + Prednisona)',
+                      drugs: [
+                        { drug: 'Ciclofosfamida', dosePerM2: 250, conc: 50, unit: 'mg/m²', route: 'IV ou VO' },
+                        { drug: 'Prednisona', dosePerKg: 1.5, unit: 'mg/kg/dia', oral: true, days: 7, conc: 5 },
+                      ]
+                    },
+                    {
+                      name: 'CHOP – Semana 3 (Doxorrubicina + Prednisona)',
+                      drugs: [
+                        { drug: 'Doxorrubicina', dosePerM2: 30, conc: 2, unit: 'mg/m²', route: 'IV lento (infusão 30min)' },
+                        { drug: 'Prednisona', dosePerKg: 1.0, unit: 'mg/kg/dia', oral: true, days: 7, conc: 5 },
+                      ]
+                    },
+                    {
+                      name: 'CHOP – Semana 4 (Vincristina + Prednisona)',
+                      drugs: [
+                        { drug: 'Vincristina', dosePerM2: 0.7, conc: 1, unit: 'mg/m²', route: 'IV lento' },
+                        { drug: 'Prednisona', dosePerKg: 0.5, unit: 'mg/kg/dia', oral: true, days: 7, conc: 5 },
+                      ]
+                    },
+                    {
+                      name: 'Clorambucil + Prednisona (Felinos – Linfoma Baixo Grau)',
+                      drugs: [
+                        { drug: 'Clorambucil', dosePerKg: 0.2, conc: 2, unit: 'mg/kg/dia', oral: true, days: 14 },
+                        { drug: 'Prednisona', dosePerKg: 1, unit: 'mg/kg/dia', oral: true, days: 14, conc: 5 },
+                      ]
+                    },
+                    {
+                      name: 'Lomustina (CCNU) – Protocolo Dose Única',
+                      drugs: [
+                        { drug: 'Lomustina (CCNU)', dosePerM2: 60, conc: 40, unit: 'mg/m²', oral: true, days: 1 },
+                      ]
+                    },
+                  ];
+
+                  const [selectedProtocol, setSelectedProtocol] = React.useState(0)
+                  const [protWeight, setProtWeight] = React.useState('')
+                  const [protSpecies, setProtSpecies] = React.useState<'cao'|'gato'>('cao')
+                  const [protResults, setProtResults] = React.useState<any[]>([])
+
+                  const calcProtocol = () => {
+                    const w = parseFloat(protWeight) || 0
+                    if (w <= 0) return
+                    const k = protSpecies === 'cao' ? 10.1 : 10.0
+                    const bsa = (k * Math.pow(w, 2/3)) / 100
+                    const proto = CHOP_PROTOCOLS[selectedProtocol]
+                    const results = proto.drugs.map(d => {
+                      let totalMg = 0
+                      let totalMl = 0
+                      if ((d as any).dosePerM2) {
+                        totalMg = bsa * (d as any).dosePerM2
+                        totalMl = totalMg / (d.conc || 1)
+                      } else if ((d as any).dosePerKg) {
+                        totalMg = w * (d as any).dosePerKg
+                        totalMl = totalMg / (d.conc || 1)
+                      }
+                      return { ...d, totalMg, totalMl, bsa }
+                    })
+                    setProtResults(results)
+                  }
+
+                  return (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="md:col-span-2">
+                          <label className="text-xs font-bold text-stone-700 block mb-1">Protocolo / Sessão</label>
+                          <select value={selectedProtocol} onChange={(e) => { setSelectedProtocol(Number(e.target.value)); setProtResults([]); }} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                            {CHOP_PROTOCOLS.map((p, i) => <option key={i} value={i}>{p.name}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-stone-700 block mb-1">Espécie</label>
+                          <select value={protSpecies} onChange={(e) => setProtSpecies(e.target.value as any)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                            <option value="cao">Canino (K=10.1)</option>
+                            <option value="gato">Felino (K=10.0)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex items-end gap-3">
+                        <div className="flex-1">
+                          <label className="text-xs font-bold text-stone-700 block mb-1">Peso do Paciente (kg)</label>
+                          <input type="number" step="0.1" placeholder="Ex: 18.5" value={protWeight} onChange={(e) => setProtWeight(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                        </div>
+                        <button onClick={calcProtocol} className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-2.5 rounded-xl text-xs font-bold transition shadow-md cursor-pointer flex items-center gap-2">
+                          <Calculator className="w-4 h-4" /> Calcular Protocolo Completo
+                        </button>
+                      </div>
+
+                      {protResults.length > 0 && (
+                        <div className="space-y-4">
+                          <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-xs">
+                            <span className="font-extrabold text-emerald-900">BSA calculada: {protResults[0]?.bsa?.toFixed(3)} m² | Peso: {protWeight} kg | Protocolo: {CHOP_PROTOCOLS[selectedProtocol].name}</span>
+                          </div>
+                          <div className="space-y-3">
+                            {protResults.map((r, i) => (
+                              <div key={i} className="bg-white border border-pink-200 p-5 rounded-2xl shadow-2xs space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <h4 className="font-extrabold text-sm text-pink-950">{r.drug}</h4>
+                                  <span className="text-[10px] bg-pink-100 text-pink-700 px-2.5 py-0.5 rounded-full font-bold">{r.route || (r.oral ? 'Via Oral (VO)' : 'IV')}</span>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  <div className="bg-pink-50 p-3 rounded-xl text-center">
+                                    <div className="text-[10px] font-bold text-pink-600 uppercase">Dose Total</div>
+                                    <div className="text-lg font-extrabold text-pink-950">{r.totalMg.toFixed(2)} mg</div>
+                                  </div>
+                                  <div className="bg-pink-50 p-3 rounded-xl text-center">
+                                    <div className="text-[10px] font-bold text-pink-600 uppercase">Volume (ml)</div>
+                                    <div className="text-lg font-extrabold text-rose-600">{r.totalMl.toFixed(2)} ml</div>
+                                  </div>
+                                  <div className="bg-pink-50 p-3 rounded-xl text-center">
+                                    <div className="text-[10px] font-bold text-pink-600 uppercase">Conc. (mg/ml)</div>
+                                    <div className="text-lg font-extrabold text-pink-950">{r.conc}</div>
+                                  </div>
+                                  <div className="bg-pink-50 p-3 rounded-xl text-center">
+                                    <div className="text-[10px] font-bold text-pink-600 uppercase">Duração</div>
+                                    <div className="text-lg font-extrabold text-pink-950">{r.days ? r.days + ' dia(s)' : '1 aplicação'}</div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'nadir' && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
+                <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Activity className="w-6 h-6" /></div>
+                  <div>
+                    <h2 className="text-base font-extrabold text-pink-950">📉 Calculadora de Nadir & Alerta de Hemograma de Controle</h2>
+                    <p className="text-xs text-pink-500 font-medium">Insira a data de aplicação do quimioterápico — o sistema calcula automaticamente a janela de risco de nadir e gera alertas</p>
+                  </div>
+                </div>
+
+                {(() => {
+                  const [nadirDate, setNadirDate] = React.useState('')
+                  const [nadirDrug, setNadirDrug] = React.useState('Doxorrubicina')
+                  const [nadirResult, setNadirResult] = React.useState<any>(null)
+
+                  const NADIR_DATA: Record<string, { d7: number, d14: number, notes: string }> = {
+                    'Doxorrubicina': { d7: 7, d14: 14, notes: 'Nadir mais severo entre Dia 7 e 14. Risco alto de neutropenia e trombocitopenia.' },
+                    'Ciclofosfamida': { d7: 7, d14: 14, notes: 'Nadir geralmente entre 7–14 dias. Monitorar cistite hemorrágica concomitante.' },
+                    'Vincristina': { d7: 7, d14: 10, notes: 'Mielossupressão mais branda. Pico por volta do Dia 7–10.' },
+                    'Lomustina (CCNU)': { d7: 7, d14: 21, notes: 'Mielossupressão bifásica tardia! Nadir pode ocorrer em até 3–5 semanas. Hemograma a cada 7 dias.' },
+                    'Clorambucil': { d7: 7, d14: 14, notes: 'Mielossupressão branda a moderada. Monitorar semanalmente em protocolos contínuos.' },
+                  }
+
+                  const calcNadir = () => {
+                    if (!nadirDate) return
+                    const base = new Date(nadirDate)
+                    const info = NADIR_DATA[nadirDrug]
+                    const d7 = new Date(base); d7.setDate(d7.getDate() + info.d7)
+                    const d14 = new Date(base); d14.setDate(d14.getDate() + info.d14)
+                    const fmt = (d: Date) => d.toLocaleDateString('pt-BR')
+                    setNadirResult({ drug: nadirDrug, applicationDate: fmt(base), nadirStart: fmt(d7), nadirEnd: fmt(d14), notes: info.notes })
+                  }
+
+                  return (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-xs font-bold text-stone-700 block mb-1">Fármaco Aplicado</label>
+                          <select value={nadirDrug} onChange={(e) => { setNadirDrug(e.target.value); setNadirResult(null); }} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                            {Object.keys(NADIR_DATA).map(d => <option key={d} value={d}>{d}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-stone-700 block mb-1">Data de Aplicação</label>
+                          <input type="date" value={nadirDate} onChange={(e) => setNadirDate(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                        </div>
+                      </div>
+
+                      <button onClick={calcNadir} className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md cursor-pointer flex items-center justify-center gap-2">
+                        <Activity className="w-4 h-4" /> Calcular Janela de Risco de Nadir
+                      </button>
+
+                      {nadirResult && (
+                        <div className="space-y-4">
+                          <div className="bg-rose-50 border-2 border-rose-400 p-6 rounded-2xl space-y-4">
+                            <div className="flex items-center gap-2 text-rose-900 font-extrabold text-sm">
+                              <AlertTriangle className="w-5 h-5 text-rose-600" />
+                              ⚠️ JANELA DE RISCO DE NADIR — {nadirResult.drug}
+                            </div>
+                            <div className="grid grid-cols-3 gap-4">
+                              <div className="bg-white border border-rose-200 p-4 rounded-xl text-center">
+                                <div className="text-[10px] font-bold text-stone-500 uppercase">Data de Aplicação</div>
+                                <div className="text-base font-extrabold text-pink-950 mt-1">{nadirResult.applicationDate}</div>
+                              </div>
+                              <div className="bg-rose-100 border-2 border-rose-400 p-4 rounded-xl text-center">
+                                <div className="text-[10px] font-bold text-rose-700 uppercase">Início do Nadir</div>
+                                <div className="text-base font-extrabold text-rose-900 mt-1">{nadirResult.nadirStart}</div>
+                              </div>
+                              <div className="bg-rose-100 border-2 border-rose-400 p-4 rounded-xl text-center">
+                                <div className="text-[10px] font-bold text-rose-700 uppercase">Fim do Nadir</div>
+                                <div className="text-base font-extrabold text-rose-900 mt-1">{nadirResult.nadirEnd}</div>
+                              </div>
+                            </div>
+                            <div className="bg-white border border-rose-200 p-4 rounded-xl text-xs text-stone-700 leading-relaxed">
+                              <span className="font-extrabold text-rose-800">📋 Conduta Recomendada: </span>{nadirResult.notes}
+                            </div>
+                            <div className="bg-amber-50 border border-amber-300 p-3 rounded-xl text-xs font-bold text-amber-900 flex items-center gap-2">
+                              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                              ⚠️ Agendar hemograma de controle para o período: {nadirResult.nadirStart} → {nadirResult.nadirEnd}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="bg-pink-50/60 border border-pink-200 p-5 rounded-2xl space-y-3">
+                        <h4 className="text-xs font-extrabold text-pink-950">📊 Referência de Nadir por Fármaco</h4>
+                        <div className="overflow-hidden rounded-xl border border-pink-100">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="bg-pink-100">
+                                <th className="px-3 py-2 text-left font-extrabold text-pink-900">Fármaco</th>
+                                <th className="px-3 py-2 text-left font-extrabold text-pink-700">Nadir Típico</th>
+                                <th className="px-3 py-2 text-left font-extrabold text-pink-700">Severidade</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-pink-50">
+                              {[
+                                ['Doxorrubicina', 'Dias 7–14', 'Alta ⚠️'],
+                                ['Ciclofosfamida', 'Dias 7–14', 'Moderada'],
+                                ['Vincristina', 'Dias 7–10', 'Branda'],
+                                ['Lomustina (CCNU)', 'Dias 7–21 (bifásico)', 'Alta ⚠️ (tardio)'],
+                                ['Clorambucil', 'Dias 7–14', 'Branda a Moderada'],
+                              ].map(([drug, nadir, sev], i) => (
+                                <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-pink-50/30'}>
+                                  <td className="px-3 py-2 font-semibold text-stone-700">{drug}</td>
+                                  <td className="px-3 py-2 text-pink-800 font-bold">{nadir}</td>
+                                  <td className="px-3 py-2 font-bold"><span className={sev.includes('Alta') ? 'text-rose-700' : 'text-amber-700'}>{sev}</span></td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'extravasamento' && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
+                <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center shadow-sm"><ShieldAlert className="w-6 h-6" /></div>
+                  <div>
+                    <h2 className="text-base font-extrabold text-pink-950">🚨 Guia de Conduta para Extravasamento de Vesicantes</h2>
+                    <p className="text-xs text-rose-600 font-bold">EMERGÊNCIA ONCOLÓGICA — Fármacos vesicantes causam necrose tecidual severa se extravasarem para o subcutâneo durante a infusão IV</p>
+                  </div>
+                </div>
+
+                <div className="bg-rose-50 border-2 border-rose-500 p-5 rounded-2xl space-y-3">
+                  <div className="font-extrabold text-rose-900 text-sm flex items-center gap-2">
+                    <ShieldAlert className="w-5 h-5 text-rose-600" /> PROTOCOLO GERAL DE EXTRAVASAMENTO — PASSOS IMEDIATOS
+                  </div>
+                  <ol className="space-y-2 text-xs text-stone-800">
+                    {[
+                      { step: '1', action: 'PARAR a infusão IMEDIATAMENTE', detail: 'NÃO retirar o cateter ainda — ele será utilizado para aspiração do fármaco residual.' },
+                      { step: '2', action: 'ASPIRAR com seringa', detail: 'Tentar aspirar o máximo possível de sangue e resíduo do fármaco pelo cateter antes de removê-lo.' },
+                      { step: '3', action: 'REMOVER o cateter suavemente', detail: 'Após aspiração máxima, remover o cateter com cuidado. Não pressionar o local.' },
+                      { step: '4', action: 'DEMARCAR a área afetada', detail: 'Marcar com caneta dermatográfica o perímetro visível da área de extravasamento para acompanhamento.' },
+                      { step: '5', action: 'APLICAR o antídoto específico (ver abaixo)', detail: 'O antídoto varia conforme o fármaco extravasado. Veja os cards individuais abaixo.' },
+                      { step: '6', action: 'DOCUMENTAR e monitorar', detail: 'Fotografar a área, anotar o volume extravasado, notificar o tutor e agendar revisão em 24–48h.' },
+                    ].map((item, i) => (
+                      <li key={i} className="flex items-start gap-3 bg-white border border-rose-200 p-3 rounded-xl">
+                        <span className="w-6 h-6 rounded-full bg-rose-600 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">{item.step}</span>
+                        <div>
+                          <div className="font-extrabold text-rose-900">{item.action}</div>
+                          <div className="text-stone-600 mt-0.5 leading-relaxed">{item.detail}</div>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-xs font-extrabold text-pink-950 uppercase tracking-wider">Antídotos por Fármaco Vesicante</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[
+                      {
+                        drug: '🔴 Doxorrubicina',
+                        vesicant: 'VESICANTE POTENTE',
+                        antidote: 'Dexrazoxana (Savene/Totect)',
+                        protocol: 'Dose: 1000 mg/m² IV por 3 dias consecutivos. Iniciar nas primeiras 6h após extravasamento.',
+                        complementary: 'EVITAR compressas quentes. Compressas frias por 15 min, 4x/dia nas primeiras 72h.',
+                        color: 'rose'
+                      },
+                      {
+                        drug: '🟠 Vincristina / Vinblastina',
+                        vesicant: 'VESICANTE SEVERO',
+                        antidote: 'Hialuronidase + Compressas QUENTES',
+                        protocol: 'Hialuronidase 150–1500 UI SC em múltiplos pontos ao redor do extravasamento. Aplicar CALOR (não frio!) para dispersar o fármaco.',
+                        complementary: 'Compressas mornas por 15 min, 4x/dia. NÃO usar compressas frias (efeito oposto ao da Doxorrubicina).',
+                        color: 'amber'
+                      },
+                      {
+                        drug: '🟡 Ciclofosfamida',
+                        vesicant: 'IRRITANTE (menor risco)',
+                        antidote: 'Compressas frias + Hidratação local',
+                        protocol: 'Compressas frias por 20 minutos, 4x/dia. Monitorar por 48–72h. Em casos graves, corticoide local.',
+                        complementary: 'Risco de lesão tecidual é menor que os alcalóides da vinca e antraciclinas. Monitorar atentamente.',
+                        color: 'yellow'
+                      },
+                    ].map((item, i) => (
+                      <div key={i} className={`bg-white border-2 ${item.color === 'rose' ? 'border-rose-400' : item.color === 'amber' ? 'border-amber-400' : 'border-yellow-300'} p-5 rounded-2xl space-y-3`}>
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-extrabold text-sm text-pink-950">{item.drug}</h4>
+                          <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${item.color === 'rose' ? 'bg-rose-100 text-rose-800' : item.color === 'amber' ? 'bg-amber-100 text-amber-800' : 'bg-yellow-100 text-yellow-800'}`}>{item.vesicant}</span>
+                        </div>
+                        <div className="space-y-1.5 text-xs">
+                          <div className="font-extrabold text-stone-700">Antídoto: <span className="text-pink-700">{item.antidote}</span></div>
+                          <div className="bg-pink-50 border border-pink-100 p-2.5 rounded-lg text-stone-700 leading-relaxed">{item.protocol}</div>
+                          <div className="bg-amber-50 border border-amber-200 p-2.5 rounded-lg text-amber-800 leading-relaxed font-medium">{item.complementary}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'ajustes' && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
+                <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Scale className="w-6 h-6" /></div>
+                  <div>
+                    <h2 className="text-base font-extrabold text-pink-950">⚖️ Ajustes Críticos para Pacientes Extremos (Obesos, Toy e Gatos)</h2>
+                    <p className="text-xs text-pink-500 font-medium">O cálculo puro de BSA pode superestimar ou subestimar a dose em pacientes extremos. Use esta calculadora com correções automáticas.</p>
+                  </div>
+                </div>
+
+                {(() => {
+                  const [adjWeight, setAdjWeight] = React.useState('')
+                  const [adjSpecies, setAdjSpecies] = React.useState<'cao'|'gato'>('cao')
+                  const [adjECC, setAdjECC] = React.useState('5')
+                  const [adjDrug, setAdjDrug] = React.useState('Doxorrubicina')
+                  const [adjResult, setAdjResult] = React.useState<any>(null)
+
+                  const DOSE_TABLE: Record<string, number> = {
+                    'Doxorrubicina': 30, 'Ciclofosfamida': 250, 'Vincristina': 0.7,
+                    'Lomustina (CCNU)': 60, 'Clorambucil': 20
+                  }
+                  const CONC_TABLE: Record<string, number> = {
+                    'Doxorrubicina': 2, 'Ciclofosfamida': 50, 'Vincristina': 1,
+                    'Lomustina (CCNU)': 40, 'Clorambucil': 2
+                  }
+
+                  const calcAdj = () => {
+                    const w = parseFloat(adjWeight) || 0
+                    const ecc = parseInt(adjECC) || 5
+                    if (w <= 0) return
+                    const k = adjSpecies === 'cao' ? 10.1 : 10.0
+                    const bsaStd = (k * Math.pow(w, 2/3)) / 100
+
+                    // Metabolic weight
+                    const metaWeight = Math.pow(w, 0.75)
+                    const bsaMeta = (k * Math.pow(metaWeight, 2/3)) / 100
+
+                    // Correction factor
+                    let correctionFactor = 1.0
+                    let correctionNote = 'Peso normal — sem ajuste necessário.'
+                    let useMetabolic = false
+
+                    const isToy = (adjSpecies === 'cao' && w < 10) || (adjSpecies === 'gato' && w < 3)
+                    const isObese = ecc >= 8
+
+                    if (isObese) {
+                      correctionFactor = 0.75
+                      correctionNote = 'Paciente obeso (ECC ≥ 8/9): redução de 25% da dose recomendada. O tecido adiposo não metaboliza fármacos eficientemente.'
+                    } else if (isToy) {
+                      useMetabolic = true
+                      correctionNote = `Paciente ${adjSpecies === 'cao' ? 'toy/miniatura' : 'gato'} (< ${adjSpecies === 'cao' ? '10' : '3'} kg): uso do Peso Metabólico (kg^0.75) recomendado para evitar subdosagem ou toxicidade desproporcionada.`
+                    }
+
+                    const doseM2 = DOSE_TABLE[adjDrug] || 30
+                    const conc = CONC_TABLE[adjDrug] || 2
+
+                    const mgStd = bsaStd * doseM2 * correctionFactor
+                    const mlStd = mgStd / conc
+                    const mgMeta = bsaMeta * doseM2 * correctionFactor
+                    const mlMeta = mgMeta / conc
+
+                    setAdjResult({ bsaStd, bsaMeta, metaWeight, mgStd, mlStd, mgMeta, mlMeta, correctionFactor, correctionNote, useMetabolic, isToy, isObese, doseM2 })
+                  }
+
+                  return (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div>
+                          <label className="text-xs font-bold text-stone-700 block mb-1">Peso Real (kg)</label>
+                          <input type="number" step="0.1" placeholder="Ex: 4.5" value={adjWeight} onChange={(e) => setAdjWeight(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-stone-700 block mb-1">Espécie</label>
+                          <select value={adjSpecies} onChange={(e) => setAdjSpecies(e.target.value as any)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                            <option value="cao">Canino</option>
+                            <option value="gato">Felino</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-stone-700 block mb-1">ECC (1–9)</label>
+                          <select value={adjECC} onChange={(e) => setAdjECC(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                            {[1,2,3,4,5,6,7,8,9].map(n => <option key={n} value={n}>{n} {n <= 3 ? '(Caquético)' : n <= 5 ? '(Normal)' : n <= 7 ? '(Sobrepeso)' : '(Obeso)'}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-stone-700 block mb-1">Fármaco</label>
+                          <select value={adjDrug} onChange={(e) => setAdjDrug(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                            {Object.keys(DOSE_TABLE).map(d => <option key={d} value={d}>{d}</option>)}
+                          </select>
+                        </div>
+                      </div>
+
+                      <button onClick={calcAdj} className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md cursor-pointer flex items-center justify-center gap-2">
+                        <Scale className="w-4 h-4" /> Calcular com Ajuste para Paciente Extremo
+                      </button>
+
+                      {adjResult && (
+                        <div className="space-y-4">
+                          <div className={`p-4 rounded-2xl border-2 text-xs font-bold flex items-start gap-2 ${adjResult.isObese ? 'bg-rose-50 border-rose-400 text-rose-900' : adjResult.isToy ? 'bg-amber-50 border-amber-400 text-amber-900' : 'bg-emerald-50 border-emerald-400 text-emerald-900'}`}>
+                            <AlertTriangle className={`w-4 h-4 shrink-0 mt-0.5 ${adjResult.isObese ? 'text-rose-600' : adjResult.isToy ? 'text-amber-600' : 'text-emerald-600'}`} />
+                            {adjResult.correctionNote}
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="bg-pink-50 border border-pink-200 p-5 rounded-2xl space-y-3 text-center">
+                              <div className="text-xs font-extrabold text-pink-700 uppercase">📐 BSA Padrão (kg²/³ × K)</div>
+                              <div className="text-2xl font-extrabold text-pink-950">{adjResult.bsaStd.toFixed(3)} m²</div>
+                              <div className="text-xs text-stone-600">Dose {adjDrug}: <span className="font-bold text-pink-900">{adjResult.mgStd.toFixed(2)} mg</span></div>
+                              <div className="text-xs text-stone-600">Volume: <span className="font-bold text-rose-600">{adjResult.mlStd.toFixed(2)} ml</span></div>
+                              {adjResult.correctionFactor < 1 && <div className="text-[10px] bg-rose-100 text-rose-800 px-2 py-1 rounded-lg font-bold">Com fator de correção: {(adjResult.correctionFactor * 100).toFixed(0)}% da dose</div>}
+                            </div>
+
+                            <div className={`border-2 p-5 rounded-2xl space-y-3 text-center ${adjResult.useMetabolic ? 'bg-amber-50 border-amber-400' : 'bg-stone-50 border-stone-200 opacity-60'}`}>
+                              <div className="text-xs font-extrabold text-amber-700 uppercase">⚡ Peso Metabólico (kg^0.75)</div>
+                              <div className="text-2xl font-extrabold text-pink-950">{adjResult.bsaMeta.toFixed(3)} m²</div>
+                              <div className="text-xs text-stone-600">Dose {adjDrug}: <span className="font-bold text-pink-900">{adjResult.mgMeta.toFixed(2)} mg</span></div>
+                              <div className="text-xs text-stone-600">Volume: <span className="font-bold text-rose-600">{adjResult.mlMeta.toFixed(2)} ml</span></div>
+                              {adjResult.useMetabolic && <div className="text-[10px] bg-amber-200 text-amber-900 px-2 py-1 rounded-lg font-extrabold">✅ RECOMENDADO PARA ESTE PACIENTE</div>}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="bg-pink-50/60 border border-pink-200 p-5 rounded-2xl space-y-3">
+                        <h4 className="text-xs font-extrabold text-pink-950">📋 Critérios de Ajuste de Dose Rápidos</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                          {[
+                            { crit: 'Cão < 10 kg ou Gato < 3 kg', rec: 'Usar Peso Metabólico (kg^0.75) para BSA', color: 'amber' },
+                            { crit: 'ECC ≥ 8/9 (Obeso)', rec: 'Reduzir dose em 25–30% sobre a BSA padrão', color: 'rose' },
+                            { crit: 'ECC ≤ 3 (Caquético)', rec: 'Considerar redução de 10–20% e suporte nutricional antes da QT', color: 'yellow' },
+                          ].map((item, i) => (
+                            <div key={i} className={`bg-white border p-3 rounded-xl ${item.color === 'rose' ? 'border-rose-200' : item.color === 'amber' ? 'border-amber-200' : 'border-yellow-200'}`}>
+                              <div className="font-extrabold text-stone-800">{item.crit}</div>
+                              <div className={`mt-1 ${item.color === 'rose' ? 'text-rose-700' : item.color === 'amber' ? 'text-amber-700' : 'text-yellow-700'}`}>{item.rec}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'funcaorganica' && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-8 rounded-3xl shadow-sm space-y-6">
+                <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><ClipboardList className="w-6 h-6" /></div>
+                  <div>
+                    <h2 className="text-base font-extrabold text-pink-950">🏥 Cruzamento com Exames de Função Orgânica (Renal e Hepática)</h2>
+                    <p className="text-xs text-pink-500 font-medium">Pré-quimioterapia: insira os valores laboratoriais — o sistema emite alertas e sugere reduções de dose automaticamente</p>
+                  </div>
+                </div>
+
+                {(() => {
+                  const [foChemo, setFoChemo] = React.useState('Doxorrubicina')
+                  const [foCreat, setFoCreat] = React.useState('')
+                  const [foALT, setFoALT] = React.useState('')
+                  const [foFA, setFoFA] = React.useState('')
+                  const [foSpecies, setFoSpecies] = React.useState<'cao'|'gato'>('cao')
+                  const [foResult, setFoResult] = React.useState<any[]>([])
+
+                  const LIMITS = {
+                    cao: { creat: { normal: 1.5, mild: 2.0, severe: 3.0 }, alt: { normal: 88, mild: 176, severe: 264 }, fa: { normal: 150, mild: 300, severe: 600 } },
+                    gato: { creat: { normal: 1.8, mild: 2.5, severe: 4.0 }, alt: { normal: 130, mild: 260, severe: 390 }, fa: { normal: 111, mild: 222, severe: 333 } }
+                  }
+
+                  const CHEMO_ORGAN: Record<string, { hepatic: boolean, renal: boolean }> = {
+                    'Doxorrubicina': { hepatic: true, renal: false },
+                    'Ciclofosfamida': { hepatic: false, renal: true },
+                    'Vincristina': { hepatic: true, renal: false },
+                    'Lomustina (CCNU)': { hepatic: true, renal: false },
+                    'Clorambucil': { hepatic: true, renal: false },
+                    'Carboplatina': { hepatic: false, renal: true },
+                  }
+
+                  const evalOrgan = () => {
+                    const lim = LIMITS[foSpecies]
+                    const alerts: any[] = []
+                    const drug = CHEMO_ORGAN[foChemo] || { hepatic: false, renal: false }
+
+                    const creat = parseFloat(foCreat)
+                    const alt = parseFloat(foALT)
+                    const fa = parseFloat(foFA)
+
+                    if (!isNaN(creat)) {
+                      let sev = 'normal', reduction = 0, color = 'green'
+                      if (creat > lim.creat.severe) { sev = 'Grave'; reduction = 50; color = 'rose' }
+                      else if (creat > lim.creat.mild) { sev = 'Moderada'; reduction = 25; color = 'amber' }
+                      else if (creat > lim.creat.normal) { sev = 'Leve'; reduction = 10; color = 'yellow' }
+                      if (sev !== 'normal') {
+                        alerts.push({
+                          param: `Creatinina: ${creat} mg/dL`,
+                          sev,
+                          color,
+                          note: drug.renal ? `⚠️ ${foChemo} depende da filtração glomerular! Redução de ${reduction}% da dose recomendada.` : `Disfunção renal ${sev.toLowerCase()} detectada. ${foChemo} tem menor dependência renal, mas monitorar hidratação.`,
+                          action: drug.renal ? `Reduzir dose de ${foChemo} em ${reduction}% ou avaliar substituição por agente não-nefrotóxico.` : `Garantir hidratação adequada antes e após administração de ${foChemo}.`
+                        })
+                      }
+                    }
+
+                    if (!isNaN(alt)) {
+                      let sev = 'normal', reduction = 0, color = 'green'
+                      if (alt > lim.alt.severe) { sev = 'Grave (>3x normal)'; reduction = 50; color = 'rose' }
+                      else if (alt > lim.alt.mild) { sev = 'Moderada (>2x normal)'; reduction = 25; color = 'amber' }
+                      else if (alt > lim.alt.normal) { sev = 'Leve (>1x normal)'; reduction = 10; color = 'yellow' }
+                      if (sev !== 'normal') {
+                        alerts.push({
+                          param: `ALT/TGP: ${alt} U/L`,
+                          sev,
+                          color,
+                          note: drug.hepatic ? `⚠️ ${foChemo} é metabolizado pelo fígado! Redução de ${reduction}% recomendada.` : `Hepatotoxicidade ${sev.toLowerCase()}. Avaliar causa e monitorar.`,
+                          action: drug.hepatic ? `Reduzir dose de ${foChemo} em ${reduction}%. Considerar hepatoprotetor (SAMe, silimarina). Repetir bioquímico em 7 dias.` : `Investigar causa da elevação de ALT. Monitorar antes do próximo ciclo.`
+                        })
+                      }
+                    }
+
+                    if (!isNaN(fa)) {
+                      let sev = 'normal', color = 'green'
+                      if (fa > lim.fa.severe) { sev = 'Grave (>4x normal)'; color = 'rose' }
+                      else if (fa > lim.fa.mild) { sev = 'Moderada (>2x normal)'; color = 'amber' }
+                      else if (fa > lim.fa.normal) { sev = 'Leve'; color = 'yellow' }
+                      if (sev !== 'normal') {
+                        alerts.push({
+                          param: `Fosfatase Alcalina: ${fa} U/L`,
+                          sev,
+                          color,
+                          note: `FA elevada detectada. Em Lomustina, avaliar cumulação hepática. Pode ser induzida por corticoides (FA cortisol-induzida em cães).`,
+                          action: `Investigar origem (hepática vs óssea vs corticoide). Se origem hepática confirmada, adiar ciclo de Lomustina/Clorambucil.`
+                        })
+                      }
+                    }
+
+                    if (alerts.length === 0) {
+                      alerts.push({ param: 'Todos os valores avaliados', sev: 'Dentro do normal', color: 'green', note: 'Parâmetros compatíveis com administração do quimioterápico sem ajuste de dose.', action: 'Prosseguir com o protocolo conforme planejado.' })
+                    }
+
+                    setFoResult(alerts)
+                  }
+
+                  return (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="md:col-span-2">
+                          <label className="text-xs font-bold text-stone-700 block mb-1">Fármaco a Administrar</label>
+                          <select value={foChemo} onChange={(e) => { setFoChemo(e.target.value); setFoResult([]); }} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                            {Object.keys(CHEMO_ORGAN).map(d => <option key={d} value={d}>{d}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-stone-700 block mb-1">Espécie</label>
+                          <select value={foSpecies} onChange={(e) => setFoSpecies(e.target.value as any)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                            <option value="cao">Canino</option>
+                            <option value="gato">Felino</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="bg-pink-50/60 border border-pink-200 p-4 rounded-2xl space-y-3">
+                        <h4 className="text-xs font-extrabold text-pink-950">📋 Valores Laboratoriais Pré-QT</h4>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <label className="text-[11px] font-bold text-stone-600 block mb-1">Creatinina (mg/dL)</label>
+                            <input type="number" step="0.1" placeholder="Ex: 1.2" value={foCreat} onChange={(e) => setFoCreat(e.target.value)} className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-stone-600 block mb-1">ALT / TGP (U/L)</label>
+                            <input type="number" step="1" placeholder="Ex: 95" value={foALT} onChange={(e) => setFoALT(e.target.value)} className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-stone-600 block mb-1">Fosfatase Alcalina (U/L)</label>
+                            <input type="number" step="1" placeholder="Ex: 180" value={foFA} onChange={(e) => setFoFA(e.target.value)} className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <button onClick={evalOrgan} className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md cursor-pointer flex items-center justify-center gap-2">
+                        <ClipboardList className="w-4 h-4" /> Avaliar Função Orgânica & Gerar Alertas de Dose
+                      </button>
+
+                      {foResult.length > 0 && (
+                        <div className="space-y-3">
+                          {foResult.map((item, i) => (
+                            <div key={i} className={`border-2 p-5 rounded-2xl space-y-2 ${item.color === 'rose' ? 'bg-rose-50 border-rose-400' : item.color === 'amber' ? 'bg-amber-50 border-amber-400' : item.color === 'yellow' ? 'bg-yellow-50 border-yellow-300' : 'bg-emerald-50 border-emerald-400'}`}>
+                              <div className="flex items-center justify-between">
+                                <div className="font-extrabold text-sm text-pink-950">{item.param}</div>
+                                <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${item.color === 'rose' ? 'bg-rose-200 text-rose-900' : item.color === 'amber' ? 'bg-amber-200 text-amber-900' : item.color === 'yellow' ? 'bg-yellow-200 text-yellow-900' : 'bg-emerald-200 text-emerald-900'}`}>{item.sev}</span>
+                              </div>
+                              <p className="text-xs text-stone-700 leading-relaxed">{item.note}</p>
+                              <div className="bg-white border border-pink-100 p-3 rounded-xl text-xs font-semibold text-pink-900">
+                                <span className="font-extrabold">📌 Conduta: </span>{item.action}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
               </div>
             </div>
           )}
