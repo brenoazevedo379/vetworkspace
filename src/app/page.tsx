@@ -1935,7 +1935,6 @@ function PrescriptionModule({
     setManualSpecies(recipe.species || 'Canino')
     setDate(recipe.date)
     setVeterinarian(recipe.veterinarian)
-    setCrmv(recipe.crmv)
     setDiagnosis(recipe.diagnosis)
     setMedications(recipe.medications.length ? recipe.medications : [blankMedication()])
     setGeneralInstructions(recipe.generalInstructions)
