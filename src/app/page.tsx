@@ -632,21 +632,57 @@ function PatientSelector({
   value,
   onChange,
   label = 'Paciente (opcional para simulação)',
+  manualName = '',
+  onManualNameChange,
 }: {
   patients: ClinicalPatientLite[]
   value: string
   onChange: (value: string) => void
   label?: string
+  manualName?: string
+  onManualNameChange?: (value: string) => void
 }) {
   return (
-    <div>
-      <label className={labelClass}>{label}</label>
-      <select value={value} onChange={e => onChange(e.target.value)} className={inputClass}>
-        <option value="">Sem vincular a prontuário</option>
-        {patients.map(p => (
-          <option key={p.id} value={p.id}>{p.petName} • {p.tutor} • {p.species}{p.neoplasia ? ` • ${p.neoplasia}` : ''}</option>
-        ))}
-      </select>
+    <div className="space-y-2">
+      <div>
+        <label className={labelClass}>{label}</label>
+        <select
+          value={value}
+          onChange={e => {
+            onChange(e.target.value)
+            if (e.target.value && onManualNameChange) onManualNameChange('')
+          }}
+          className={inputClass}
+        >
+          <option value="">Sem vincular a prontuário</option>
+          {patients.map(p => (
+            <option key={p.id} value={p.id}>{p.petName} • {p.tutor} • {p.species}{p.neoplasia ? ` • ${p.neoplasia}` : ''}</option>
+          ))}
+        </select>
+      </div>
+
+      {onManualNameChange && (
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="h-px flex-1 bg-pink-100" />
+            <span className="text-[10px] font-bold text-stone-400 uppercase">ou digite</span>
+            <span className="h-px flex-1 bg-pink-100" />
+          </div>
+          <label className={labelClass}>Nome do paciente</label>
+          <input
+            value={manualName}
+            onChange={e => {
+              onManualNameChange(e.target.value)
+              if (e.target.value && value) onChange('')
+            }}
+            placeholder="Ex: Mel"
+            className={inputClass}
+          />
+          <p className="text-[10px] text-stone-400 mt-1">
+            Use este campo quando quiser utilizar a ferramenta sem cadastrar o paciente no prontuário.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -685,6 +721,7 @@ function ToxicityGrading({
   onAddTimelineEvent?: AdvancedOncologyFeatureProps['onAddTimelineEvent']
   onAddAlert?: AdvancedOncologyFeatureProps['onAddAlert']
 }) {
+  const [manualPatientName, setManualPatientName] = useState('')
   const [event, setEvent] = useState('Neutropenia')
   const [species, setSpecies] = useState<'cao' | 'gato'>('cao')
   const [value, setValue] = useState('')
@@ -737,7 +774,7 @@ function ToxicityGrading({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
           <div className="space-y-4">
-            <PatientSelector patients={patientOptions} value={patientId} onChange={setPatientId} />
+            <PatientSelector patients={patientOptions} value={patientId} onChange={setPatientId} manualName={manualPatientName} onManualNameChange={setManualPatientName} />
             <div>
               <label className={labelClass}>Evento adverso</label>
               <select value={event} onChange={e => { setEvent(e.target.value); setValue(''); setLln('') }} className={inputClass}>
@@ -856,6 +893,7 @@ function InteractionChecker({
   selectedPatient?: ClinicalPatientLite
   onUpdateContinuousMedications?: AdvancedOncologyFeatureProps['onUpdateContinuousMedications']
 }) {
+  const [manualPatientName, setManualPatientName] = useState('')
   const [chemo, setChemo] = useState('Doxorrubicina')
   const [meds, setMeds] = useState('')
   const [classes, setClasses] = useState<string[]>([])
@@ -925,7 +963,7 @@ function InteractionChecker({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
           <div className="space-y-4">
-            <PatientSelector patients={patientOptions} value={patientId} onChange={setPatientId} />
+            <PatientSelector patients={patientOptions} value={patientId} onChange={setPatientId} manualName={manualPatientName} onManualNameChange={setManualPatientName} />
             <div>
               <label className={labelClass}>Quimioterápico</label>
               <select value={chemo} onChange={e => setChemo(e.target.value)} className={inputClass}>
@@ -991,6 +1029,7 @@ function PostChemoGuidance({
   selectedPatient?: ClinicalPatientLite
   onAddTimelineEvent?: AdvancedOncologyFeatureProps['onAddTimelineEvent']
 }) {
+  const [manualPatientName, setManualPatientName] = useState('')
   const [drug, setDrug] = useState('Doxorrubicina')
   const [date, setDate] = useState(() => todayLocalIso())
   const [hours, setHours] = useState('72')
@@ -998,10 +1037,10 @@ function PostChemoGuidance({
   const [copied, setCopied] = useState(false)
 
   const guidance = useMemo(() => {
-    const pet = selectedPatient?.petName || '[nome do pet]'
+    const pet = selectedPatient?.petName || manualPatientName.trim() || '[nome do pet]'
     const tutor = selectedPatient?.tutor || '[tutor]'
     return `ORIENTAÇÕES APÓS QUIMIOTERAPIA\n\nPaciente: ${pet}\nTutor(a): ${tutor}\nFármaco: ${drug}\nData da aplicação: ${formatLocalDate(date)}\n\n1. MEDICAÇÕES E ALIMENTAÇÃO\n• Ofereça água e alimentação conforme orientação da equipe.\n• Administre somente as medicações prescritas. Não acrescente anti-inflamatórios, corticoides ou outros medicamentos por conta própria.\n\n2. URINA, FEZES E VÔMITO\n• Durante aproximadamente ${hours || '72'} horas (ou pelo período específico informado pela equipe), use luvas descartáveis ao limpar urina, fezes ou vômito.\n• Recolha os resíduos com material descartável, acondicione em saco fechado e higienize a área.\n• Gestantes, crianças pequenas e pessoas imunossuprimidas devem evitar contato direto com dejetos nesse período.\n\n3. SINAIS DE ALARME — CONTATE A EQUIPE\n• Febre medida ou temperatura fora do intervalo orientado pela clínica.\n• Apatia intensa, fraqueza ou piora súbita do estado geral.\n• Vômitos repetidos, diarreia intensa ou recusa persistente de água/alimento.\n• Sangramento, dificuldade respiratória, dor importante ou redução importante da urina.\n\n4. RETORNO\n• Realize hemograma e retorno nas datas orientadas, especialmente durante a janela prevista de nadir.\n${extra ? `\nObservações específicas:\n${extra}\n` : ''}\nEm caso de dúvida ou piora, entre em contato com a equipe veterinária responsável.`
-  }, [selectedPatient, drug, date, hours, extra])
+  }, [selectedPatient, manualPatientName, drug, date, hours, extra])
 
   const copy = async () => {
     await navigator.clipboard.writeText(guidance)
@@ -1030,7 +1069,7 @@ function PostChemoGuidance({
         <ModuleHeader icon={<FileText className="w-6 h-6" />} title="Gerador de Orientações Pós-Quimio para o Tutor" subtitle="Resumo prático de cuidados domiciliares, manejo de dejetos e sinais de alarme" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="space-y-4">
-            <PatientSelector patients={patientOptions} value={patientId} onChange={setPatientId} label="Paciente" />
+            <PatientSelector patients={patientOptions} value={patientId} onChange={setPatientId} label="Paciente" manualName={manualPatientName} onManualNameChange={setManualPatientName} />
             <div className="grid grid-cols-2 gap-3">
               <div><label className={labelClass}>Quimioterápico</label><select value={drug} onChange={e => setDrug(e.target.value)} className={inputClass}>{Object.keys(NADIR_WINDOWS).map(x => <option key={x}>{x}</option>)}</select></div>
               <div><label className={labelClass}>Data</label><input type="date" value={date} onChange={e => setDate(e.target.value)} className={inputClass} /></div>
@@ -1065,6 +1104,7 @@ function HistologyGrading({
   selectedPatient?: ClinicalPatientLite
   onAddTimelineEvent?: AdvancedOncologyFeatureProps['onAddTimelineEvent']
 }) {
+  const [manualPatientName, setManualPatientName] = useState('')
   const [tumorType, setTumorType] = useState<'mastocitoma' | 'mamario' | 'outro'>('mastocitoma')
   const [patnaik, setPatnaik] = useState('II')
   const [mitosesMct, setMitosesMct] = useState('')
@@ -1093,7 +1133,7 @@ function HistologyGrading({
   const mammaryGrade = mammaryTotal <= 5 ? 'I (baixo)' : mammaryTotal <= 7 ? 'II (intermediário)' : 'III (alto)'
 
   const summary = useMemo(() => {
-    const base = [`Paciente: ${selectedPatient?.petName || '[não vinculado]'}`, `Neoplasia cadastrada: ${selectedPatient?.neoplasia || 'não informada'}`]
+    const base = [`Paciente: ${selectedPatient?.petName || manualPatientName.trim() || '[não informado]'}`, `Neoplasia cadastrada: ${selectedPatient?.neoplasia || 'não informada'}`]
     if (tumorType === 'mastocitoma') {
       base.push(`Mastocitoma cutâneo — Patnaik: grau ${patnaik}.`)
       base.push(`Kiupel pelos critérios inseridos: ${mctClassification}.`)
@@ -1107,7 +1147,7 @@ function HistologyGrading({
     base.push(`Margens: ${margins}. Invasão linfovascular: ${lvi}.`)
     if (notes) base.push(`Observações: ${notes}`)
     return base.join('\n')
-  }, [selectedPatient, tumorType, patnaik, mctClassification, mitosesMct, multinucleated, bizarre, karyomegaly, mammaryTotal, mammaryGrade, tubule, pleomorphism, mammaryMitosis, genericGrade, margins, lvi, notes])
+  }, [selectedPatient, manualPatientName, tumorType, patnaik, mctClassification, mitosesMct, multinucleated, bizarre, karyomegaly, mammaryTotal, mammaryGrade, tubule, pleomorphism, mammaryMitosis, genericGrade, margins, lvi, notes])
 
   const save = () => {
     if (!patientId) return
@@ -1130,7 +1170,7 @@ function HistologyGrading({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
           <div className="space-y-4">
-            <PatientSelector patients={patientOptions} value={patientId} onChange={setPatientId} label="Paciente" />
+            <PatientSelector patients={patientOptions} value={patientId} onChange={setPatientId} label="Paciente" manualName={manualPatientName} onManualNameChange={setManualPatientName} />
             <div><label className={labelClass}>Tipo de graduação</label><select value={tumorType} onChange={e => setTumorType(e.target.value as any)} className={inputClass}><option value="mastocitoma">Mastocitoma cutâneo canino</option><option value="mamario">Carcinoma mamário canino</option><option value="outro">Outro tumor / laudo</option></select></div>
 
             {tumorType === 'mastocitoma' && (
@@ -1240,6 +1280,7 @@ export function CanineNutritionFeature({ mode, patients, onAddTimelineEvent }: C
 
 function EnergyCalculator({ patients, onAddTimelineEvent }: Pick<CanineNutritionFeatureProps, 'onAddTimelineEvent'> & { patients: ClinicalPatientLite[] }) {
   const [patientId, setPatientId] = useState('')
+  const [manualPatientName, setManualPatientName] = useState('')
   const [weight, setWeight] = useState('')
   const [stage, setStage] = useState('neutered')
   const [factor, setFactor] = useState(CANINE_FACTORS.neutered.default.toString())
@@ -1271,7 +1312,7 @@ function EnergyCalculator({ patients, onAddTimelineEvent }: Pick<CanineNutrition
       <SafetyBanner>RER = 70 × peso(kg)^0,75. Os fatores de MER são estimativas iniciais da AAHA e devem ser ajustados pelo acompanhamento de peso, ECC, massa muscular, atividade, doença e ingestão real.</SafetyBanner>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
         <div className="space-y-4">
-          <PatientSelector patients={patients} value={patientId} onChange={setPatientId} />
+          <PatientSelector patients={patients} value={patientId} onChange={setPatientId} manualName={manualPatientName} onManualNameChange={setManualPatientName} />
           <div><label className={labelClass}>Peso atual (kg)</label><input type="number" min="0.1" step="0.1" value={weight} onChange={e => setWeight(e.target.value)} className={inputClass} /></div>
           <div><label className={labelClass}>Condição fisiológica</label><select value={stage} onChange={e => changeStage(e.target.value)} className={inputClass}>{Object.entries(CANINE_FACTORS).map(([key, x]) => <option value={key} key={key}>{x.label}</option>)}</select></div>
           <div><label className={labelClass}>Fator MER utilizado</label><input type="number" step="0.1" min="0.5" max="12" value={factor} onChange={e => setFactor(e.target.value)} className={inputClass} /><p className="text-[10px] text-stone-500 mt-1">Faixa de referência: {stageInfo.min === stageInfo.max ? stageInfo.min : `${stageInfo.min}–${stageInfo.max}`} × RER. {stageInfo.note || ''}</p></div>
@@ -1291,6 +1332,7 @@ function EnergyCalculator({ patients, onAddTimelineEvent }: Pick<CanineNutrition
 
 function BCSCalculator({ patients, onAddTimelineEvent }: Pick<CanineNutritionFeatureProps, 'onAddTimelineEvent'> & { patients: ClinicalPatientLite[] }) {
   const [patientId, setPatientId] = useState('')
+  const [manualPatientName, setManualPatientName] = useState('')
   const [weight, setWeight] = useState('')
   const [bcs, setBcs] = useState(5)
   const [maintenanceFactor, setMaintenanceFactor] = useState('1.4')
@@ -1325,7 +1367,7 @@ function BCSCalculator({ patients, onAddTimelineEvent }: Pick<CanineNutritionFea
       <SafetyBanner>A estimativa de peso ideal usa aproximadamente 10% de diferença por ponto de ECC acima/abaixo da faixa ideal e serve apenas como ponto de partida. Em cães obesos, a meta de perda costuma ser acompanhada semanalmente e ajustada pela resposta clínica.</SafetyBanner>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
         <div className="space-y-4">
-          <PatientSelector patients={patients} value={patientId} onChange={setPatientId} />
+          <PatientSelector patients={patients} value={patientId} onChange={setPatientId} manualName={manualPatientName} onManualNameChange={setManualPatientName} />
           <div><label className={labelClass}>Peso atual (kg)</label><input type="number" min="0.1" step="0.1" value={weight} onChange={e => setWeight(e.target.value)} className={inputClass} /></div>
           <div><label className={labelClass}>ECC — 1 a 9</label><div className="grid grid-cols-9 gap-1">{Array.from({ length: 9 }, (_, i) => i + 1).map(score => <button key={score} type="button" onClick={() => setBcs(score)} className={`py-2 rounded-lg text-xs font-extrabold border ${bcs === score ? 'bg-pink-500 text-white border-pink-500' : 'bg-white border-pink-200 text-pink-800'}`}>{score}</button>)}</div></div>
           <div className="bg-pink-50/60 border border-pink-200 rounded-xl p-3 text-xs text-stone-700 leading-relaxed"><strong>ECC {bcs}/9:</strong> {BCS_TEXT[bcs]}</div>
@@ -1453,6 +1495,7 @@ function ToxicFoods() {
 
 function HomeDiet({ patients, onAddTimelineEvent }: Pick<CanineNutritionFeatureProps, 'onAddTimelineEvent'> & { patients: ClinicalPatientLite[] }) {
   const [patientId, setPatientId] = useState('')
+  const [manualPatientName, setManualPatientName] = useState('')
   const [dietType, setDietType] = useState<'cozida' | 'crua'>('cozida')
   const [protein, setProtein] = useState('')
   const [carb, setCarb] = useState('')
@@ -1486,7 +1529,7 @@ function HomeDiet({ patients, onAddTimelineEvent }: Pick<CanineNutritionFeatureP
       <SafetyBanner>A maioria das receitas caseiras não formuladas é nutricionalmente incompleta. O módulo confere proporções e documentação, mas não “balanceia” micronutrientes sozinho. Receita terapêutica deve ser formulada/revisada por nutricionista veterinário e seguida exatamente.</SafetyBanner>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
         <div className="space-y-4">
-          <PatientSelector patients={patients} value={patientId} onChange={setPatientId} />
+          <PatientSelector patients={patients} value={patientId} onChange={setPatientId} manualName={manualPatientName} onManualNameChange={setManualPatientName} />
           <div><label className={labelClass}>Tipo</label><select value={dietType} onChange={e => setDietType(e.target.value as any)} className={inputClass}><option value="cozida">Cozida</option><option value="crua">Crua</option></select></div>
           <div className="grid grid-cols-2 gap-2">{[['Proteína animal (g)', protein, setProtein], ['Carboidratos (g)', carb, setCarb], ['Vegetais/fibras (g)', veg, setVeg], ['Gorduras/óleos (g)', fat, setFat], ['Outros ingredientes (g)', other, setOther]].map(([label, value, setter]: any) => <div key={label}><label className={labelClass}>{label}</label><input type="number" min="0" step="1" value={value} onChange={e => setter(e.target.value)} className={inputClass} /></div>)}</div>
           <label className={`flex items-center gap-2 p-3 rounded-xl border text-xs font-bold ${cmv ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-rose-50 border-rose-300 text-rose-900'}`}><input type="checkbox" checked={cmv} onChange={e => setCmv(e.target.checked)} className="accent-pink-500" /> Suplemento minero-vitamínico (CMV) específico da formulação está incluído</label>
