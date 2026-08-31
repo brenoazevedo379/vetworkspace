@@ -1742,9 +1742,12 @@ function PrescriptionModule({
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [patientId, setPatientId] = useState('')
+  const [manualPatientName, setManualPatientName] = useState('')
+  const [manualTutorName, setManualTutorName] = useState('')
+  const [manualSpecies, setManualSpecies] = useState('Canino')
   const [date, setDate] = useState(today)
   const [veterinarian, setVeterinarian] = useState('Dra. Beatriz Contreiras')
-  const [crmv, setCrmv] = useState('')
+  const [crmv] = useState('8379')
   const [diagnosis, setDiagnosis] = useState('')
   const [medications, setMedications] = useState<PrescriptionMedication[]>([blankMedication()])
   const [generalInstructions, setGeneralInstructions] = useState('')
@@ -1756,6 +1759,9 @@ function PrescriptionModule({
   const resetForm = () => {
     setEditingId(null)
     setPatientId('')
+    setManualPatientName('')
+    setManualTutorName('')
+    setManualSpecies('Canino')
     setDate(today)
     setDiagnosis('')
     setMedications([blankMedication()])
@@ -1784,10 +1790,19 @@ function PrescriptionModule({
   }
 
   const buildRecipe = (): VetPrescription | null => {
-    if (!patient) {
-      alert('Selecione um paciente para a receita.')
+    const patientName = patient?.petName || manualPatientName.trim()
+    const tutorName = patient?.tutor || manualTutorName.trim()
+    const species = patient?.species || manualSpecies.trim()
+
+    if (!patientName) {
+      alert('Informe o nome do paciente.')
       return null
     }
+    if (!tutorName) {
+      alert('Informe o nome do tutor.')
+      return null
+    }
+
     const validMeds = medications.filter(m => m.name.trim())
     if (validMeds.length === 0) {
       alert('Adicione pelo menos uma medicação ou item de prescrição.')
@@ -1803,10 +1818,10 @@ function PrescriptionModule({
       id: editingId || `rx-${Date.now()}`,
       createdAt: recipes.find(r => r.id === editingId)?.createdAt || now,
       updatedAt: now,
-      patientId: patient.id,
-      patientName: patient.petName,
-      tutorName: patient.tutor,
-      species: patient.species,
+      patientId: patient?.id || '',
+      patientName,
+      tutorName,
+      species,
       date,
       veterinarian: veterinarian.trim() || 'Médico(a)-veterinário(a)',
       crmv: crmv.trim(),
@@ -1914,7 +1929,10 @@ function PrescriptionModule({
 
   const loadRecipe = (recipe: VetPrescription) => {
     setEditingId(recipe.id)
-    setPatientId(recipe.patientId)
+    setPatientId(recipe.patientId || '')
+    setManualPatientName(recipe.patientName || '')
+    setManualTutorName(recipe.tutorName || '')
+    setManualSpecies(recipe.species || 'Canino')
     setDate(recipe.date)
     setVeterinarian(recipe.veterinarian)
     setCrmv(recipe.crmv)
@@ -1966,21 +1984,76 @@ function PrescriptionModule({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div className="md:col-span-2">
-            <label className="text-xs font-bold text-stone-700 block mb-1">Paciente</label>
-            <select value={patientId} onChange={e => setPatientId(e.target.value)} className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none" required>
-              <option value="">Selecione o paciente...</option>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-bold text-stone-700 block mb-1">Usar paciente já cadastrado (opcional)</label>
+            <select
+              value={patientId}
+              onChange={e => {
+                const id = e.target.value
+                setPatientId(id)
+                const found = patients.find(p => p.id === id)
+                if (found) {
+                  setManualPatientName(found.petName)
+                  setManualTutorName(found.tutor)
+                  setManualSpecies(found.species || 'Canino')
+                }
+              }}
+              className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none"
+            >
+              <option value="">Não vincular — digitar os dados abaixo</option>
               {patients.map(p => <option key={p.id} value={p.id}>{p.petName} — {p.tutor} ({p.species})</option>)}
             </select>
           </div>
-          <div>
-            <label className="text-xs font-bold text-stone-700 block mb-1">Data</label>
-            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none" />
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs font-bold text-stone-700 block mb-1">Nome do paciente</label>
+              <input
+                value={manualPatientName}
+                onChange={e => { setManualPatientName(e.target.value); if (patientId) setPatientId('') }}
+                placeholder="Ex: Mel"
+                className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-stone-700 block mb-1">Tutor(a)</label>
+              <input
+                value={manualTutorName}
+                onChange={e => { setManualTutorName(e.target.value); if (patientId) setPatientId('') }}
+                placeholder="Ex: Maria"
+                className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-stone-700 block mb-1">Espécie</label>
+              <select
+                value={manualSpecies}
+                onChange={e => { setManualSpecies(e.target.value); if (patientId) setPatientId('') }}
+                className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none"
+              >
+                <option value="Canino">Canino</option>
+                <option value="Felino">Felino</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </div>
           </div>
-          <div>
-            <label className="text-xs font-bold text-stone-700 block mb-1">CRMV</label>
-            <input value={crmv} onChange={e => setCrmv(e.target.value)} placeholder="Ex: BA 00000" className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none" />
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs font-bold text-stone-700 block mb-1">Data</label>
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-stone-700 block mb-1">CRMV</label>
+              <input value={crmv} readOnly className="w-full bg-stone-100 border border-stone-200 rounded-xl px-3.5 py-2.5 text-xs text-stone-700 font-bold focus:outline-none" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-stone-700 block mb-1">Registro</label>
+              <div className="w-full bg-pink-50/40 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-800 font-bold">
+                CRMV 8379
+              </div>
+            </div>
           </div>
         </div>
 
@@ -2033,9 +2106,12 @@ function PrescriptionModule({
           </div>
         </div>
 
-        {patient && (
+        {(patient || manualPatientName.trim()) && (
           <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-900">
-            Receita vinculada a <strong>{patient.petName}</strong>, tutor(a) <strong>{patient.tutor}</strong> — {patient.species}, {patient.breed}.
+            <strong>Paciente:</strong> {patient?.petName || manualPatientName || '—'} •
+            <strong> Tutor(a):</strong> {patient?.tutor || manualTutorName || '—'} •
+            <strong> Espécie:</strong> {patient?.species || manualSpecies || '—'}
+            {patient ? ' • Vinculado ao prontuário cadastrado' : ' • Receita avulsa'}
           </div>
         )}
 
