@@ -654,6 +654,30 @@ export default function VetWorkspaceBeatrizV28() {
   const [oncoResultPills, setOncoResultPills] = useState<number | null>(null)
   const [calculatedBsaValue, setCalculatedBsaValue] = useState<number | null>(null)
 
+  // Estados de Oncologia Avançada — precisam ficar no nível superior do componente.
+  // Hooks dentro dos blocos condicionais das abas quebravam a ordem de Hooks do React.
+  const [selectedProtocol, setSelectedProtocol] = useState<number>(0)
+  const [protWeight, setProtWeight] = useState<string>('')
+  const [protSpecies, setProtSpecies] = useState<'cao' | 'gato'>('cao')
+  const [protResults, setProtResults] = useState<any[]>([])
+
+  const [nadirDate, setNadirDate] = useState<string>('')
+  const [nadirDrug, setNadirDrug] = useState<string>('Doxorrubicina')
+  const [nadirResult, setNadirResult] = useState<any>(null)
+
+  const [adjWeight, setAdjWeight] = useState<string>('')
+  const [adjSpecies, setAdjSpecies] = useState<'cao' | 'gato'>('cao')
+  const [adjECC, setAdjECC] = useState<string>('5')
+  const [adjDrug, setAdjDrug] = useState<string>('Doxorrubicina')
+  const [adjResult, setAdjResult] = useState<any>(null)
+
+  const [foChemo, setFoChemo] = useState<string>('Doxorrubicina')
+  const [foCreat, setFoCreat] = useState<string>('')
+  const [foALT, setFoALT] = useState<string>('')
+  const [foFA, setFoFA] = useState<string>('')
+  const [foSpecies, setFoSpecies] = useState<'cao' | 'gato'>('cao')
+  const [foResult, setFoResult] = useState<any[]>([])
+
   const [copiedCondolenceId, setCopiedCondolenceId] = useState<string | null>(null)
   const [condolenceTutorInputs, setCondolenceTutorInputs] = useState<{ [key: string]: { tutor: string; pet: string } }>({})
 
@@ -3990,11 +4014,6 @@ export default function VetWorkspaceBeatrizV28() {
                     },
                   ];
 
-                  const [selectedProtocol, setSelectedProtocol] = React.useState(0)
-                  const [protWeight, setProtWeight] = React.useState('')
-                  const [protSpecies, setProtSpecies] = React.useState<'cao'|'gato'>('cao')
-                  const [protResults, setProtResults] = React.useState<any[]>([])
-
                   const calcProtocol = () => {
                     const w = parseFloat(protWeight) || 0
                     if (w <= 0) return
@@ -4027,7 +4046,7 @@ export default function VetWorkspaceBeatrizV28() {
                         </div>
                         <div>
                           <label className="text-xs font-bold text-stone-700 block mb-1">Espécie</label>
-                          <select value={protSpecies} onChange={(e) => setProtSpecies(e.target.value as any)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                          <select value={protSpecies} onChange={(e) => { setProtSpecies(e.target.value as any); setProtResults([]); }} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
                             <option value="cao">Canino (K=10.1)</option>
                             <option value="gato">Felino (K=10.0)</option>
                           </select>
@@ -4037,7 +4056,7 @@ export default function VetWorkspaceBeatrizV28() {
                       <div className="flex items-end gap-3">
                         <div className="flex-1">
                           <label className="text-xs font-bold text-stone-700 block mb-1">Peso do Paciente (kg)</label>
-                          <input type="number" step="0.1" placeholder="Ex: 18.5" value={protWeight} onChange={(e) => setProtWeight(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <input type="number" step="0.1" placeholder="Ex: 18.5" value={protWeight} onChange={(e) => { setProtWeight(e.target.value); setProtResults([]); }} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                         <button onClick={calcProtocol} className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-2.5 rounded-xl text-xs font-bold transition shadow-md cursor-pointer flex items-center gap-2">
                           <Calculator className="w-4 h-4" /> Calcular Protocolo Completo
@@ -4098,10 +4117,6 @@ export default function VetWorkspaceBeatrizV28() {
                 </div>
 
                 {(() => {
-                  const [nadirDate, setNadirDate] = React.useState('')
-                  const [nadirDrug, setNadirDrug] = React.useState('Doxorrubicina')
-                  const [nadirResult, setNadirResult] = React.useState<any>(null)
-
                   const NADIR_DATA: Record<string, { d7: number, d14: number, notes: string }> = {
                     'Doxorrubicina': { d7: 7, d14: 14, notes: 'Nadir mais severo entre Dia 7 e 14. Risco alto de neutropenia e trombocitopenia.' },
                     'Ciclofosfamida': { d7: 7, d14: 14, notes: 'Nadir geralmente entre 7–14 dias. Monitorar cistite hemorrágica concomitante.' },
@@ -4112,7 +4127,8 @@ export default function VetWorkspaceBeatrizV28() {
 
                   const calcNadir = () => {
                     if (!nadirDate) return
-                    const base = new Date(nadirDate)
+                    const [year, month, day] = nadirDate.split('-').map(Number)
+                    const base = new Date(year, month - 1, day)
                     const info = NADIR_DATA[nadirDrug]
                     const d7 = new Date(base); d7.setDate(d7.getDate() + info.d7)
                     const d14 = new Date(base); d14.setDate(d14.getDate() + info.d14)
@@ -4131,7 +4147,7 @@ export default function VetWorkspaceBeatrizV28() {
                         </div>
                         <div>
                           <label className="text-xs font-bold text-stone-700 block mb-1">Data de Aplicação</label>
-                          <input type="date" value={nadirDate} onChange={(e) => setNadirDate(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <input type="date" value={nadirDate} onChange={(e) => { setNadirDate(e.target.value); setNadirResult(null); }} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                       </div>
 
@@ -4301,12 +4317,6 @@ export default function VetWorkspaceBeatrizV28() {
                 </div>
 
                 {(() => {
-                  const [adjWeight, setAdjWeight] = React.useState('')
-                  const [adjSpecies, setAdjSpecies] = React.useState<'cao'|'gato'>('cao')
-                  const [adjECC, setAdjECC] = React.useState('5')
-                  const [adjDrug, setAdjDrug] = React.useState('Doxorrubicina')
-                  const [adjResult, setAdjResult] = React.useState<any>(null)
-
                   const DOSE_TABLE: Record<string, number> = {
                     'Doxorrubicina': 30, 'Ciclofosfamida': 250, 'Vincristina': 0.7,
                     'Lomustina (CCNU)': 60, 'Clorambucil': 20
@@ -4359,24 +4369,24 @@ export default function VetWorkspaceBeatrizV28() {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         <div>
                           <label className="text-xs font-bold text-stone-700 block mb-1">Peso Real (kg)</label>
-                          <input type="number" step="0.1" placeholder="Ex: 4.5" value={adjWeight} onChange={(e) => setAdjWeight(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <input type="number" step="0.1" placeholder="Ex: 4.5" value={adjWeight} onChange={(e) => { setAdjWeight(e.target.value); setAdjResult(null); }} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
                         </div>
                         <div>
                           <label className="text-xs font-bold text-stone-700 block mb-1">Espécie</label>
-                          <select value={adjSpecies} onChange={(e) => setAdjSpecies(e.target.value as any)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                          <select value={adjSpecies} onChange={(e) => { setAdjSpecies(e.target.value as any); setAdjResult(null); }} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
                             <option value="cao">Canino</option>
                             <option value="gato">Felino</option>
                           </select>
                         </div>
                         <div>
                           <label className="text-xs font-bold text-stone-700 block mb-1">ECC (1–9)</label>
-                          <select value={adjECC} onChange={(e) => setAdjECC(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                          <select value={adjECC} onChange={(e) => { setAdjECC(e.target.value); setAdjResult(null); }} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
                             {[1,2,3,4,5,6,7,8,9].map(n => <option key={n} value={n}>{n} {n <= 3 ? '(Caquético)' : n <= 5 ? '(Normal)' : n <= 7 ? '(Sobrepeso)' : '(Obeso)'}</option>)}
                           </select>
                         </div>
                         <div>
                           <label className="text-xs font-bold text-stone-700 block mb-1">Fármaco</label>
-                          <select value={adjDrug} onChange={(e) => setAdjDrug(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                          <select value={adjDrug} onChange={(e) => { setAdjDrug(e.target.value); setAdjResult(null); }} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
                             {Object.keys(DOSE_TABLE).map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         </div>
@@ -4447,13 +4457,6 @@ export default function VetWorkspaceBeatrizV28() {
                 </div>
 
                 {(() => {
-                  const [foChemo, setFoChemo] = React.useState('Doxorrubicina')
-                  const [foCreat, setFoCreat] = React.useState('')
-                  const [foALT, setFoALT] = React.useState('')
-                  const [foFA, setFoFA] = React.useState('')
-                  const [foSpecies, setFoSpecies] = React.useState<'cao'|'gato'>('cao')
-                  const [foResult, setFoResult] = React.useState<any[]>([])
-
                   const LIMITS = {
                     cao: { creat: { normal: 1.5, mild: 2.0, severe: 3.0 }, alt: { normal: 88, mild: 176, severe: 264 }, fa: { normal: 150, mild: 300, severe: 600 } },
                     gato: { creat: { normal: 1.8, mild: 2.5, severe: 4.0 }, alt: { normal: 130, mild: 260, severe: 390 }, fa: { normal: 111, mild: 222, severe: 333 } }
@@ -4469,6 +4472,17 @@ export default function VetWorkspaceBeatrizV28() {
                   }
 
                   const evalOrgan = () => {
+                    if (!foCreat.trim() && !foALT.trim() && !foFA.trim()) {
+                      setFoResult([{
+                        param: 'Dados laboratoriais ausentes',
+                        sev: 'Preencha ao menos um valor',
+                        color: 'yellow',
+                        note: 'Nenhum parâmetro renal ou hepático foi informado para avaliação.',
+                        action: 'Informe creatinina, ALT/TGP e/ou fosfatase alcalina antes de gerar a análise.'
+                      }])
+                      return
+                    }
+
                     const lim = LIMITS[foSpecies]
                     const alerts: any[] = []
                     const drug = CHEMO_ORGAN[foChemo] || { hepatic: false, renal: false }
@@ -4543,7 +4557,7 @@ export default function VetWorkspaceBeatrizV28() {
                         </div>
                         <div>
                           <label className="text-xs font-bold text-stone-700 block mb-1">Espécie</label>
-                          <select value={foSpecies} onChange={(e) => setFoSpecies(e.target.value as any)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                          <select value={foSpecies} onChange={(e) => { setFoSpecies(e.target.value as any); setFoResult([]); }} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
                             <option value="cao">Canino</option>
                             <option value="gato">Felino</option>
                           </select>
@@ -4555,15 +4569,15 @@ export default function VetWorkspaceBeatrizV28() {
                         <div className="grid grid-cols-3 gap-3">
                           <div>
                             <label className="text-[11px] font-bold text-stone-600 block mb-1">Creatinina (mg/dL)</label>
-                            <input type="number" step="0.1" placeholder="Ex: 1.2" value={foCreat} onChange={(e) => setFoCreat(e.target.value)} className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                            <input type="number" step="0.1" placeholder="Ex: 1.2" value={foCreat} onChange={(e) => { setFoCreat(e.target.value); setFoResult([]); }} className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                           </div>
                           <div>
                             <label className="text-[11px] font-bold text-stone-600 block mb-1">ALT / TGP (U/L)</label>
-                            <input type="number" step="1" placeholder="Ex: 95" value={foALT} onChange={(e) => setFoALT(e.target.value)} className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                            <input type="number" step="1" placeholder="Ex: 95" value={foALT} onChange={(e) => { setFoALT(e.target.value); setFoResult([]); }} className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                           </div>
                           <div>
                             <label className="text-[11px] font-bold text-stone-600 block mb-1">Fosfatase Alcalina (U/L)</label>
-                            <input type="number" step="1" placeholder="Ex: 180" value={foFA} onChange={(e) => setFoFA(e.target.value)} className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                            <input type="number" step="1" placeholder="Ex: 180" value={foFA} onChange={(e) => { setFoFA(e.target.value); setFoResult([]); }} className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
                           </div>
                         </div>
                       </div>
