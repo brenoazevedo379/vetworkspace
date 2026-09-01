@@ -4161,6 +4161,16 @@ export default function VetWorkspaceBeatrizV28() {
     return clinicIndex >= 0 ? fallback[clinicIndex % fallback.length] : '#9ca3af'
   }
 
+  const getContrastTextColor = (hex?: string) => {
+    const value = (hex || '#ec4899').replace('#', '')
+    if (!/^[0-9a-fA-F]{6}$/.test(value)) return '#ffffff'
+    const r = parseInt(value.slice(0, 2), 16)
+    const g = parseInt(value.slice(2, 4), 16)
+    const b = parseInt(value.slice(4, 6), 16)
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b)
+    return luminance > 165 ? '#3f1830' : '#ffffff'
+  }
+
   const filteredDrugs = customDrugs.filter(d => d.name.toLowerCase().includes(drugSearchQuery.toLowerCase()) || d.category.toLowerCase().includes(drugSearchQuery.toLowerCase()))
 
   const daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
@@ -4499,6 +4509,63 @@ export default function VetWorkspaceBeatrizV28() {
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-pink-500"><Heart className="w-5 h-5" /></div>
                 </div>
+              </div>
+
+              {/* COMPROMISSOS DE HOJE */}
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-3xl shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-pink-100 pb-4">
+                  <div>
+                    <div className="flex items-center gap-2 text-[10px] font-extrabold text-pink-500 uppercase tracking-widest">
+                      <CalendarIcon className="w-4 h-4" /> Agenda de hoje
+                    </div>
+                    <h2 className="text-lg font-extrabold text-pink-950 mt-1">Compromissos do Dia</h2>
+                    <p className="text-xs text-stone-500 capitalize">{formattedHeaderDate}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('calendario'); setSelectedDate(todayDateKey); }}
+                    className="bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 px-4 py-2 rounded-xl text-xs font-bold transition"
+                  >
+                    Abrir calendário
+                  </button>
+                </div>
+
+                {events.filter(ev => ev.dateKey === todayDateKey).length === 0 ? (
+                  <div className="py-6 text-center">
+                    <div className="text-2xl mb-2">🌷</div>
+                    <p className="text-xs font-bold text-stone-500">Nenhum compromisso marcado para hoje.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {[...events]
+                      .filter(ev => ev.dateKey === todayDateKey)
+                      .sort((a, b) => (a.time || '').localeCompare(b.time || ''))
+                      .map((ev, idx) => (
+                        <button
+                          type="button"
+                          key={`${ev.dateKey}-${ev.time}-${ev.title}-${idx}`}
+                          onClick={() => { setActiveTab('calendario'); setSelectedDate(ev.dateKey); }}
+                          className="text-left bg-pink-50/30 hover:bg-pink-50 border border-pink-100 rounded-2xl p-4 transition border-l-4"
+                          style={{ borderLeftColor: getEventClinicName(ev) ? getEventClinicColor(ev) : '#ec4899' }}
+                        >
+                          <div className="flex items-start gap-3">
+                            <span
+                              className="w-3.5 h-3.5 rounded-full shrink-0 mt-1 ring-2 ring-white shadow-sm"
+                              style={{ backgroundColor: getEventClinicName(ev) ? getEventClinicColor(ev) : '#ec4899' }}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {ev.time && <span className="text-[10px] font-extrabold text-pink-700 bg-white border border-pink-100 px-2 py-0.5 rounded-lg">{ev.time}</span>}
+                                {getEventClinicName(ev) && <span className="text-[10px] font-bold text-stone-500 truncate">{getEventClinicName(ev)}</span>}
+                              </div>
+                              <div className="text-sm font-extrabold text-pink-950 mt-1 truncate">{ev.title}</div>
+                              {ev.description && <p className="text-[11px] text-stone-500 mt-1 line-clamp-2">{ev.description}</p>}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                  </div>
+                )}
               </div>
 
               {/* MURAL DE PETS */}
@@ -6083,7 +6150,7 @@ export default function VetWorkspaceBeatrizV28() {
                                 <span
                                   key={`${getEventClinicName(ev)}-${getEventClinicColor(ev)}`}
                                   title={getEventClinicName(ev)}
-                                  className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-white"
+                                  className="w-3 h-3 rounded-full shrink-0 ring-2 ring-white shadow-sm"
                                   style={{ backgroundColor: getEventClinicColor(ev) }}
                                 />
                               ))}
@@ -6093,7 +6160,14 @@ export default function VetWorkspaceBeatrizV28() {
                         </div>
                         <div className="space-y-0.5 mt-1">
                           {dayEvents.slice(0, 2).map((ev, idx) => (
-                            <div key={idx} className="text-[10px] bg-pink-500 text-white px-1.5 py-0.5 rounded font-medium flex items-center gap-1 min-w-0">
+                            <div
+                              key={idx}
+                              className="text-[10px] px-1.5 py-0.5 rounded font-medium flex items-center gap-1 min-w-0"
+                              style={{
+                                backgroundColor: getEventClinicName(ev) ? getEventClinicColor(ev) : '#ec4899',
+                                color: getEventClinicName(ev) ? getContrastTextColor(getEventClinicColor(ev)) : '#ffffff'
+                              }}
+                            >
                               {getEventClinicName(ev) && (
                                 <span
                                   title={getEventClinicName(ev)}
@@ -6124,29 +6198,45 @@ export default function VetWorkspaceBeatrizV28() {
                     setEventClinicName('')
                     setEventClinicColor('#111827')
                   }} className="space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                      <input type="text" placeholder="Título do Evento / Matéria" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} className="md:col-span-2 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr_140px] gap-2">
+                      <input type="text" placeholder="Título do compromisso" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
                       <input type="time" value={eventTime} onChange={(e) => setEventTime(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
-                      <div className="flex items-center gap-2">
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2 items-end">
+                      <div>
+                        <label className="text-[10px] font-extrabold text-pink-800 uppercase tracking-wider block mb-1">Clínica / Local</label>
                         <input
                           type="text"
                           list="calendar-clinic-options"
                           value={eventClinicName}
                           onChange={(e) => setEventClinicName(e.target.value)}
-                          placeholder="Nome da clínica"
-                          className="min-w-0 flex-1 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
+                          placeholder="Ex.: Popular Sete Portas"
+                          className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
                         />
                         <datalist id="calendar-clinic-options">
                           {clinics.map(clinic => <option key={clinic.id} value={clinic.name} />)}
                         </datalist>
-                        <label title="Escolher cor da bolinha" className="w-11 h-11 rounded-xl border border-pink-200 bg-white flex items-center justify-center cursor-pointer overflow-hidden shrink-0">
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-extrabold text-pink-800 uppercase tracking-wider block mb-1">Cor da bolinha</label>
+                        <label
+                          title="Escolher cor da clínica"
+                          className="h-11 min-w-[150px] px-3 rounded-xl border border-pink-200 bg-white flex items-center gap-2 cursor-pointer"
+                        >
                           <input
                             type="color"
                             value={eventClinicColor}
                             onChange={(e) => setEventClinicColor(e.target.value)}
-                            className="w-14 h-14 border-0 cursor-pointer"
+                            className="w-8 h-8 border-0 cursor-pointer bg-transparent"
                             aria-label="Cor da clínica"
                           />
+                          <span
+                            className="w-3.5 h-3.5 rounded-full ring-2 ring-stone-100"
+                            style={{ backgroundColor: eventClinicColor }}
+                          />
+                          <span className="text-[10px] font-bold text-stone-600">{eventClinicColor.toUpperCase()}</span>
                         </label>
                       </div>
                     </div>
@@ -6162,7 +6252,11 @@ export default function VetWorkspaceBeatrizV28() {
                       <p className="text-xs text-stone-400 py-6 text-center">Nenhum evento registrado para este dia.</p>
                     ) : (
                       events.filter(ev => ev.dateKey === selectedDate).map((ev, idx) => (
-                        <div key={idx} className="flex items-center justify-between bg-pink-50/40 border border-pink-100 p-3.5 rounded-2xl">
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between bg-pink-50/40 border border-pink-100 p-3.5 rounded-2xl border-l-4"
+                          style={{ borderLeftColor: getEventClinicName(ev) ? getEventClinicColor(ev) : '#fbcfe8' }}
+                        >
                           <div>
                             <div className="text-xs font-bold text-pink-950 flex items-center gap-2 select-text">
                               {ev.time && <span className="bg-pink-100 text-pink-800 px-2 py-0.5 rounded-lg text-[10px] font-extrabold">{ev.time}</span>}
@@ -6179,7 +6273,30 @@ export default function VetWorkspaceBeatrizV28() {
                             </div>
                             {ev.description && <div className="text-[11px] text-stone-600 mt-0.5 select-text">{ev.description}</div>}
                           </div>
-                          <button onClick={() => { lastLocalMutationRef.current = Date.now(); setEvents(events.filter(item => !(item.title === ev.title && item.dateKey === ev.dateKey))); }} className="text-stone-400 hover:text-red-500 p-1"><Trash2 className="w-4 h-4" /></button>
+                          <div className="flex items-center gap-2">
+                            <label title="Alterar cor deste compromisso" className="w-8 h-8 rounded-lg border border-pink-100 bg-white flex items-center justify-center cursor-pointer overflow-hidden">
+                              <input
+                                type="color"
+                                value={getEventClinicColor(ev)}
+                                onChange={(e) => {
+                                  const chosenColor = e.target.value
+                                  lastLocalMutationRef.current = Date.now()
+                                  setEvents(events.map(item =>
+                                    item === ev
+                                      ? {
+                                          ...item,
+                                          clinicName: getEventClinicName(ev) || ev.title,
+                                          clinicColor: chosenColor
+                                        }
+                                      : item
+                                  ))
+                                }}
+                                className="w-10 h-10 border-0 cursor-pointer"
+                                aria-label={`Alterar cor de ${ev.title}`}
+                              />
+                            </label>
+                            <button onClick={() => { lastLocalMutationRef.current = Date.now(); setEvents(events.filter(item => !(item.title === ev.title && item.dateKey === ev.dateKey))); }} className="text-stone-400 hover:text-red-500 p-1"><Trash2 className="w-4 h-4" /></button>
+                          </div>
                         </div>
                       ))
                     )}
