@@ -3442,6 +3442,11 @@ export default function VetWorkspaceBeatrizV28() {
   const [eventTime, setEventTime] = useState('08:00')
   const [eventClinicName, setEventClinicName] = useState('')
   const [eventClinicColor, setEventClinicColor] = useState('#111827')
+  const calendarColorPresets = [
+    '#111827', '#ef4444', '#f97316', '#f59e0b',
+    '#22c55e', '#10b981', '#06b6d4', '#3b82f6',
+    '#6366f1', '#8b5cf6', '#d946ef', '#ec4899'
+  ]
 
   // Drag and Drop state
   const [draggedId, setDraggedId] = useState<string | null>(null)
@@ -6203,7 +6208,7 @@ export default function VetWorkspaceBeatrizV28() {
                       <input type="time" value={eventTime} onChange={(e) => setEventTime(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2 items-end">
+                    <div className="space-y-3">
                       <div>
                         <label className="text-[10px] font-extrabold text-pink-800 uppercase tracking-wider block mb-1">Clínica / Local</label>
                         <input
@@ -6217,27 +6222,72 @@ export default function VetWorkspaceBeatrizV28() {
                         <datalist id="calendar-clinic-options">
                           {clinics.map(clinic => <option key={clinic.id} value={clinic.name} />)}
                         </datalist>
+
+                        {clinics.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {clinics.map(clinic => (
+                              <button
+                                key={clinic.id}
+                                type="button"
+                                onClick={() => setEventClinicName(clinic.name)}
+                                className={`px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition ${
+                                  eventClinicName === clinic.name
+                                    ? 'bg-pink-500 border-pink-500 text-white'
+                                    : 'bg-white border-pink-200 text-pink-700 hover:bg-pink-50'
+                                }`}
+                              >
+                                {clinic.name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-extrabold text-pink-800 uppercase tracking-wider block mb-1">Cor da bolinha</label>
-                        <label
-                          title="Escolher cor da clínica"
-                          className="h-11 min-w-[150px] px-3 rounded-xl border border-pink-200 bg-white flex items-center gap-2 cursor-pointer"
-                        >
-                          <input
-                            type="color"
-                            value={eventClinicColor}
-                            onChange={(e) => setEventClinicColor(e.target.value)}
-                            className="w-8 h-8 border-0 cursor-pointer bg-transparent"
-                            aria-label="Cor da clínica"
-                          />
+                        <label className="text-[10px] font-extrabold text-pink-800 uppercase tracking-wider block mb-2">Cor da clínica</label>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          {calendarColorPresets.map(color => (
+                            <button
+                              key={color}
+                              type="button"
+                              onClick={() => setEventClinicColor(color)}
+                              title={`Usar cor ${color}`}
+                              className={`w-8 h-8 rounded-full transition ring-offset-2 ${
+                                eventClinicColor.toLowerCase() === color.toLowerCase()
+                                  ? 'ring-2 ring-pink-500 scale-110'
+                                  : 'ring-1 ring-stone-200 hover:scale-105'
+                              }`}
+                              style={{ backgroundColor: color }}
+                              aria-label={`Selecionar cor ${color}`}
+                            />
+                          ))}
+
+                          <label className="ml-1 inline-flex items-center gap-2 bg-white border border-pink-200 rounded-xl px-3 py-2 cursor-pointer">
+                            <span
+                              className="w-4 h-4 rounded-full ring-1 ring-stone-200"
+                              style={{ backgroundColor: eventClinicColor }}
+                            />
+                            <span className="text-[10px] font-bold text-stone-600">Outra cor</span>
+                            <input
+                              type="color"
+                              value={eventClinicColor}
+                              onInput={(e) => setEventClinicColor((e.target as HTMLInputElement).value)}
+                              onChange={(e) => setEventClinicColor(e.target.value)}
+                              className="w-8 h-8 cursor-pointer"
+                              aria-label="Escolher outra cor"
+                            />
+                          </label>
+                        </div>
+
+                        <div className="mt-2 flex items-center gap-2 text-[10px] text-stone-500">
+                          <span>Selecionada:</span>
                           <span
-                            className="w-3.5 h-3.5 rounded-full ring-2 ring-stone-100"
+                            className="w-3 h-3 rounded-full ring-1 ring-stone-200"
                             style={{ backgroundColor: eventClinicColor }}
                           />
-                          <span className="text-[10px] font-bold text-stone-600">{eventClinicColor.toUpperCase()}</span>
-                        </label>
+                          <strong className="text-stone-700">{eventClinicColor.toUpperCase()}</strong>
+                        </div>
                       </div>
                     </div>
                     <textarea placeholder="Detalhes ou notas do compromisso..." value={eventDesc} onChange={(e) => setEventDesc(e.target.value)} rows={2} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium resize-none select-text" />
@@ -6274,27 +6324,42 @@ export default function VetWorkspaceBeatrizV28() {
                             {ev.description && <div className="text-[11px] text-stone-600 mt-0.5 select-text">{ev.description}</div>}
                           </div>
                           <div className="flex items-center gap-2">
-                            <label title="Alterar cor deste compromisso" className="w-8 h-8 rounded-lg border border-pink-100 bg-white flex items-center justify-center cursor-pointer overflow-hidden">
-                              <input
-                                type="color"
-                                value={getEventClinicColor(ev)}
-                                onChange={(e) => {
-                                  const chosenColor = e.target.value
-                                  lastLocalMutationRef.current = Date.now()
-                                  setEvents(events.map(item =>
-                                    item === ev
-                                      ? {
-                                          ...item,
-                                          clinicName: getEventClinicName(ev) || ev.title,
-                                          clinicColor: chosenColor
-                                        }
-                                      : item
-                                  ))
-                                }}
-                                className="w-10 h-10 border-0 cursor-pointer"
-                                aria-label={`Alterar cor de ${ev.title}`}
-                              />
-                            </label>
+                            <details className="relative">
+                              <summary className="list-none cursor-pointer w-8 h-8 rounded-lg border border-pink-100 bg-white flex items-center justify-center" title="Alterar cor">
+                                <span
+                                  className="w-4 h-4 rounded-full ring-1 ring-stone-200"
+                                  style={{ backgroundColor: getEventClinicColor(ev) }}
+                                />
+                              </summary>
+                              <div className="absolute right-0 z-30 mt-2 bg-white border border-pink-200 rounded-xl p-3 shadow-lg w-44">
+                                <div className="text-[9px] font-extrabold text-pink-700 uppercase mb-2">Alterar cor</div>
+                                <div className="flex flex-wrap gap-2">
+                                  {calendarColorPresets.map(color => (
+                                    <button
+                                      key={color}
+                                      type="button"
+                                      onClick={() => {
+                                        lastLocalMutationRef.current = Date.now()
+                                        setEvents(events.map(item =>
+                                          item === ev ? {
+                                            ...item,
+                                            clinicName: getEventClinicName(ev) || ev.title,
+                                            clinicColor: color
+                                          } : item
+                                        ))
+                                      }}
+                                      className={`w-6 h-6 rounded-full ${
+                                        getEventClinicColor(ev).toLowerCase() === color.toLowerCase()
+                                          ? 'ring-2 ring-pink-500 ring-offset-1'
+                                          : 'ring-1 ring-stone-200'
+                                      }`}
+                                      style={{ backgroundColor: color }}
+                                      aria-label={`Trocar para ${color}`}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            </details>
                             <button onClick={() => { lastLocalMutationRef.current = Date.now(); setEvents(events.filter(item => !(item.title === ev.title && item.dateKey === ev.dateKey))); }} className="text-stone-400 hover:text-red-500 p-1"><Trash2 className="w-4 h-4" /></button>
                           </div>
                         </div>
