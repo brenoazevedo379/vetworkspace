@@ -120,6 +120,7 @@ interface CalendarEvent {
   clinicId?: string
   clinicName?: string
   clinicColor?: string
+  category?: 'work' | 'return' | 'other'
 }
 
 interface PatientEvolution {
@@ -474,6 +475,10 @@ interface CalendarEventLite {
   title: string
   description: string
   time?: string
+  clinicId?: string
+  clinicName?: string
+  clinicColor?: string
+  category?: 'work' | 'return' | 'other'
 }
 
 interface TaskLite {
@@ -1595,16 +1600,34 @@ export function ClinicalDashboard({
   }
 
   const nadirs = patients.flatMap(p => (p.timeline || []).filter(e => e.nadirStart && e.nadirEnd && (inNextSeven(e.nadirStart) || inNextSeven(e.nadirEnd))).map(e => ({ patient: p, event: e })))
-  const returns = events.filter(e => inNextSeven(e.dateKey)).sort((a, b) => a.dateKey.localeCompare(b.dateKey))
+
+  const inferredCategory = (e: CalendarEventLite) => {
+    if (e.category) return e.category
+    if (e.clinicName || e.clinicId) return 'work'
+    const text = `${e.title} ${e.description}`.toLowerCase()
+    if (text.includes('retorno') || text.includes('reavalia')) return 'return'
+    return 'other'
+  }
+
+  const returns = events
+    .filter(e => inNextSeven(e.dateKey) && inferredCategory(e) === 'return')
+    .sort((a, b) => a.dateKey.localeCompare(b.dateKey) || (a.time || '').localeCompare(b.time || ''))
+
+  const workShifts = events
+    .filter(e => inNextSeven(e.dateKey) && inferredCategory(e) === 'work')
+    .sort((a, b) => a.dateKey.localeCompare(b.dateKey) || (a.time || '').localeCompare(b.time || ''))
+
   const alerts = patients.flatMap(p => (p.alerts || []).filter(a => !a.resolved).map(a => ({ patient: p, alert: a })))
   const pendingTasks = tasks.filter(t => !t.completed).slice(0, 5)
 
   return (
     <div className="bg-white/95 border border-pink-100 rounded-3xl shadow-sm p-6 space-y-4">
       <div className="flex items-center justify-between"><div><div className="text-[10px] font-extrabold uppercase tracking-widest text-pink-500">Visão clínica dos próximos 7 dias</div><h2 className="text-lg font-extrabold text-pink-950">Dashboard Assistencial</h2></div><span className="text-[10px] bg-pink-100 text-pink-700 px-3 py-1 rounded-full font-bold">Atualização automática</span></div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <div className="bg-rose-50/60 border border-rose-200 rounded-2xl p-4"><div className="font-extrabold text-xs text-rose-900 flex items-center gap-2"><Activity className="w-4 h-4" /> Nadir previsto ({nadirs.length})</div><div className="mt-3 space-y-2 max-h-44 overflow-y-auto">{nadirs.length === 0 ? <p className="text-[11px] text-stone-400">Nenhum nadir registrado para a semana.</p> : nadirs.map(({ patient, event }) => <button key={`${patient.id}-${event.id}`} type="button" onClick={() => onOpenPatient(patient.id)} className="w-full text-left bg-white border border-rose-100 rounded-xl p-2.5"><div className="text-xs font-bold text-pink-950">{patient.petName} • {event.chemoDrug || event.title}</div><div className="text-[10px] text-rose-700">{formatLocalDate(event.nadirStart!)} → {formatLocalDate(event.nadirEnd!)}</div></button>)}</div></div>
-        <div className="bg-sky-50/60 border border-sky-200 rounded-2xl p-4"><div className="font-extrabold text-xs text-sky-900 flex items-center gap-2"><Stethoscope className="w-4 h-4" /> Retornos agendados ({returns.length})</div><div className="mt-3 space-y-2 max-h-44 overflow-y-auto">{returns.length === 0 ? <p className="text-[11px] text-stone-400">Nenhum retorno/evento nos próximos 7 dias.</p> : returns.map((e, idx) => <div key={`${e.dateKey}-${idx}`} className="bg-white border border-sky-100 rounded-xl p-2.5"><div className="text-xs font-bold text-pink-950">{e.title}</div><div className="text-[10px] text-sky-700">{formatLocalDate(e.dateKey)} {e.time ? `• ${e.time}` : ''}</div><div className="text-[10px] text-stone-500 truncate">{e.description}</div></div>)}</div></div>
+        <div className="bg-sky-50/60 border border-sky-200 rounded-2xl p-4"><div className="font-extrabold text-xs text-sky-900 flex items-center gap-2"><Stethoscope className="w-4 h-4" /> Retornos agendados ({returns.length})</div><div className="mt-3 space-y-2 max-h-44 overflow-y-auto">{returns.length === 0 ? <p className="text-[11px] text-stone-400">Nenhum retorno de paciente nos próximos 7 dias.</p> : returns.map((e, idx) => <div key={`${e.dateKey}-${idx}`} className="bg-white border border-sky-100 rounded-xl p-2.5"><div className="text-xs font-bold text-pink-950">{e.title}</div><div className="text-[10px] text-sky-700">{formatLocalDate(e.dateKey)} {e.time ? `• ${e.time}` : ''}</div><div className="text-[10px] text-stone-500 truncate">{e.description}</div></div>)}</div></div>
+
+        <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4"><div className="font-extrabold text-xs text-stone-900 flex items-center gap-2"><CalendarIcon className="w-4 h-4" /> Trabalho / Plantões ({workShifts.length})</div><div className="mt-3 space-y-2 max-h-44 overflow-y-auto">{workShifts.length === 0 ? <p className="text-[11px] text-stone-400">Nenhum trabalho/plantão nos próximos 7 dias.</p> : workShifts.map((e, idx) => <div key={`${e.dateKey}-${e.time}-${idx}`} className="bg-white border border-stone-200 rounded-xl p-2.5 border-l-4" style={{ borderLeftColor: e.clinicColor || '#111827' }}><div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: e.clinicColor || '#111827' }} /><div className="text-xs font-bold text-pink-950 truncate">{e.clinicName || e.title}</div></div><div className="text-[10px] text-stone-600 mt-0.5">{formatLocalDate(e.dateKey)} {e.time ? `• ${e.time}` : ''}</div>{e.clinicName && e.title && e.title !== e.clinicName && <div className="text-[10px] text-stone-500 truncate">{e.title}</div>}</div>)}</div></div>
         <div className="bg-amber-50/60 border border-amber-200 rounded-2xl p-4"><div className="font-extrabold text-xs text-amber-900 flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> Alertas pendentes ({alerts.length})</div><div className="mt-3 space-y-2 max-h-44 overflow-y-auto">{alerts.length === 0 ? <p className="text-[11px] text-stone-400">Nenhum alerta clínico pendente.</p> : alerts.map(({ patient, alert }) => <div key={alert.id} className="bg-white border border-amber-100 rounded-xl p-2.5"><button type="button" onClick={() => onOpenPatient(patient.id)} className="text-left w-full"><div className="text-xs font-bold text-pink-950">{patient.petName} • {alert.title}</div><div className="text-[10px] text-stone-500 line-clamp-2">{alert.message}</div></button>{onResolveAlert && <button type="button" onClick={() => onResolveAlert(patient.id, alert.id)} className="text-[10px] font-bold text-emerald-700 mt-1 hover:underline">Marcar como resolvido</button>}</div>)}</div></div>
       </div>
       {pendingTasks.length > 0 && <div className="border-t border-pink-100 pt-3 flex flex-wrap gap-2">{pendingTasks.map(t => <span key={t.id} className="text-[10px] bg-stone-100 text-stone-700 px-2.5 py-1 rounded-full">☐ {t.text}</span>)}</div>}
@@ -3442,6 +3465,7 @@ export default function VetWorkspaceBeatrizV28() {
   const [eventTime, setEventTime] = useState('08:00')
   const [eventClinicName, setEventClinicName] = useState('')
   const [eventClinicColor, setEventClinicColor] = useState('#111827')
+  const [eventCategory, setEventCategory] = useState<'work' | 'return' | 'other'>('work')
   const calendarColorPresets = [
     '#111827', '#ef4444', '#f97316', '#f59e0b',
     '#22c55e', '#10b981', '#06b6d4', '#3b82f6',
@@ -6195,20 +6219,94 @@ export default function VetWorkspaceBeatrizV28() {
                   <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Adicionar Evento com Horário no Dia Selecionado ({selectedDate})</h3>
                   <form onSubmit={(e) => {
                     e.preventDefault()
-                    if (!eventTitle.trim()) return
+                    const cleanTitle = eventTitle.trim()
+                    const cleanClinic = eventClinicName.trim()
+
+                    if (eventCategory === 'work' && !cleanClinic && !cleanTitle) {
+                      alert('Selecione ou informe a clínica para salvar o trabalho/plantão.')
+                      return
+                    }
+
+                    if (eventCategory !== 'work' && !cleanTitle) {
+                      alert('Informe um título para este compromisso.')
+                      return
+                    }
+
+                    const resolvedTitle = cleanTitle || cleanClinic || 'Trabalho / Plantão'
+
                     lastLocalMutationRef.current = Date.now()
-                    setEvents([...events, { dateKey: selectedDate, title: eventTitle, description: eventDesc, time: eventTime, clinicName: eventClinicName.trim() || undefined, clinicColor: eventClinicName.trim() ? eventClinicColor : undefined }])
+                    setEvents([...events, {
+                      dateKey: selectedDate,
+                      title: resolvedTitle,
+                      description: eventDesc,
+                      time: eventTime,
+                      clinicName: cleanClinic || undefined,
+                      clinicColor: cleanClinic ? eventClinicColor : undefined,
+                      category: eventCategory
+                    }])
                     setEventTitle('')
                     setEventDesc('')
                     setEventClinicName('')
                     setEventClinicColor('#111827')
+                    setEventCategory('work')
                   }} className="space-y-3">
                     <div className="grid grid-cols-1 md:grid-cols-[1fr_140px] gap-2">
-                      <input type="text" placeholder="Título do compromisso" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                      <input
+                        type="text"
+                        placeholder={eventCategory === 'work' ? 'Título extra (opcional)' : 'Título do compromisso'}
+                        value={eventTitle}
+                        onChange={(e) => setEventTitle(e.target.value)}
+                        className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
+                      />
                       <input type="time" value={eventTime} onChange={(e) => setEventTime(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
                     </div>
+                    {eventCategory === 'work' && (
+                      <p className="text-[10px] text-stone-400 -mt-1">
+                        Para trabalho/plantão, o título é opcional. Se deixar vazio, o nome da clínica será usado automaticamente.
+                      </p>
+                    )}
 
                     <div className="space-y-3">
+                      <div>
+                        <label className="text-[10px] font-extrabold text-pink-800 uppercase tracking-wider block mb-2">Tipo de compromisso</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEventCategory('work')}
+                            className={`px-3 py-2.5 rounded-xl border text-[11px] font-bold transition ${
+                              eventCategory === 'work'
+                                ? 'bg-stone-800 border-stone-800 text-white'
+                                : 'bg-white border-pink-200 text-stone-700 hover:bg-pink-50'
+                            }`}
+                          >
+                            🏥 Trabalho / Plantão
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEventCategory('return')}
+                            className={`px-3 py-2.5 rounded-xl border text-[11px] font-bold transition ${
+                              eventCategory === 'return'
+                                ? 'bg-sky-500 border-sky-500 text-white'
+                                : 'bg-white border-pink-200 text-stone-700 hover:bg-pink-50'
+                            }`}
+                          >
+                            🩺 Retorno de paciente
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEventCategory('other')}
+                            className={`px-3 py-2.5 rounded-xl border text-[11px] font-bold transition ${
+                              eventCategory === 'other'
+                                ? 'bg-pink-500 border-pink-500 text-white'
+                                : 'bg-white border-pink-200 text-stone-700 hover:bg-pink-50'
+                            }`}
+                          >
+                            📌 Outro compromisso
+                          </button>
+                        </div>
+                      </div>
+
+                      {eventCategory === 'work' && (
                       <div>
                         <label className="text-[10px] font-extrabold text-pink-800 uppercase tracking-wider block mb-1">Clínica / Local</label>
                         <input
@@ -6289,9 +6387,12 @@ export default function VetWorkspaceBeatrizV28() {
                           <strong className="text-stone-700">{eventClinicColor.toUpperCase()}</strong>
                         </div>
                       </div>
+                      )}
                     </div>
                     <textarea placeholder="Detalhes ou notas do compromisso..." value={eventDesc} onChange={(e) => setEventDesc(e.target.value)} rows={2} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium resize-none select-text" />
-                    <button type="submit" className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md cursor-pointer">Salvar na Agenda</button>
+                    <button type="submit" className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md cursor-pointer">
+                      {eventCategory === 'work' ? 'Salvar Trabalho / Plantão' : 'Salvar na Agenda'}
+                    </button>
                   </form>
                 </div>
 
@@ -6310,6 +6411,9 @@ export default function VetWorkspaceBeatrizV28() {
                           <div>
                             <div className="text-xs font-bold text-pink-950 flex items-center gap-2 select-text">
                               {ev.time && <span className="bg-pink-100 text-pink-800 px-2 py-0.5 rounded-lg text-[10px] font-extrabold">{ev.time}</span>}
+                              <span className="text-[9px] font-extrabold uppercase tracking-wide text-stone-400">
+                                {(ev.category || (getEventClinicName(ev) ? 'work' : 'other')) === 'work' ? '🏥 Trabalho' : ev.category === 'return' ? '🩺 Retorno' : '📌 Outro'}
+                              </span>
                               {getEventClinicName(ev) && (
                                 <span className="inline-flex items-center gap-1 bg-white border border-pink-100 px-2 py-0.5 rounded-lg text-[10px] font-bold text-stone-600">
                                   <span
