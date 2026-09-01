@@ -117,6 +117,9 @@ interface CalendarEvent {
   title: string
   description: string
   time?: string
+  clinicId?: string
+  clinicName?: string
+  clinicColor?: string
 }
 
 interface PatientEvolution {
@@ -2779,7 +2782,18 @@ export default function VetWorkspaceBeatrizV28() {
     return `R$ ${val.toFixed(2)}`
   }
 
-  const todayObj = new Date()
+  const [todayObj, setTodayObj] = useState(() => new Date())
+
+  // Mantém data/mês/ano sincronizados com o relógio real do dispositivo.
+  // Assim, se o site ficar aberto durante a virada do dia ou do mês,
+  // o calendário se atualiza sozinho sem precisar recarregar a página.
+  useEffect(() => {
+    const refreshCurrentDate = () => setTodayObj(new Date())
+    refreshCurrentDate()
+    const timer = window.setInterval(refreshCurrentDate, 60_000)
+    return () => window.clearInterval(timer)
+  }, [])
+
   const currentYear = todayObj.getFullYear()
   const currentMonth = todayObj.getMonth()
   const currentDayNum = todayObj.getDate()
@@ -3415,9 +3429,19 @@ export default function VetWorkspaceBeatrizV28() {
     return []
   })
   const [selectedDate, setSelectedDate] = useState<string>(todayDateKey)
+  const lastTodayDateKeyRef = useRef(todayDateKey)
+
+  useEffect(() => {
+    if (lastTodayDateKeyRef.current !== todayDateKey) {
+      lastTodayDateKeyRef.current = todayDateKey
+      setSelectedDate(todayDateKey)
+    }
+  }, [todayDateKey])
   const [eventTitle, setEventTitle] = useState('')
   const [eventDesc, setEventDesc] = useState('')
   const [eventTime, setEventTime] = useState('08:00')
+  const [eventClinicName, setEventClinicName] = useState('')
+  const [eventClinicColor, setEventClinicColor] = useState('#111827')
 
   // Drag and Drop state
   const [draggedId, setDraggedId] = useState<string | null>(null)
@@ -4123,9 +4147,24 @@ export default function VetWorkspaceBeatrizV28() {
     }
   }
 
+  const getClinicById = (clinicId?: string) => clinics.find(c => c.id === clinicId)
+
+  const getEventClinicName = (ev: CalendarEvent) => {
+    if (ev.clinicName?.trim()) return ev.clinicName.trim()
+    return getClinicById(ev.clinicId)?.name || ''
+  }
+
+  const getEventClinicColor = (ev: CalendarEvent) => {
+    if (ev.clinicColor?.trim()) return ev.clinicColor
+    const clinicIndex = clinics.findIndex(c => c.id === ev.clinicId)
+    const fallback = ['#111827', '#ef4444', '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#d946ef']
+    return clinicIndex >= 0 ? fallback[clinicIndex % fallback.length] : '#9ca3af'
+  }
+
   const filteredDrugs = customDrugs.filter(d => d.name.toLowerCase().includes(drugSearchQuery.toLowerCase()) || d.category.toLowerCase().includes(drugSearchQuery.toLowerCase()))
 
   const daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
+  const firstWeekdayOfMonth = new Date(currentYear, currentMonth, 1).getDay()
   const calendarDays = Array.from({ length: daysInCurrentMonth }, (_, i) => {
     const dayNum = i + 1
     const formattedDay = padZero(dayNum)
@@ -5992,33 +6031,77 @@ export default function VetWorkspaceBeatrizV28() {
 
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-3xl shadow-sm space-y-4">
                 <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Visão em Grade do Mês</h3>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 bg-pink-50/40 border border-pink-100 rounded-2xl px-4 py-3">
+                  <span className="text-[10px] font-extrabold text-pink-700 uppercase tracking-wider">Cores usadas neste mês:</span>
+                  {Array.from(
+                    new Map(
+                      events
+                        .filter(ev => ev.dateKey.startsWith(`${currentYear}-${padZero(currentMonth + 1)}-`) && getEventClinicName(ev))
+                        .map(ev => [`${getEventClinicName(ev)}|${getEventClinicColor(ev)}`, ev] as const)
+                    ).values()
+                  ).map(ev => (
+                    <div key={`${getEventClinicName(ev)}-${getEventClinicColor(ev)}`} className="flex items-center gap-1.5">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-stone-200"
+                        style={{ backgroundColor: getEventClinicColor(ev) }}
+                      />
+                      <span className="text-[10px] font-bold text-stone-600">{getEventClinicName(ev)}</span>
+                    </div>
+                  ))}
+                  <span className="text-[10px] text-stone-400">cada compromisso pode ter a cor que Beatriz escolher</span>
+                </div>
                 <div className="grid grid-cols-7 gap-2 text-center">
                   {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map((d, i) => (
                     <span key={i} className="text-[11px] font-extrabold text-pink-500 py-1">{d}</span>
                   ))}
-                  {Array.from({ length: 6 }).map((_, i) => (
+                  {Array.from({ length: firstWeekdayOfMonth }).map((_, i) => (
                     <div key={`empty-${i}`} className="h-20 bg-pink-50/20 rounded-2xl border border-transparent"></div>
                   ))}
                   {calendarDays.map(cd => {
                     const dayEvents = events.filter(ev => ev.dateKey === cd.dateKey)
                     const isSelected = selectedDate === cd.dateKey
-                    const isToday = cd.day === currentDayNum
+                    const isToday = cd.dateKey === todayDateKey
                     return (
                       <div 
                         key={cd.dateKey} 
                         onClick={() => setSelectedDate(cd.dateKey)}
                         className={`h-24 p-2 rounded-2xl border text-left flex flex-col justify-between transition cursor-pointer overflow-y-auto ${isSelected ? 'border-pink-500 bg-pink-50 shadow-sm' : isToday ? 'border-pink-400 bg-white ring-2 ring-pink-300' : 'border-pink-100 bg-white/70 hover:border-pink-300'}`}
                       >
-                        <div className="flex items-center justify-between">
-                          <span className={`text-xs font-extrabold ${isToday ? 'bg-pink-500 text-white w-6 h-6 rounded-full flex items-center justify-center shadow-xs' : 'text-pink-950'}`}>
-                            {cd.day}
-                          </span>
-                          {dayEvents.length > 0 && <span className="text-[9px] bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded-full font-bold">{dayEvents.length}</span>}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className={`text-xs font-extrabold shrink-0 ${isToday ? 'bg-pink-500 text-white w-6 h-6 rounded-full flex items-center justify-center shadow-xs' : 'text-pink-950'}`}>
+                              {cd.day}
+                            </span>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {Array.from(
+                                new Map(
+                                  dayEvents
+                                    .filter(ev => getEventClinicName(ev))
+                                    .map(ev => [`${getEventClinicName(ev)}|${getEventClinicColor(ev)}`, ev] as const)
+                                ).values()
+                              ).map(ev => (
+                                <span
+                                  key={`${getEventClinicName(ev)}-${getEventClinicColor(ev)}`}
+                                  title={getEventClinicName(ev)}
+                                  className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-white"
+                                  style={{ backgroundColor: getEventClinicColor(ev) }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          {dayEvents.length > 0 && <span className="text-[9px] bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded-full font-bold shrink-0">{dayEvents.length}</span>}
                         </div>
                         <div className="space-y-0.5 mt-1">
                           {dayEvents.slice(0, 2).map((ev, idx) => (
-                            <div key={idx} className="text-[10px] bg-pink-500 text-white px-1.5 py-0.5 rounded truncate font-medium">
-                              {ev.time ? `${ev.time} - ` : ''}{ev.title}
+                            <div key={idx} className="text-[10px] bg-pink-500 text-white px-1.5 py-0.5 rounded font-medium flex items-center gap-1 min-w-0">
+                              {getEventClinicName(ev) && (
+                                <span
+                                  title={getEventClinicName(ev)}
+                                  className="w-2 h-2 rounded-full shrink-0 ring-1 ring-white"
+                                  style={{ backgroundColor: getEventClinicColor(ev) }}
+                                />
+                              )}
+                              <span className="truncate">{ev.time ? `${ev.time} - ` : ''}{ev.title}</span>
                             </div>
                           ))}
                         </div>
@@ -6035,13 +6118,37 @@ export default function VetWorkspaceBeatrizV28() {
                     e.preventDefault()
                     if (!eventTitle.trim()) return
                     lastLocalMutationRef.current = Date.now()
-                    setEvents([...events, { dateKey: selectedDate, title: eventTitle, description: eventDesc, time: eventTime }])
+                    setEvents([...events, { dateKey: selectedDate, title: eventTitle, description: eventDesc, time: eventTime, clinicName: eventClinicName.trim() || undefined, clinicColor: eventClinicName.trim() ? eventClinicColor : undefined }])
                     setEventTitle('')
                     setEventDesc('')
+                    setEventClinicName('')
+                    setEventClinicColor('#111827')
                   }} className="space-y-3">
-                    <div className="grid grid-cols-3 gap-2">
-                      <input type="text" placeholder="Título do Evento / Matéria" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} className="col-span-2 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                      <input type="text" placeholder="Título do Evento / Matéria" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} className="md:col-span-2 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
                       <input type="time" value={eventTime} onChange={(e) => setEventTime(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          list="calendar-clinic-options"
+                          value={eventClinicName}
+                          onChange={(e) => setEventClinicName(e.target.value)}
+                          placeholder="Nome da clínica"
+                          className="min-w-0 flex-1 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
+                        />
+                        <datalist id="calendar-clinic-options">
+                          {clinics.map(clinic => <option key={clinic.id} value={clinic.name} />)}
+                        </datalist>
+                        <label title="Escolher cor da bolinha" className="w-11 h-11 rounded-xl border border-pink-200 bg-white flex items-center justify-center cursor-pointer overflow-hidden shrink-0">
+                          <input
+                            type="color"
+                            value={eventClinicColor}
+                            onChange={(e) => setEventClinicColor(e.target.value)}
+                            className="w-14 h-14 border-0 cursor-pointer"
+                            aria-label="Cor da clínica"
+                          />
+                        </label>
+                      </div>
                     </div>
                     <textarea placeholder="Detalhes ou notas do compromisso..." value={eventDesc} onChange={(e) => setEventDesc(e.target.value)} rows={2} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium resize-none select-text" />
                     <button type="submit" className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md cursor-pointer">Salvar na Agenda</button>
@@ -6059,6 +6166,15 @@ export default function VetWorkspaceBeatrizV28() {
                           <div>
                             <div className="text-xs font-bold text-pink-950 flex items-center gap-2 select-text">
                               {ev.time && <span className="bg-pink-100 text-pink-800 px-2 py-0.5 rounded-lg text-[10px] font-extrabold">{ev.time}</span>}
+                              {getEventClinicName(ev) && (
+                                <span className="inline-flex items-center gap-1 bg-white border border-pink-100 px-2 py-0.5 rounded-lg text-[10px] font-bold text-stone-600">
+                                  <span
+                                    className="w-2 h-2 rounded-full"
+                                    style={{ backgroundColor: getEventClinicColor(ev) }}
+                                  />
+                                  {getEventClinicName(ev)}
+                                </span>
+                              )}
                               {ev.title}
                             </div>
                             {ev.description && <div className="text-[11px] text-stone-600 mt-0.5 select-text">{ev.description}</div>}
