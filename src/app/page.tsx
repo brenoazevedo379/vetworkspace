@@ -6307,7 +6307,8 @@ export default function VetWorkspaceBeatrizV28() {
                       </div>
 
                       {eventCategory === 'work' && (
-                      <div>
+                        <>
+                        <div>
                         <label className="text-[10px] font-extrabold text-pink-800 uppercase tracking-wider block mb-1">Clínica / Local</label>
                         <input
                           type="text"
@@ -6387,6 +6388,7 @@ export default function VetWorkspaceBeatrizV28() {
                           <strong className="text-stone-700">{eventClinicColor.toUpperCase()}</strong>
                         </div>
                       </div>
+                        </>
                       )}
                     </div>
                     <textarea placeholder="Detalhes ou notas do compromisso..." value={eventDesc} onChange={(e) => setEventDesc(e.target.value)} rows={2} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium resize-none select-text" />
