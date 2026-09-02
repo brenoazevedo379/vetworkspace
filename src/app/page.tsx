@@ -1611,11 +1611,25 @@ export function ClinicalDashboard({
 
   const returns = events
     .filter(e => inNextSeven(e.dateKey) && inferredCategory(e) === 'return')
-    .sort((a, b) => a.dateKey.localeCompare(b.dateKey) || (a.time || '').localeCompare(b.time || ''))
+    .sort((a, b) => {
+      const dateCompare = a.dateKey.localeCompare(b.dateKey)
+      if (dateCompare !== 0) return dateCompare
+      if (a.time && b.time) return a.time.localeCompare(b.time)
+      if (a.time) return -1
+      if (b.time) return 1
+      return a.title.localeCompare(b.title, 'pt-BR')
+    })
 
   const workShifts = events
     .filter(e => inNextSeven(e.dateKey) && inferredCategory(e) === 'work')
-    .sort((a, b) => a.dateKey.localeCompare(b.dateKey) || (a.time || '').localeCompare(b.time || ''))
+    .sort((a, b) => {
+      const dateCompare = a.dateKey.localeCompare(b.dateKey)
+      if (dateCompare !== 0) return dateCompare
+      if (a.time && b.time) return a.time.localeCompare(b.time)
+      if (a.time) return -1
+      if (b.time) return 1
+      return a.title.localeCompare(b.title, 'pt-BR')
+    })
 
   const alerts = patients.flatMap(p => (p.alerts || []).filter(a => !a.resolved).map(a => ({ patient: p, alert: a })))
   const pendingTasks = tasks.filter(t => !t.completed).slice(0, 5)
@@ -3447,7 +3461,23 @@ export default function VetWorkspaceBeatrizV28() {
   const [events, setEvents] = useState<CalendarEvent[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vet_events_v28')
-      if (saved) try { return JSON.parse(saved) } catch(e) {}
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved) as CalendarEvent[]
+          return parsed
+            .map(ev => ({ ...ev, time: normalizeCalendarTime(ev.time) }))
+            .sort((a, b) => {
+              const dateCompare = a.dateKey.localeCompare(b.dateKey)
+              if (dateCompare !== 0) return dateCompare
+
+              const minutesA = eventTimeToMinutes(a.time)
+              const minutesB = eventTimeToMinutes(b.time)
+              if (minutesA !== minutesB) return minutesA - minutesB
+
+              return a.title.localeCompare(b.title, 'pt-BR')
+            })
+        } catch(e) {}
+      }
     }
     return []
   })
@@ -3506,7 +3536,13 @@ export default function VetWorkspaceBeatrizV28() {
           }
           if (d.finances) { setFinances(d.finances); localStorage.setItem('vet_finances_v28', JSON.stringify(d.finances)); }
           if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v28', JSON.stringify(d.tasks)); }
-          if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v28', JSON.stringify(d.events)); }
+          if (d.events) {
+            const normalizedEvents = sortAllCalendarEvents(
+              (d.events as CalendarEvent[]).map(ev => ({ ...ev, time: normalizeCalendarTime(ev.time) }))
+            )
+            setEvents(normalizedEvents)
+            localStorage.setItem('vet_events_v28', JSON.stringify(normalizedEvents))
+          }
           if (d.chatSessions) { setChatSessions(d.chatSessions); localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(d.chatSessions)); }
           if (d.clinics) { setClinics(d.clinics); localStorage.setItem('vet_clinics_v28', JSON.stringify(d.clinics)); }
           if (d.shifts) { setShifts(d.shifts); localStorage.setItem('vet_shifts_v28', JSON.stringify(d.shifts)); }
@@ -3551,7 +3587,13 @@ export default function VetWorkspaceBeatrizV28() {
             }
             if (d.finances) { setFinances(d.finances); localStorage.setItem('vet_finances_v28', JSON.stringify(d.finances)); }
             if (d.tasks) { setTasks(d.tasks); localStorage.setItem('vet_tasks_v28', JSON.stringify(d.tasks)); }
-            if (d.events) { setEvents(d.events); localStorage.setItem('vet_events_v28', JSON.stringify(d.events)); }
+            if (d.events) {
+            const normalizedEvents = sortAllCalendarEvents(
+              (d.events as CalendarEvent[]).map(ev => ({ ...ev, time: normalizeCalendarTime(ev.time) }))
+            )
+            setEvents(normalizedEvents)
+            localStorage.setItem('vet_events_v28', JSON.stringify(normalizedEvents))
+          }
             
             if (d.chatSessions) {
               setChatSessions(prevSessions => {
@@ -4201,6 +4243,73 @@ export default function VetWorkspaceBeatrizV28() {
     return luminance > 165 ? '#3f1830' : '#ffffff'
   }
 
+  const eventTimeToMinutes = (time?: string) => {
+    if (!time?.trim()) return Number.POSITIVE_INFINITY
+
+    const normalized = time
+      .trim()
+      .toLowerCase()
+      .replace('h', ':')
+      .replace(/\s+/g, '')
+
+    const match = normalized.match(/^(\d{1,2})(?::(\d{1,2}))?$/)
+    if (!match) return Number.POSITIVE_INFINITY
+
+    const hours = Number(match[1])
+    const minutes = Number(match[2] || '0')
+
+    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+      return Number.POSITIVE_INFINITY
+    }
+
+    return hours * 60 + minutes
+  }
+
+  const normalizeCalendarTime = (time?: string) => {
+    if (!time?.trim()) return time
+
+    const normalized = time
+      .trim()
+      .toLowerCase()
+      .replace('h', ':')
+      .replace(/\s+/g, '')
+
+    const match = normalized.match(/^(\d{1,2})(?::(\d{1,2}))?$/)
+    if (!match) return time.trim()
+
+    const hours = Number(match[1])
+    const minutes = Number(match[2] || '0')
+
+    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+      return time.trim()
+    }
+
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+  }
+
+  const sortEventsChronologically = (eventList: CalendarEvent[]) => {
+    return [...eventList].sort((a, b) => {
+      const minutesA = eventTimeToMinutes(a.time)
+      const minutesB = eventTimeToMinutes(b.time)
+
+      if (minutesA !== minutesB) return minutesA - minutesB
+      return a.title.localeCompare(b.title, 'pt-BR')
+    })
+  }
+
+  const sortAllCalendarEvents = (eventList: CalendarEvent[]) => {
+    return [...eventList].sort((a, b) => {
+      const dateCompare = a.dateKey.localeCompare(b.dateKey)
+      if (dateCompare !== 0) return dateCompare
+
+      const minutesA = eventTimeToMinutes(a.time)
+      const minutesB = eventTimeToMinutes(b.time)
+
+      if (minutesA !== minutesB) return minutesA - minutesB
+      return a.title.localeCompare(b.title, 'pt-BR')
+    })
+  }
+
   const filteredDrugs = customDrugs.filter(d => d.name.toLowerCase().includes(drugSearchQuery.toLowerCase()) || d.category.toLowerCase().includes(drugSearchQuery.toLowerCase()))
 
   const daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
@@ -4567,9 +4676,7 @@ export default function VetWorkspaceBeatrizV28() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                    {[...events]
-                      .filter(ev => ev.dateKey === todayDateKey)
-                      .sort((a, b) => (a.time || '').localeCompare(b.time || ''))
+                    {sortEventsChronologically(events.filter(ev => ev.dateKey === todayDateKey))
                       .map((ev, idx) => (
                         <button
                           type="button"
@@ -6155,7 +6262,7 @@ export default function VetWorkspaceBeatrizV28() {
                     <div key={`empty-${i}`} className="h-20 bg-pink-50/20 rounded-2xl border border-transparent"></div>
                   ))}
                   {calendarDays.map(cd => {
-                    const dayEvents = events.filter(ev => ev.dateKey === cd.dateKey)
+                    const dayEvents = sortEventsChronologically(events.filter(ev => ev.dateKey === cd.dateKey))
                     const isSelected = selectedDate === cd.dateKey
                     const isToday = cd.dateKey === todayDateKey
                     return (
@@ -6271,7 +6378,12 @@ export default function VetWorkspaceBeatrizV28() {
                     })
 
                     lastLocalMutationRef.current = Date.now()
-                    setEvents([...events, ...nonDuplicateEvents])
+                    setEvents(
+                      sortAllCalendarEvents([
+                        ...events,
+                        ...nonDuplicateEvents.map(ev => ({ ...ev, time: normalizeCalendarTime(ev.time) }))
+                      ])
+                    )
                     setEventTitle('')
                     setEventDesc('')
                     setEventClinicName('')
@@ -6449,7 +6561,7 @@ export default function VetWorkspaceBeatrizV28() {
                     {events.filter(ev => ev.dateKey === selectedDate).length === 0 ? (
                       <p className="text-xs text-stone-400 py-6 text-center">Nenhum evento registrado para este dia.</p>
                     ) : (
-                      events.filter(ev => ev.dateKey === selectedDate).map((ev, idx) => (
+                      sortEventsChronologically(events.filter(ev => ev.dateKey === selectedDate)).map((ev, idx) => (
                         <div
                           key={idx}
                           className="flex items-center justify-between bg-pink-50/40 border border-pink-100 p-3.5 rounded-2xl border-l-4"
@@ -6491,13 +6603,13 @@ export default function VetWorkspaceBeatrizV28() {
                                       type="button"
                                       onClick={() => {
                                         lastLocalMutationRef.current = Date.now()
-                                        setEvents(events.map(item =>
+                                        setEvents(sortAllCalendarEvents(events.map(item =>
                                           item === ev ? {
                                             ...item,
                                             clinicName: getEventClinicName(ev) || ev.title,
                                             clinicColor: color
                                           } : item
-                                        ))
+                                        )))
                                       }}
                                       className={`w-6 h-6 rounded-full ${
                                         getEventClinicColor(ev).toLowerCase() === color.toLowerCase()
