@@ -3466,6 +3466,7 @@ export default function VetWorkspaceBeatrizV28() {
   const [eventClinicName, setEventClinicName] = useState('')
   const [eventClinicColor, setEventClinicColor] = useState('#111827')
   const [eventCategory, setEventCategory] = useState<'work' | 'return' | 'other'>('work')
+  const [repeatWeeklyUntilMonthEnd, setRepeatWeeklyUntilMonthEnd] = useState(false)
   const calendarColorPresets = [
     '#111827', '#ef4444', '#f97316', '#f59e0b',
     '#22c55e', '#10b981', '#06b6d4', '#3b82f6',
@@ -6234,21 +6235,52 @@ export default function VetWorkspaceBeatrizV28() {
 
                     const resolvedTitle = cleanTitle || cleanClinic || 'Trabalho / Plantão'
 
-                    lastLocalMutationRef.current = Date.now()
-                    setEvents([...events, {
-                      dateKey: selectedDate,
+                    const buildEvent = (dateKey: string): CalendarEvent => ({
+                      dateKey,
                       title: resolvedTitle,
                       description: eventDesc,
                       time: eventTime,
                       clinicName: cleanClinic || undefined,
                       clinicColor: cleanClinic ? eventClinicColor : undefined,
                       category: eventCategory
-                    }])
+                    })
+
+                    const newEvents: CalendarEvent[] = [buildEvent(selectedDate)]
+
+                    if (repeatWeeklyUntilMonthEnd) {
+                      const [y, m, d] = selectedDate.split('-').map(Number)
+                      const baseDate = new Date(y, m - 1, d)
+                      const monthIndex = baseDate.getMonth()
+
+                      const nextDate = new Date(baseDate)
+                      nextDate.setDate(nextDate.getDate() + 7)
+
+                      while (nextDate.getMonth() === monthIndex) {
+                        const yy = nextDate.getFullYear()
+                        const mm = padZero(nextDate.getMonth() + 1)
+                        const dd = padZero(nextDate.getDate())
+                        newEvents.push(buildEvent(`${yy}-${mm}-${dd}`))
+                        nextDate.setDate(nextDate.getDate() + 7)
+                      }
+                    }
+
+                    const existingKeys = new Set(
+                      events.map(ev => `${ev.dateKey}|${ev.time || ''}|${ev.title}|${ev.clinicName || ''}|${ev.category || ''}`)
+                    )
+
+                    const nonDuplicateEvents = newEvents.filter(ev => {
+                      const key = `${ev.dateKey}|${ev.time || ''}|${ev.title}|${ev.clinicName || ''}|${ev.category || ''}`
+                      return !existingKeys.has(key)
+                    })
+
+                    lastLocalMutationRef.current = Date.now()
+                    setEvents([...events, ...nonDuplicateEvents])
                     setEventTitle('')
                     setEventDesc('')
                     setEventClinicName('')
                     setEventClinicColor('#111827')
                     setEventCategory('work')
+                    setRepeatWeeklyUntilMonthEnd(false)
                   }} className="space-y-3">
                     <div className="grid grid-cols-1 md:grid-cols-[1fr_140px] gap-2">
                       <input
@@ -6391,6 +6423,22 @@ export default function VetWorkspaceBeatrizV28() {
                         </>
                       )}
                     </div>
+
+                    <label className="flex items-start gap-3 bg-violet-50/60 border border-violet-200 rounded-xl p-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={repeatWeeklyUntilMonthEnd}
+                        onChange={(e) => setRepeatWeeklyUntilMonthEnd(e.target.checked)}
+                        className="mt-0.5 accent-violet-600"
+                      />
+                      <div>
+                        <div className="text-[11px] font-extrabold text-violet-900">Esse compromisso se repete semanalmente até o fim do mês?</div>
+                        <div className="text-[10px] text-violet-700 mt-0.5">
+                          Funciona para qualquer tipo de compromisso: plantão, retorno, terapia, academia, curso ou compromisso pessoal. O sistema repete no mesmo dia da semana até terminar o mês.
+                        </div>
+                      </div>
+                    </label>
+
                     <textarea placeholder="Detalhes ou notas do compromisso..." value={eventDesc} onChange={(e) => setEventDesc(e.target.value)} rows={2} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium resize-none select-text" />
                     <button type="submit" className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md cursor-pointer">
                       {eventCategory === 'work' ? 'Salvar Trabalho / Plantão' : 'Salvar na Agenda'}
