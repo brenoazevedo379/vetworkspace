@@ -1261,21 +1261,49 @@ const BCS_TEXT: Record<number, string> = {
 }
 
 const DOG_TOXINS = [
-  { name: 'Xilitol', risk: 'CRÍTICO', effect: 'Hipoglicemia rápida e, em exposições maiores, lesão/insuficiência hepática.', action: 'Contato veterinário imediato. Não induzir vômito em casa sem orientação; a hipoglicemia pode começar rapidamente.' },
-  { name: 'Chocolate / cacau', risk: 'ALTO', effect: 'Metilxantinas podem causar vômito, agitação, taquicardia, arritmias, tremores e convulsões.', action: 'Identificar tipo, quantidade, peso do cão e horário; contatar serviço veterinário/toxicologia rapidamente.' },
-  { name: 'Uvas / passas', risk: 'ALTO', effect: 'Risco variável de lesão renal aguda; não existe quantidade doméstica considerada previsivelmente segura.', action: 'Avaliação veterinária precoce após ingestão e monitoramento renal conforme orientação.' },
-  { name: 'Cebola / alho / cebolinha / alho-poró', risk: 'ALTO', effect: 'Oxidantes de Allium podem causar hemólise e anemia, inclusive após formas cozidas ou desidratadas.', action: 'Registrar forma e quantidade ingerida; procurar orientação veterinária, sobretudo se houver fraqueza, palidez ou icterícia.' },
-  { name: 'Macadâmia', risk: 'MODERADO', effect: 'Pode causar vômito, fraqueza, ataxia, tremores e hipertermia em cães.', action: 'Contatar veterinário para avaliação; quadros graves podem necessitar suporte.' },
+  { name: 'Xilitol', risk: 'CRÍTICO', effect: 'Pode causar hipoglicemia rápida e, em exposições maiores, lesão ou insuficiência hepática em cães.', action: 'Contato veterinário imediato. Não provocar vômito em casa sem orientação; a hipoglicemia pode começar rapidamente.' },
+  { name: 'Chocolate / cacau', risk: 'ALTO', effect: 'Metilxantinas podem causar vômito, agitação, taquicardia, arritmias, tremores e convulsões.', action: 'Identificar tipo, quantidade, peso do cão e horário; contatar serviço veterinário rapidamente.' },
+  { name: 'Uvas / passas', risk: 'ALTO', effect: 'Podem causar lesão renal aguda em cães e a sensibilidade individual é variável.', action: 'Avaliação veterinária precoce após ingestão e monitoramento renal conforme orientação.' },
+  { name: 'Tamarindo', risk: 'ALTO', effect: 'Assim como uvas e passas, contém ácido tartárico e há relatos de lesão renal em cães.', action: 'Evitar oferta e procurar orientação veterinária após ingestão relevante.' },
+  { name: 'Cebola / alho / cebolinha / alho-poró', risk: 'ALTO', effect: 'Compostos oxidantes de Allium podem causar hemólise e anemia, inclusive em formas cozidas, secas ou em pó.', action: 'Registrar forma e quantidade; procurar orientação veterinária, sobretudo se houver fraqueza, palidez ou icterícia.' },
+  { name: 'Macadâmia', risk: 'MODERADO', effect: 'Pode causar vômito, fraqueza, ataxia, tremores e hipertermia em cães.', action: 'Contatar o veterinário para avaliação; quadros mais intensos podem precisar de suporte.' },
   { name: 'Massa crua com fermento', risk: 'ALTO', effect: 'Pode expandir no estômago e produzir etanol, levando a distensão e intoxicação alcoólica.', action: 'Atendimento veterinário imediato.' },
-  { name: 'Álcool / bebidas alcoólicas', risk: 'CRÍTICO', effect: 'Pode causar vômito, depressão do sistema nervoso central, incoordenação, hipotermia, dificuldade respiratória, coma e morte.', action: 'Atendimento veterinário imediato. Informar tipo de bebida/alimento, teor alcoólico, quantidade e horário.' },
+  { name: 'Álcool / bebidas alcoólicas', risk: 'CRÍTICO', effect: 'Pode causar vômito, depressão do sistema nervoso central, incoordenação, hipotermia, dificuldade respiratória, coma e morte.', action: 'Atendimento veterinário imediato. Informar tipo, teor alcoólico, quantidade e horário.' },
   { name: 'Café / cafeína / energéticos / chá concentrado', risk: 'ALTO', effect: 'Metilxantinas podem causar agitação, taquicardia, hipertensão, arritmias, tremores, hipertermia e convulsões.', action: 'Contato veterinário rápido. Levar embalagem ou informar concentração, quantidade e horário.' },
   { name: 'Lúpulo / resíduos de fabricação de cerveja', risk: 'CRÍTICO', effect: 'Pode provocar hipertermia grave, taquicardia, ansiedade, ofegação e deterioração rápida.', action: 'Emergência veterinária. Não aguardar surgimento de sinais.' },
   { name: 'Excesso de sal / massa de sal / água muito salgada', risk: 'ALTO', effect: 'Pode causar vômito, diarreia, sede intensa, alterações neurológicas, tremores e convulsões.', action: 'Avaliação veterinária urgente. A correção de sódio deve ser controlada.' },
   { name: 'Alimentos mofados / lixo orgânico / composto', risk: 'ALTO', effect: 'Alguns fungos produzem micotoxinas tremorgênicas, com risco de vômito, agitação, tremores, hipertermia e convulsões.', action: 'Atendimento veterinário rápido. Se possível, levar foto ou informação sobre o material ingerido.' },
   { name: 'Noz-moscada em grande quantidade', risk: 'MODERADO', effect: 'Exposições relevantes podem provocar sinais gastrointestinais e neurológicos, como desorientação e tremores.', action: 'Contatar o veterinário com quantidade, forma do produto, peso e horário.' },
-  { name: 'Abacate — caroço, casca e grande quantidade', risk: 'MODERADO', effect: 'Em cães, pode causar sinais gastrointestinais; o caroço representa importante risco de obstrução gastrointestinal.', action: 'Se houve ingestão do caroço, grande quantidade ou vômitos/dor abdominal, procurar avaliação veterinária.' },
-  { name: 'Comestíveis com cannabis / THC', risk: 'ALTO', effect: 'Podem causar depressão, ataxia, hipersensibilidade, alterações de frequência cardíaca, hipotermia e incontinência; chocolate ou xilitol no produto somam riscos.', action: 'Procurar atendimento veterinário e informar composição, quantidade e horário.' },
-  { name: 'Cogumelos silvestres / desconhecidos', risk: 'CRÍTICO', effect: 'A toxicidade varia conforme a espécie e pode incluir sinais gastrointestinais, neurológicos, hepáticos ou renais graves.', action: 'Atendimento veterinário imediato. Fotografar o cogumelo e, se seguro, levar uma amostra separada para identificação.' },
+  { name: 'Abacate — caroço, casca e grande quantidade', risk: 'MODERADO', effect: 'Em cães, a polpa pode causar desconforto gastrointestinal em excesso; o caroço representa importante risco de obstrução.', action: 'Se houve ingestão do caroço, grande quantidade ou vômitos/dor abdominal, procurar avaliação veterinária.' },
+  { name: 'Comestíveis com cannabis / THC', risk: 'ALTO', effect: 'Podem causar depressão, ataxia, hipersensibilidade, alterações cardíacas, hipotermia e incontinência; chocolate ou xilitol podem somar riscos.', action: 'Procurar atendimento veterinário e informar composição, quantidade e horário.' },
+  { name: 'Cogumelos silvestres / desconhecidos', risk: 'CRÍTICO', effect: 'A toxicidade varia conforme a espécie e pode incluir sinais gastrointestinais, neurológicos, hepáticos ou renais graves.', action: 'Atendimento veterinário imediato. Fotografar o cogumelo e, se seguro, levar uma amostra separada.' },
+  { name: 'Ossos cozidos / espinhas', risk: 'MODERADO', effect: 'Podem lascar e causar engasgo, lesões orais, perfuração ou obstrução gastrointestinal.', action: 'Não oferecer. Procurar avaliação se houver engasgo, vômitos, dor, sangue nas fezes ou dificuldade para evacuar.' },
+  { name: 'Carne / ovos crus', risk: 'MODERADO', effect: 'Podem carregar bactérias patogênicas e aumentar risco gastrointestinal e zoonótico.', action: 'Evitar sem plano nutricional e manejo sanitário orientado pelo veterinário.' },
+  { name: 'Alimentos muito gordurosos / frituras / restos de mesa', risk: 'MODERADO', effect: 'Podem causar vômito, diarreia e, em animais suscetíveis, pancreatite.', action: 'Evitar oferta. Procurar avaliação se surgirem vômitos persistentes, dor abdominal ou prostração.' },
+  { name: 'Nozes, pecãs e outras oleaginosas em excesso', risk: 'MODERADO', effect: 'O alto teor de gordura pode causar desconforto gastrointestinal e pancreatite; produtos mofados acrescentam risco de micotoxinas.', action: 'Evitar oferta e conferir se o produto contém chocolate, xilitol, sal ou mofo.' },
+]
+
+const CAT_TOXINS = [
+  { name: 'Cebola / alho / cebolinha / alho-poró', risk: 'ALTO', effect: 'Gatos são especialmente suscetíveis aos compostos oxidantes de Allium, com risco de hemólise e anemia; formas cozidas e em pó também importam.', action: 'Procurar orientação veterinária após ingestão e observar fraqueza, palidez, taquipneia ou icterícia.' },
+  { name: 'Chocolate / cacau', risk: 'ALTO', effect: 'Metilxantinas podem causar vômito, agitação, taquicardia, arritmias, tremores e convulsões.', action: 'Informar tipo de chocolate, quantidade, peso do gato e horário ao veterinário.' },
+  { name: 'Café / cafeína / energéticos / chá concentrado', risk: 'ALTO', effect: 'Cafeína e outras metilxantinas podem causar hiperatividade, taquicardia, tremores, hipertermia e convulsões.', action: 'Contato veterinário rápido; levar embalagem ou informar concentração e quantidade.' },
+  { name: 'Álcool / bebidas alcoólicas', risk: 'CRÍTICO', effect: 'Pode causar depressão neurológica, incoordenação, hipotermia, dificuldade respiratória, coma e morte.', action: 'Atendimento veterinário imediato. Informar produto, teor alcoólico, quantidade e horário.' },
+  { name: 'Massa crua com fermento', risk: 'ALTO', effect: 'Pode expandir no estômago e produzir etanol, causando distensão e intoxicação alcoólica.', action: 'Atendimento veterinário imediato.' },
+  { name: 'Excesso de sal / alimentos extremamente salgados', risk: 'ALTO', effect: 'Pode provocar vômito, diarreia, sede intensa e alterações neurológicas, incluindo tremores e convulsões.', action: 'Avaliação veterinária urgente; alterações de sódio exigem correção controlada.' },
+  { name: 'Alimentos mofados / lixo orgânico / composto', risk: 'ALTO', effect: 'Micotoxinas podem causar vômito, agitação, tremores, hipertermia e convulsões.', action: 'Atendimento veterinário rápido e, se possível, identificar o material ingerido.' },
+  { name: 'Comestíveis com cannabis / THC', risk: 'ALTO', effect: 'Podem causar depressão, ataxia, hipersensibilidade, alterações cardíacas, hipotermia e incontinência.', action: 'Procurar atendimento veterinário e informar composição, quantidade e horário.' },
+  { name: 'Cogumelos silvestres / desconhecidos', risk: 'CRÍTICO', effect: 'A toxicidade varia conforme a espécie e pode envolver trato gastrointestinal, sistema nervoso, fígado ou rins.', action: 'Atendimento veterinário imediato. Fotografar o cogumelo e, se seguro, levar uma amostra.' },
+  { name: 'Ossos cozidos / espinhas', risk: 'MODERADO', effect: 'Podem causar engasgo, trauma oral, perfuração ou obstrução gastrointestinal.', action: 'Não oferecer. Procurar avaliação se houver engasgo, vômitos, dor ou dificuldade para evacuar.' },
+  { name: 'Carne / ovos crus', risk: 'MODERADO', effect: 'Podem carregar bactérias patogênicas e aumentar risco gastrointestinal e zoonótico.', action: 'Evitar sem plano nutricional e manejo sanitário orientado pelo veterinário.' },
+  { name: 'Peixe cru oferecido com frequência', risk: 'MODERADO', effect: 'Alguns peixes crus contêm tiaminase e dietas repetitivas podem contribuir para deficiência de tiamina, além do risco microbiológico.', action: 'Não usar como base rotineira da dieta sem formulação veterinária.' },
+  { name: 'Fígado em excesso / dieta muito rica em fígado', risk: 'ALTO', effect: 'Uso crônico em excesso pode levar a hipervitaminose A, com alterações ósseas e articulares.', action: 'Evitar como alimento predominante; dieta caseira deve ser formulada por profissional.' },
+  { name: 'Leite / creme / laticínios em excesso', risk: 'MODERADO', effect: 'Muitos gatos adultos digerem mal lactose, podendo apresentar diarreia, gases e desconforto gastrointestinal.', action: 'Evitar como rotina; água e dieta completa são opções mais adequadas.' },
+  { name: 'Alimentos muito gordurosos / frituras / restos de mesa', risk: 'MODERADO', effect: 'Podem causar vômito, diarreia, ganho de peso e problemas gastrointestinais.', action: 'Evitar oferta e procurar avaliação se houver sinais persistentes.' },
+  { name: 'Cascas, folhas e óleos cítricos concentrados', risk: 'MODERADO', effect: 'Óleos essenciais e ácido cítrico em exposições relevantes podem provocar irritação gastrointestinal e sinais sistêmicos.', action: 'Não oferecer produtos concentrados ou óleos essenciais; procurar orientação se houver exposição relevante.' },
+  { name: 'Abacate — caroço, casca e grande quantidade', risk: 'MODERADO', effect: 'Pode causar desconforto gastrointestinal, e o caroço representa risco mecânico de obstrução.', action: 'Evitar caroço e casca; buscar avaliação se houver vômitos, dor ou suspeita de corpo estranho.' },
+  { name: 'Uvas / passas', risk: 'MODERADO', effect: 'A toxicidade renal é bem documentada em cães; em gatos os relatos são raros e o risco é menos definido, por isso a oferta deve ser evitada por precaução.', action: 'Não oferecer. Em ingestão relevante, contatar o veterinário para avaliação individual.' },
+  { name: 'Atum como dieta exclusiva / alimentação monótona', risk: 'MODERADO', effect: 'Não é uma dieta completa para uso exclusivo e prolongado; pode gerar desequilíbrios nutricionais.', action: 'Usar apenas como petisco eventual quando apropriado, e manter dieta felina completa e balanceada.' },
+  { name: 'Ração de cães como dieta habitual', risk: 'ALTO', effect: 'Não atende de forma adequada às necessidades nutricionais específicas do gato quando usada como dieta principal por períodos prolongados.', action: 'Não usar como alimentação habitual; oferecer dieta completa formulada para felinos.' },
 ]
 
 export function CanineNutritionFeature({ mode, patients, onAddTimelineEvent }: CanineNutritionFeatureProps) {
@@ -1403,51 +1431,94 @@ function ToxicFoods() {
     action: string
   }
 
-  const storageKey = 'vet_custom_dog_toxins_v1'
-  const [query, setQuery] = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [customFoods, setCustomFoods] = useState<CustomToxin[]>(() => {
+  type SpeciesKey = 'dog' | 'cat'
+
+  const dogStorageKey = 'vet_custom_dog_toxins_v1'
+  const catStorageKey = 'vet_custom_cat_toxins_v1'
+
+  const loadCustom = (key: string): CustomToxin[] => {
     if (typeof window === 'undefined') return []
     try {
-      const saved = localStorage.getItem(storageKey)
+      const saved = localStorage.getItem(key)
       return saved ? JSON.parse(saved) : []
     } catch {
       return []
     }
-  })
+  }
+
+  const [dogQuery, setDogQuery] = useState('')
+  const [catQuery, setCatQuery] = useState('')
+  const [showForm, setShowForm] = useState(false)
+  const [formSpecies, setFormSpecies] = useState<SpeciesKey>('dog')
+  const [copiedSpecies, setCopiedSpecies] = useState<SpeciesKey | null>(null)
+
+  const [customDogFoods, setCustomDogFoods] = useState<CustomToxin[]>(() => loadCustom(dogStorageKey))
+  const [customCatFoods, setCustomCatFoods] = useState<CustomToxin[]>(() => loadCustom(catStorageKey))
+
   const [newName, setNewName] = useState('')
   const [newRisk, setNewRisk] = useState<'CRÍTICO' | 'ALTO' | 'MODERADO'>('ALTO')
   const [newEffect, setNewEffect] = useState('')
   const [newAction, setNewAction] = useState('')
 
-  const allFoods = useMemo(() => [
-    ...DOG_TOXINS.map((item, index) => ({ ...item, id: `default-${index}`, custom: false })),
-    ...customFoods.map(item => ({ ...item, custom: true })),
-  ], [customFoods])
+  const dogFoods = useMemo(() => [
+    ...DOG_TOXINS.map((item, index) => ({ ...item, id: `dog-default-${index}`, custom: false })),
+    ...customDogFoods.map(item => ({ ...item, custom: true })),
+  ], [customDogFoods])
 
-  const filtered = allFoods.filter(item =>
+  const catFoods = useMemo(() => [
+    ...CAT_TOXINS.map((item, index) => ({ ...item, id: `cat-default-${index}`, custom: false })),
+    ...customCatFoods.map(item => ({ ...item, custom: true })),
+  ], [customCatFoods])
+
+  const filterFoods = (foods: typeof dogFoods, query: string) => foods.filter(item =>
     `${item.name} ${item.risk} ${item.effect} ${item.action}`.toLowerCase().includes(query.trim().toLowerCase())
   )
 
-  const persistCustomFoods = (next: CustomToxin[]) => {
-    setCustomFoods(next)
-    if (typeof window !== 'undefined') localStorage.setItem(storageKey, JSON.stringify(next))
+  const filteredDogs = filterFoods(dogFoods, dogQuery)
+  const filteredCats = filterFoods(catFoods, catQuery)
+
+  const persistCustomFoods = (species: SpeciesKey, next: CustomToxin[]) => {
+    if (species === 'dog') {
+      setCustomDogFoods(next)
+      if (typeof window !== 'undefined') localStorage.setItem(dogStorageKey, JSON.stringify(next))
+    } else {
+      setCustomCatFoods(next)
+      if (typeof window !== 'undefined') localStorage.setItem(catStorageKey, JSON.stringify(next))
+    }
+  }
+
+  const openAddForm = (species: SpeciesKey) => {
+    setFormSpecies(species)
+    setNewName('')
+    setNewRisk('ALTO')
+    setNewEffect('')
+    setNewAction('')
+    setShowForm(true)
   }
 
   const handleAddFood = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newName.trim() || !newEffect.trim() || !newAction.trim()) return
-    if (allFoods.some(item => item.name.trim().toLowerCase() === newName.trim().toLowerCase())) {
-      alert('Esse alimento já está cadastrado na lista.')
+
+    const foods = formSpecies === 'dog' ? dogFoods : catFoods
+    if (foods.some(item => item.name.trim().toLowerCase() === newName.trim().toLowerCase())) {
+      alert('Esse alimento já está cadastrado nessa lista.')
       return
     }
-    persistCustomFoods([...customFoods, {
-      id: `custom-toxin-${Date.now()}`,
+
+    const newItem: CustomToxin = {
+      id: `custom-${formSpecies}-toxin-${Date.now()}`,
       name: newName.trim(),
       risk: newRisk,
       effect: newEffect.trim(),
       action: newAction.trim(),
-    }])
+    }
+
+    persistCustomFoods(
+      formSpecies,
+      formSpecies === 'dog' ? [...customDogFoods, newItem] : [...customCatFoods, newItem]
+    )
+
     setNewName('')
     setNewRisk('ALTO')
     setNewEffect('')
@@ -1461,43 +1532,302 @@ function ToxicFoods() {
       ? 'bg-orange-100 text-orange-800 border-orange-200'
       : 'bg-amber-100 text-amber-800 border-amber-200'
 
-  return (
-    <div className="max-w-6xl mx-auto"><div className={cardClass}>
-      <ModuleHeader icon={<AlertTriangle className="w-6 h-6" />} title="Consulta Rápida — Alimentos Tóxicos para Cães" subtitle="Banco ampliado de exposições alimentares + cadastro de novos itens" />
-      <SafetyBanner>Em suspeita de intoxicação, a conduta depende de quantidade, concentração, peso, tempo desde a ingestão e estado clínico. Não induza vômito nem administre “antídotos caseiros” sem orientação veterinária. Esta tela é uma referência rápida e não substitui avaliação toxicológica individual.</SafetyBanner>
+  const buildTutorText = (species: SpeciesKey) => {
+    const label = species === 'dog' ? 'CÃES' : 'GATOS'
+    const foods = species === 'dog' ? dogFoods : catFoods
 
-      <div className="flex flex-col md:flex-row gap-3 mt-5 mb-4">
-        <div className="relative flex-1"><Search className="absolute left-3.5 top-3 w-4 h-4 text-pink-400" /><input value={query} onChange={e => setQuery(e.target.value)} className={`${inputClass} pl-10`} placeholder="Buscar xilitol, chocolate, uva, café, álcool, cogumelo..." /></div>
-        <button type="button" onClick={() => setShowForm(v => !v)} className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm">
-          {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />} {showForm ? 'Fechar cadastro' : 'Adicionar alimento'}
-        </button>
-      </div>
+    return [
+      `ALIMENTOS / PRODUTOS A EVITAR — ${label}`,
+      '',
+      ...foods.map(item => `• ${item.name} — ${item.risk}\n  ${item.effect}`),
+      '',
+      'ATENÇÃO: em caso de ingestão acidental, informe ao médico-veterinário o alimento/produto, a quantidade aproximada, o horário e o peso do animal. Não provoque vômito e não ofereça “antídotos caseiros” sem orientação profissional.',
+      '',
+      'Material educativo. O risco real depende da substância, dose, concentração, peso, tempo desde a ingestão e estado clínico do animal.',
+    ].join('\n')
+  }
 
-      <div className="flex flex-wrap items-center gap-2 mb-5 text-[10px]">
-        <span className="font-bold text-stone-500">{allFoods.length} itens cadastrados</span>
-        <span className="px-2 py-1 rounded-full bg-rose-100 text-rose-800 font-bold">CRÍTICO</span>
-        <span className="px-2 py-1 rounded-full bg-orange-100 text-orange-800 font-bold">ALTO</span>
-        <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-800 font-bold">MODERADO</span>
-        {customFoods.length > 0 && <span className="px-2 py-1 rounded-full bg-pink-100 text-pink-800 font-bold">+ {customFoods.length} personalizado{customFoods.length !== 1 ? 's' : ''}</span>}
-      </div>
+  const copyTutorText = async (species: SpeciesKey) => {
+    const tutorText = buildTutorText(species)
 
-      {showForm && (
-        <form onSubmit={handleAddFood} className="mb-6 bg-pink-50/70 border border-pink-200 rounded-2xl p-5 space-y-4">
-          <div><h3 className="text-sm font-extrabold text-pink-950">➕ Adicionar novo alimento / exposição</h3><p className="text-[11px] text-stone-500 mt-1">O item personalizado fica salvo neste navegador e reaparece nas próximas consultas.</p></div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="md:col-span-2"><label className={labelClass}>Alimento / produto</label><input value={newName} onChange={e => setNewName(e.target.value)} className={inputClass} placeholder="Nome do alimento ou produto" required /></div>
-            <div><label className={labelClass}>Nível de risco</label><select value={newRisk} onChange={e => setNewRisk(e.target.value as any)} className={inputClass}><option value="CRÍTICO">CRÍTICO</option><option value="ALTO">ALTO</option><option value="MODERADO">MODERADO</option></select></div>
+    try {
+      await navigator.clipboard.writeText(tutorText)
+    } catch {
+      const textarea = document.createElement('textarea')
+      textarea.value = tutorText
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.focus()
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+    }
+
+    setCopiedSpecies(species)
+    window.setTimeout(() => setCopiedSpecies(null), 1800)
+  }
+
+  const openWhatsApp = (species: SpeciesKey) => {
+    const tutorText = buildTutorText(species)
+    window.open(`https://wa.me/?text=${encodeURIComponent(tutorText)}`, '_blank', 'noopener,noreferrer')
+  }
+
+  const escapeHtml = (value: string) => value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;')
+
+  const printTutorList = (species: SpeciesKey) => {
+    const label = species === 'dog' ? 'Cães' : 'Gatos'
+    const foods = species === 'dog' ? dogFoods : catFoods
+    const printWindow = window.open('', '_blank', 'width=980,height=760')
+
+    if (!printWindow) {
+      alert('O navegador bloqueou a janela de impressão. Permita pop-ups para este site e tente novamente.')
+      return
+    }
+
+    const rows = foods.map(item => `
+      <tr>
+        <td><strong>${escapeHtml(item.name)}</strong></td>
+        <td class="risk">${escapeHtml(item.risk)}</td>
+        <td>${escapeHtml(item.effect)}</td>
+      </tr>
+    `).join('')
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html lang="pt-BR">
+        <head>
+          <meta charset="utf-8" />
+          <title>Alimentos a evitar — ${label}</title>
+          <style>
+            body { font-family: Arial, sans-serif; color: #3f1830; margin: 28px; }
+            h1 { font-size: 22px; margin: 0 0 4px; }
+            .subtitle { color: #666; font-size: 12px; margin-bottom: 18px; }
+            table { width: 100%; border-collapse: collapse; font-size: 11px; }
+            th, td { border: 1px solid #ead6df; padding: 8px; vertical-align: top; text-align: left; }
+            th { background: #fff1f6; }
+            .risk { white-space: nowrap; font-weight: 700; }
+            .notice { margin-top: 18px; border: 1px solid #f1b7cc; background: #fff6f9; padding: 12px; border-radius: 8px; font-size: 11px; line-height: 1.45; }
+            @media print { body { margin: 12mm; } }
+          </style>
+        </head>
+        <body>
+          <h1>Alimentos / produtos a evitar — ${label}</h1>
+          <div class="subtitle">Material educativo para tutor • VetWorkspace — Dra. Beatriz</div>
+          <table>
+            <thead><tr><th>Alimento / produto</th><th>Risco</th><th>Por que evitar</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div class="notice">
+            <strong>Em caso de ingestão acidental:</strong> entre em contato com um médico-veterinário e informe produto/alimento, quantidade aproximada, horário e peso do animal. Não provoque vômito nem ofereça soluções caseiras sem orientação profissional.
           </div>
-          <div><label className={labelClass}>Toxicidade / principais efeitos</label><textarea rows={3} value={newEffect} onChange={e => setNewEffect(e.target.value)} className={inputClass} placeholder="Descreva os principais riscos e sinais clínicos..." required /></div>
-          <div><label className={labelClass}>Conduta inicial / observações</label><textarea rows={3} value={newAction} onChange={e => setNewAction(e.target.value)} className={inputClass} placeholder="Descreva a conduta inicial ou o que deve ser avaliado..." required /></div>
-          <div className="flex gap-2"><button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5"><Save className="w-4 h-4" /> Salvar alimento</button><button type="button" onClick={() => setShowForm(false)} className="bg-white border border-stone-200 text-stone-600 px-4 py-2.5 rounded-xl text-xs font-bold">Cancelar</button></div>
-        </form>
-      )}
+          <script>window.onload = () => { window.print(); }</script>
+        </body>
+      </html>
+    `)
 
-      {filtered.length === 0 ? <div className="bg-pink-50/50 border border-dashed border-pink-200 rounded-2xl py-10 text-center text-xs text-stone-500">Nenhum alimento encontrado. Limpe a busca ou cadastre um novo item.</div> : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{filtered.map(item => <div key={item.id} className="bg-white border border-pink-200 rounded-2xl p-4 space-y-2"><div className="flex items-start justify-between gap-3"><div><h3 className="font-extrabold text-sm text-pink-950">{item.name}</h3>{item.custom && <span className="inline-block mt-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-pink-50 border border-pink-200 text-pink-700">PERSONALIZADO</span>}</div><div className="flex items-center gap-1.5"><span className={`text-[10px] font-extrabold px-2 py-1 rounded-full border ${riskClass(item.risk)}`}>{item.risk}</span>{item.custom && <button type="button" title="Excluir alimento personalizado" onClick={() => { if (confirm('Excluir este alimento personalizado?')) persistCustomFoods(customFoods.filter(x => x.id !== item.id)) }} className="p-1.5 rounded-lg text-stone-400 hover:text-red-500 hover:bg-red-50"><Trash2 className="w-3.5 h-3.5" /></button>}</div></div><p className="text-xs text-stone-700 leading-relaxed"><strong>Efeito:</strong> {item.effect}</p><div className="bg-pink-50 rounded-xl p-3 text-[11px] text-pink-900 leading-relaxed"><strong>Conduta inicial:</strong> {item.action}</div></div>)}</div>
+    printWindow.document.close()
+  }
+
+  const renderFoodSection = ({
+    species,
+    title,
+    subtitle,
+    foods,
+    filtered,
+    query,
+    setQuery,
+  }: {
+    species: SpeciesKey
+    title: string
+    subtitle: string
+    foods: typeof dogFoods
+    filtered: typeof dogFoods
+    query: string
+    setQuery: (value: string) => void
+  }) => (
+    <section className="bg-white border border-pink-200 rounded-3xl p-5 md:p-6 space-y-5">
+      <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">{species === 'dog' ? '🐶' : '🐱'}</span>
+            <div>
+              <h2 className="text-lg font-extrabold text-pink-950">{title}</h2>
+              <p className="text-[11px] text-stone-500 mt-0.5">{subtitle}</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 mt-3 text-[10px]">
+            <span className="font-bold text-stone-500">{foods.length} itens cadastrados</span>
+            <span className="px-2 py-1 rounded-full bg-rose-100 text-rose-800 font-bold">CRÍTICO</span>
+            <span className="px-2 py-1 rounded-full bg-orange-100 text-orange-800 font-bold">ALTO</span>
+            <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-800 font-bold">MODERADO</span>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => copyTutorText(species)} className="bg-white hover:bg-pink-50 border border-pink-200 text-pink-800 px-3 py-2 rounded-xl text-[11px] font-bold flex items-center gap-1.5">
+            {copiedSpecies === species ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            {copiedSpecies === species ? 'Copiado!' : 'Copiar para tutor'}
+          </button>
+          <button type="button" onClick={() => openWhatsApp(species)} className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 px-3 py-2 rounded-xl text-[11px] font-bold flex items-center gap-1.5">
+            <Send className="w-4 h-4" /> Abrir WhatsApp
+          </button>
+          <button type="button" onClick={() => printTutorList(species)} className="bg-stone-50 hover:bg-stone-100 border border-stone-200 text-stone-700 px-3 py-2 rounded-xl text-[11px] font-bold flex items-center gap-1.5">
+            <Printer className="w-4 h-4" /> Imprimir / PDF
+          </button>
+          <button type="button" onClick={() => openAddForm(species)} className="bg-pink-500 hover:bg-pink-600 text-white px-3 py-2 rounded-xl text-[11px] font-bold flex items-center gap-1.5">
+            <Plus className="w-4 h-4" /> Adicionar alimento
+          </button>
+        </div>
+      </div>
+
+      <div className="relative">
+        <Search className="absolute left-3.5 top-3 w-4 h-4 text-pink-400" />
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          className={`${inputClass} pl-10`}
+          placeholder={species === 'dog' ? 'Buscar xilitol, chocolate, uva, cebola, café...' : 'Buscar cebola, chocolate, café, peixe cru, fígado...'}
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="bg-pink-50/50 border border-dashed border-pink-200 rounded-2xl py-10 text-center text-xs text-stone-500">
+          Nenhum item encontrado. Limpe a busca ou cadastre um novo alimento.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {filtered.map(item => (
+            <div key={item.id} className="bg-white border border-pink-200 rounded-2xl p-4 space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-extrabold text-sm text-pink-950">{item.name}</h3>
+                  {item.custom && (
+                    <span className="inline-block mt-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-pink-50 border border-pink-200 text-pink-700">
+                      PERSONALIZADO
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-[10px] font-extrabold px-2 py-1 rounded-full border ${riskClass(item.risk)}`}>{item.risk}</span>
+                  {item.custom && (
+                    <button
+                      type="button"
+                      title="Excluir alimento personalizado"
+                      onClick={() => {
+                        if (!confirm('Excluir este alimento personalizado?')) return
+                        const currentCustom = species === 'dog' ? customDogFoods : customCatFoods
+                        persistCustomFoods(species, currentCustom.filter(x => x.id !== item.id))
+                      }}
+                      className="p-1.5 rounded-lg text-stone-400 hover:text-red-500 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-stone-700 leading-relaxed"><strong>Efeito / risco:</strong> {item.effect}</p>
+              <div className="bg-pink-50 rounded-xl p-3 text-[11px] text-pink-900 leading-relaxed">
+                <strong>Orientação:</strong> {item.action}
+              </div>
+            </div>
+          ))}
+        </div>
       )}
-    </div></div>
+    </section>
+  )
+
+  return (
+    <div className="max-w-6xl mx-auto">
+      <div className={cardClass}>
+        <ModuleHeader
+          icon={<AlertTriangle className="w-6 h-6" />}
+          title="Consulta Rápida — Alimentos Tóxicos / Proibidos"
+          subtitle="Listas separadas para cães e gatos + material pronto para tutor"
+        />
+
+        <SafetyBanner>
+          Em suspeita de intoxicação, o risco depende de alimento/produto, quantidade, concentração, peso, tempo desde a ingestão e estado clínico. Não provoque vômito nem administre “antídotos caseiros” sem orientação veterinária. Itens classificados como “evitar” também podem representar risco mecânico, microbiológico ou nutricional, e não necessariamente intoxicação aguda.
+        </SafetyBanner>
+
+        <div className="mt-5 space-y-7">
+          {renderFoodSection({
+            species: 'dog',
+            title: 'Alimentos tóxicos / proibidos para cães',
+            subtitle: '20 itens-base de consulta rápida, além dos itens personalizados adicionados pela Beatriz.',
+            foods: dogFoods,
+            filtered: filteredDogs,
+            query: dogQuery,
+            setQuery: setDogQuery,
+          })}
+
+          {renderFoodSection({
+            species: 'cat',
+            title: 'Alimentos tóxicos / proibidos para gatos',
+            subtitle: '20 itens-base específicos para felinos. A lista não replica automaticamente riscos exclusivos de cães, como xilitol e macadâmia.',
+            foods: catFoods,
+            filtered: filteredCats,
+            query: catQuery,
+            setQuery: setCatQuery,
+          })}
+        </div>
+
+        {showForm && (
+          <div className="fixed inset-0 z-50 bg-stone-950/35 backdrop-blur-sm flex items-center justify-center p-4">
+            <form onSubmit={handleAddFood} className="w-full max-w-2xl bg-white border border-pink-200 rounded-3xl p-6 shadow-2xl space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-base font-extrabold text-pink-950">Adicionar alimento — {formSpecies === 'dog' ? 'Cães' : 'Gatos'}</h3>
+                  <p className="text-[11px] text-stone-500 mt-1">O item fica salvo neste navegador e entra também no material de copiar, WhatsApp e impressão.</p>
+                </div>
+                <button type="button" onClick={() => setShowForm(false)} className="p-2 rounded-xl text-stone-400 hover:bg-stone-100">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="md:col-span-2">
+                  <label className={labelClass}>Alimento / produto</label>
+                  <input value={newName} onChange={e => setNewName(e.target.value)} className={inputClass} placeholder="Nome do alimento ou produto" required />
+                </div>
+                <div>
+                  <label className={labelClass}>Nível de risco</label>
+                  <select value={newRisk} onChange={e => setNewRisk(e.target.value as any)} className={inputClass}>
+                    <option value="CRÍTICO">CRÍTICO</option>
+                    <option value="ALTO">ALTO</option>
+                    <option value="MODERADO">MODERADO</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className={labelClass}>Toxicidade / principais riscos</label>
+                <textarea rows={3} value={newEffect} onChange={e => setNewEffect(e.target.value)} className={inputClass} placeholder="Descreva os principais riscos e sinais..." required />
+              </div>
+
+              <div>
+                <label className={labelClass}>Orientação inicial</label>
+                <textarea rows={3} value={newAction} onChange={e => setNewAction(e.target.value)} className={inputClass} placeholder="O que o tutor / veterinário deve observar ou fazer..." required />
+              </div>
+
+              <div className="flex gap-2">
+                <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5">
+                  <Save className="w-4 h-4" /> Salvar alimento
+                </button>
+                <button type="button" onClick={() => setShowForm(false)} className="bg-white border border-stone-200 text-stone-600 px-4 py-2.5 rounded-xl text-xs font-bold">
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
