@@ -4576,12 +4576,12 @@ export default function VetWorkspaceBeatrizV28() {
                           key={`${ev.dateKey}-${ev.time}-${ev.title}-${idx}`}
                           onClick={() => { setActiveTab('calendario'); setSelectedDate(ev.dateKey); }}
                           className="text-left bg-pink-50/30 hover:bg-pink-50 border border-pink-100 rounded-2xl p-4 transition border-l-4"
-                          style={{ borderLeftColor: getEventClinicName(ev) ? getEventClinicColor(ev) : '#ec4899' }}
+                          style={{ borderLeftColor: getEventClinicColor(ev) }}
                         >
                           <div className="flex items-start gap-3">
                             <span
                               className="w-3.5 h-3.5 rounded-full shrink-0 mt-1 ring-2 ring-white shadow-sm"
-                              style={{ backgroundColor: getEventClinicName(ev) ? getEventClinicColor(ev) : '#ec4899' }}
+                              style={{ backgroundColor: getEventClinicColor(ev) }}
                             />
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
@@ -6133,16 +6133,16 @@ export default function VetWorkspaceBeatrizV28() {
                   {Array.from(
                     new Map(
                       events
-                        .filter(ev => ev.dateKey.startsWith(`${currentYear}-${padZero(currentMonth + 1)}-`) && getEventClinicName(ev))
-                        .map(ev => [`${getEventClinicName(ev)}|${getEventClinicColor(ev)}`, ev] as const)
+                        .filter(ev => ev.dateKey.startsWith(`${currentYear}-${padZero(currentMonth + 1)}-`))
+                        .map(ev => [`${getEventClinicName(ev) || ev.title}|${getEventClinicColor(ev)}`, ev] as const)
                     ).values()
                   ).map(ev => (
-                    <div key={`${getEventClinicName(ev)}-${getEventClinicColor(ev)}`} className="flex items-center gap-1.5">
+                    <div key={`${getEventClinicName(ev) || ev.title}-${getEventClinicColor(ev)}`} className="flex items-center gap-1.5">
                       <span
                         className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-stone-200"
                         style={{ backgroundColor: getEventClinicColor(ev) }}
                       />
-                      <span className="text-[10px] font-bold text-stone-600">{getEventClinicName(ev)}</span>
+                      <span className="text-[10px] font-bold text-stone-600">{getEventClinicName(ev) || ev.title}</span>
                     </div>
                   ))}
                   <span className="text-[10px] text-stone-400">cada compromisso pode ter a cor que Beatriz escolher</span>
@@ -6173,13 +6173,12 @@ export default function VetWorkspaceBeatrizV28() {
                               {Array.from(
                                 new Map(
                                   dayEvents
-                                    .filter(ev => getEventClinicName(ev))
-                                    .map(ev => [`${getEventClinicName(ev)}|${getEventClinicColor(ev)}`, ev] as const)
+                                    .map(ev => [`${getEventClinicName(ev) || ev.title}|${getEventClinicColor(ev)}`, ev] as const)
                                 ).values()
                               ).map(ev => (
                                 <span
-                                  key={`${getEventClinicName(ev)}-${getEventClinicColor(ev)}`}
-                                  title={getEventClinicName(ev)}
+                                  key={`${getEventClinicName(ev) || ev.title}-${getEventClinicColor(ev)}`}
+                                  title={getEventClinicName(ev) || ev.title}
                                   className="w-3 h-3 rounded-full shrink-0 ring-2 ring-white shadow-sm"
                                   style={{ backgroundColor: getEventClinicColor(ev) }}
                                 />
@@ -6194,17 +6193,15 @@ export default function VetWorkspaceBeatrizV28() {
                               key={idx}
                               className="text-[10px] px-1.5 py-0.5 rounded font-medium flex items-center gap-1 min-w-0"
                               style={{
-                                backgroundColor: getEventClinicName(ev) ? getEventClinicColor(ev) : '#ec4899',
-                                color: getEventClinicName(ev) ? getContrastTextColor(getEventClinicColor(ev)) : '#ffffff'
+                                backgroundColor: getEventClinicColor(ev),
+                                color: getContrastTextColor(getEventClinicColor(ev))
                               }}
                             >
-                              {getEventClinicName(ev) && (
-                                <span
-                                  title={getEventClinicName(ev)}
-                                  className="w-2 h-2 rounded-full shrink-0 ring-1 ring-white"
-                                  style={{ backgroundColor: getEventClinicColor(ev) }}
-                                />
-                              )}
+                              <span
+                                title={getEventClinicName(ev) || ev.title}
+                                className="w-2 h-2 rounded-full shrink-0 ring-1 ring-white"
+                                style={{ backgroundColor: getEventClinicColor(ev) }}
+                              />
                               <span className="truncate">{ev.time ? `${ev.time} - ` : ''}{ev.title}</span>
                             </div>
                           ))}
@@ -6241,7 +6238,7 @@ export default function VetWorkspaceBeatrizV28() {
                       description: eventDesc,
                       time: eventTime,
                       clinicName: cleanClinic || undefined,
-                      clinicColor: cleanClinic ? eventClinicColor : undefined,
+                      clinicColor: eventClinicColor,
                       category: eventCategory
                     })
 
@@ -6339,7 +6336,6 @@ export default function VetWorkspaceBeatrizV28() {
                       </div>
 
                       {eventCategory === 'work' && (
-                        <>
                         <div>
                         <label className="text-[10px] font-extrabold text-pink-800 uppercase tracking-wider block mb-1">Clínica / Local</label>
                         <input
@@ -6373,9 +6369,12 @@ export default function VetWorkspaceBeatrizV28() {
                           </div>
                         )}
                       </div>
+                      )}
 
                       <div>
-                        <label className="text-[10px] font-extrabold text-pink-800 uppercase tracking-wider block mb-2">Cor da clínica</label>
+                        <label className="text-[10px] font-extrabold text-pink-800 uppercase tracking-wider block mb-2">
+                          {eventCategory === 'work' ? 'Cor da clínica' : 'Cor do compromisso'}
+                        </label>
 
                         <div className="flex flex-wrap items-center gap-2">
                           {calendarColorPresets.map(color => (
@@ -6420,8 +6419,6 @@ export default function VetWorkspaceBeatrizV28() {
                           <strong className="text-stone-700">{eventClinicColor.toUpperCase()}</strong>
                         </div>
                       </div>
-                        </>
-                      )}
                     </div>
 
                     <label className="flex items-start gap-3 bg-violet-50/60 border border-violet-200 rounded-xl p-3 cursor-pointer">
@@ -6456,7 +6453,7 @@ export default function VetWorkspaceBeatrizV28() {
                         <div
                           key={idx}
                           className="flex items-center justify-between bg-pink-50/40 border border-pink-100 p-3.5 rounded-2xl border-l-4"
-                          style={{ borderLeftColor: getEventClinicName(ev) ? getEventClinicColor(ev) : '#fbcfe8' }}
+                          style={{ borderLeftColor: getEventClinicColor(ev) }}
                         >
                           <div>
                             <div className="text-xs font-bold text-pink-950 flex items-center gap-2 select-text">
