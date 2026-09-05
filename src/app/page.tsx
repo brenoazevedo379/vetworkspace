@@ -1938,8 +1938,6 @@ export function ClinicalDashboard({
     return dt >= today && dt <= horizon
   }
 
-  const nadirs = patients.flatMap(p => (p.timeline || []).filter(e => e.nadirStart && e.nadirEnd && (inNextSeven(e.nadirStart) || inNextSeven(e.nadirEnd))).map(e => ({ patient: p, event: e })))
-
   const inferredCategory = (e: CalendarEventLite) => {
     if (e.category) return e.category
     if (e.clinicName || e.clinicId) return 'work'
@@ -1970,20 +1968,116 @@ export function ClinicalDashboard({
       return a.title.localeCompare(b.title, 'pt-BR')
     })
 
-  const alerts = patients.flatMap(p => (p.alerts || []).filter(a => !a.resolved).map(a => ({ patient: p, alert: a })))
-  const pendingTasks = tasks.filter(t => !t.completed).slice(0, 5)
+  const pendingTasks = tasks.filter(t => !t.completed)
 
   return (
     <div className="bg-white/95 border border-pink-100 rounded-3xl shadow-sm p-6 space-y-4">
-      <div className="flex items-center justify-between"><div><div className="text-[10px] font-extrabold uppercase tracking-widest text-pink-500">Visão clínica dos próximos 7 dias</div><h2 className="text-lg font-extrabold text-pink-950">Dashboard Assistencial</h2></div><span className="text-[10px] bg-pink-100 text-pink-700 px-3 py-1 rounded-full font-bold">Atualização automática</span></div>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className="bg-rose-50/60 border border-rose-200 rounded-2xl p-4"><div className="font-extrabold text-xs text-rose-900 flex items-center gap-2"><Activity className="w-4 h-4" /> Nadir previsto ({nadirs.length})</div><div className="mt-3 space-y-2 max-h-44 overflow-y-auto">{nadirs.length === 0 ? <p className="text-[11px] text-stone-400">Nenhum nadir registrado para a semana.</p> : nadirs.map(({ patient, event }) => <button key={`${patient.id}-${event.id}`} type="button" onClick={() => onOpenPatient(patient.id)} className="w-full text-left bg-white border border-rose-100 rounded-xl p-2.5"><div className="text-xs font-bold text-pink-950">{patient.petName} • {event.chemoDrug || event.title}</div><div className="text-[10px] text-rose-700">{formatLocalDate(event.nadirStart!)} → {formatLocalDate(event.nadirEnd!)}</div></button>)}</div></div>
-        <div className="bg-sky-50/60 border border-sky-200 rounded-2xl p-4"><div className="font-extrabold text-xs text-sky-900 flex items-center gap-2"><Stethoscope className="w-4 h-4" /> Retornos agendados ({returns.length})</div><div className="mt-3 space-y-2 max-h-44 overflow-y-auto">{returns.length === 0 ? <p className="text-[11px] text-stone-400">Nenhum retorno de paciente nos próximos 7 dias.</p> : returns.map((e, idx) => <div key={`${e.dateKey}-${idx}`} className="bg-white border border-sky-100 rounded-xl p-2.5"><div className="text-xs font-bold text-pink-950">{e.title}</div><div className="text-[10px] text-sky-700">{formatLocalDate(e.dateKey)} {e.time ? `• ${e.time}` : ''}</div><div className="text-[10px] text-stone-500 truncate">{e.description}</div></div>)}</div></div>
-
-        <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4"><div className="font-extrabold text-xs text-stone-900 flex items-center gap-2"><CalendarIcon className="w-4 h-4" /> Trabalho / Plantões ({workShifts.length})</div><div className="mt-3 space-y-2 max-h-44 overflow-y-auto">{workShifts.length === 0 ? <p className="text-[11px] text-stone-400">Nenhum trabalho/plantão nos próximos 7 dias.</p> : workShifts.map((e, idx) => <div key={`${e.dateKey}-${e.time}-${idx}`} className="bg-white border border-stone-200 rounded-xl p-2.5 border-l-4" style={{ borderLeftColor: e.clinicColor || '#111827' }}><div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: e.clinicColor || '#111827' }} /><div className="text-xs font-bold text-pink-950 truncate">{e.clinicName || e.title}</div></div><div className="text-[10px] text-stone-600 mt-0.5">{formatLocalDate(e.dateKey)} {e.time ? `• ${e.time}` : ''}</div>{e.clinicName && e.title && e.title !== e.clinicName && <div className="text-[10px] text-stone-500 truncate">{e.title}</div>}</div>)}</div></div>
-        <div className="bg-amber-50/60 border border-amber-200 rounded-2xl p-4"><div className="font-extrabold text-xs text-amber-900 flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> Alertas pendentes ({alerts.length})</div><div className="mt-3 space-y-2 max-h-44 overflow-y-auto">{alerts.length === 0 ? <p className="text-[11px] text-stone-400">Nenhum alerta clínico pendente.</p> : alerts.map(({ patient, alert }) => <div key={alert.id} className="bg-white border border-amber-100 rounded-xl p-2.5"><button type="button" onClick={() => onOpenPatient(patient.id)} className="text-left w-full"><div className="text-xs font-bold text-pink-950">{patient.petName} • {alert.title}</div><div className="text-[10px] text-stone-500 line-clamp-2">{alert.message}</div></button>{onResolveAlert && <button type="button" onClick={() => onResolveAlert(patient.id, alert.id)} className="text-[10px] font-bold text-emerald-700 mt-1 hover:underline">Marcar como resolvido</button>}</div>)}</div></div>
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-[10px] font-extrabold uppercase tracking-widest text-pink-500">Visão dos próximos dias</div>
+          <h2 className="text-lg font-extrabold text-pink-950">Dashboard Essencial</h2>
+        </div>
+        <span className="text-[10px] bg-pink-100 text-pink-700 px-3 py-1 rounded-full font-bold">Atualização automática</span>
       </div>
-      {pendingTasks.length > 0 && <div className="border-t border-pink-100 pt-3 flex flex-wrap gap-2">{pendingTasks.map(t => <span key={t.id} className="text-[10px] bg-stone-100 text-stone-700 px-2.5 py-1 rounded-full">☐ {t.text}</span>)}</div>}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-violet-50/60 border border-violet-200 rounded-2xl p-5 min-h-[260px]">
+          <div className="flex items-center justify-between gap-3">
+            <div className="font-extrabold text-sm text-violet-950 flex items-center gap-2">
+              <CheckSquare className="w-4 h-4" /> Lista de Tarefas
+            </div>
+            <span className="text-[10px] font-extrabold bg-white border border-violet-200 text-violet-700 px-2.5 py-1 rounded-full">
+              {pendingTasks.length} pendente{pendingTasks.length === 1 ? '' : 's'}
+            </span>
+          </div>
+
+          <div className="mt-4 space-y-2 max-h-64 overflow-y-auto pr-1">
+            {pendingTasks.length === 0 ? (
+              <div className="h-40 flex flex-col items-center justify-center text-center bg-white/70 border border-dashed border-violet-200 rounded-2xl px-5">
+                <CheckCircle2 className="w-7 h-7 text-emerald-500 mb-2" />
+                <p className="text-xs font-bold text-stone-600">Tudo em dia por aqui.</p>
+                <p className="text-[10px] text-stone-400 mt-1">As tarefas pendentes cadastradas na Lista de Tarefas aparecerão neste painel.</p>
+              </div>
+            ) : (
+              pendingTasks.map((task, idx) => (
+                <div key={task.id} className="bg-white border border-violet-100 rounded-xl p-3 flex items-start gap-3 shadow-2xs">
+                  <div className="w-6 h-6 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center text-[10px] font-extrabold shrink-0">
+                    {idx + 1}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-bold text-pink-950 leading-relaxed">{task.text}</div>
+                    {task.category && (
+                      <div className="text-[9px] text-violet-600 font-bold uppercase tracking-wide mt-1">{task.category}</div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="bg-sky-50/60 border border-sky-200 rounded-2xl p-5 min-h-[260px]">
+          <div className="font-extrabold text-sm text-sky-900 flex items-center gap-2">
+            <Stethoscope className="w-4 h-4" /> Retornos agendados ({returns.length})
+          </div>
+          <div className="mt-4 space-y-2 max-h-64 overflow-y-auto pr-1">
+            {returns.length === 0 ? (
+              <div className="h-40 flex items-center justify-center text-center bg-white/70 border border-dashed border-sky-200 rounded-2xl px-5">
+                <p className="text-[11px] text-stone-400">Nenhum retorno de paciente nos próximos 7 dias.</p>
+              </div>
+            ) : (
+              returns.map((e, idx) => (
+                <div key={`${e.dateKey}-${idx}`} className="bg-white border border-sky-100 rounded-xl p-3">
+                  <div className="text-xs font-bold text-pink-950">{e.title}</div>
+                  <div className="text-[10px] text-sky-700 mt-0.5">{formatLocalDate(e.dateKey)} {e.time ? `• ${e.time}` : ''}</div>
+                  {e.description && <div className="text-[10px] text-stone-500 mt-1 line-clamp-2">{e.description}</div>}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="md:col-span-2 bg-stone-50 border border-stone-200 rounded-2xl p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="font-extrabold text-sm text-stone-900 flex items-center gap-2">
+              <CalendarIcon className="w-4 h-4" /> Trabalho / Plantões
+            </div>
+            <span className="text-[10px] font-extrabold bg-white border border-stone-200 text-stone-600 px-2.5 py-1 rounded-full">
+              {workShifts.length} nos próximos 7 dias
+            </span>
+          </div>
+
+          {workShifts.length === 0 ? (
+            <div className="mt-4 py-8 text-center bg-white/70 border border-dashed border-stone-200 rounded-2xl">
+              <p className="text-[11px] text-stone-400">Nenhum trabalho/plantão nos próximos 7 dias.</p>
+            </div>
+          ) : (
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 max-h-80 overflow-y-auto pr-1">
+              {workShifts.map((e, idx) => (
+                <div
+                  key={`${e.dateKey}-${e.time}-${idx}`}
+                  className="bg-white border border-stone-200 rounded-xl p-3.5 border-l-4 shadow-2xs"
+                  style={{ borderLeftColor: e.clinicColor || '#111827' }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: e.clinicColor || '#111827' }} />
+                    <div className="text-xs font-extrabold text-pink-950 truncate">{e.clinicName || e.title}</div>
+                  </div>
+                  <div className="text-[11px] font-bold text-stone-700 mt-2">
+                    {formatLocalDate(e.dateKey)} {e.time ? `• ${e.time}` : ''}
+                  </div>
+                  {e.clinicName && e.title && e.title !== e.clinicName && (
+                    <div className="text-[10px] text-stone-500 mt-1 line-clamp-2">{e.title}</div>
+                  )}
+                  {e.description && (
+                    <div className="text-[10px] text-stone-400 mt-1 line-clamp-2">{e.description}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
