@@ -198,6 +198,13 @@ interface ChatMessage {
   text: string
 }
 
+interface AiImageAttachment {
+  name: string
+  mimeType: string
+  dataUrl: string
+  previewUrl: string
+}
+
 interface ChatSession {
   id: string
   title: string
@@ -3206,7 +3213,10 @@ export default function VetWorkspaceBeatrizV28() {
   const [aiErrorDetail, setAiErrorDetail] = useState('')
   const [aiPatientContextId, setAiPatientContextId] = useState('')
   const [aiResponseMode, setAiResponseMode] = useState<'clinical' | 'tutor' | 'record'>('clinical')
+  const [aiImageAttachment, setAiImageAttachment] = useState<AiImageAttachment | null>(null)
+  const [isPreparingAiImage, setIsPreparingAiImage] = useState(false)
   const chatScrollRef = useRef<HTMLDivElement>(null)
+  const aiImageInputRef = useRef<HTMLInputElement>(null)
 
   const handleCopyMessageText = (text: string, idx: number) => {
     navigator.clipboard.writeText(text)
@@ -3471,6 +3481,87 @@ export default function VetWorkspaceBeatrizV28() {
     navigator.clipboard.writeText(finalizedText)
     setCopiedCondolenceId(item.id)
     setTimeout(() => setCopiedCondolenceId(null), 2500)
+  }
+
+  const resizeImageForAi = (file: File) => new Promise<AiImageAttachment>((resolve, reject) => {
+    const reader = new FileReader()
+
+    reader.onerror = () => reject(new Error('Não foi possível ler esta imagem.'))
+    reader.onload = () => {
+      const originalDataUrl = String(reader.result || '')
+      const image = new Image()
+
+      image.onerror = () => reject(new Error('O arquivo selecionado não pôde ser aberto como imagem.'))
+      image.onload = () => {
+        const maxSide = 1600
+        const scale = Math.min(1, maxSide / Math.max(image.width, image.height))
+        const width = Math.max(1, Math.round(image.width * scale))
+        const height = Math.max(1, Math.round(image.height * scale))
+
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          reject(new Error('Seu navegador não conseguiu preparar a imagem.'))
+          return
+        }
+
+        ctx.drawImage(image, 0, 0, width, height)
+
+        const outputMime = file.type === 'image/png' && file.size < 1_500_000
+          ? 'image/png'
+          : 'image/jpeg'
+
+        const dataUrl = outputMime === 'image/png'
+          ? canvas.toDataURL('image/png')
+          : canvas.toDataURL('image/jpeg', 0.82)
+
+        resolve({
+          name: file.name,
+          mimeType: outputMime,
+          dataUrl,
+          previewUrl: dataUrl,
+        })
+      }
+
+      image.src = originalDataUrl
+    }
+
+    reader.readAsDataURL(file)
+  })
+
+  const handleAiImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      setAiErrorDetail('Selecione uma imagem JPG, PNG, WEBP ou outro formato de imagem compatível.')
+      return
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      setAiErrorDetail('A imagem é muito grande. Escolha uma foto com até 15 MB.')
+      return
+    }
+
+    try {
+      setIsPreparingAiImage(true)
+      setAiErrorDetail('')
+      const prepared = await resizeImageForAi(file)
+      setAiImageAttachment(prepared)
+    } catch (error: any) {
+      setAiErrorDetail(error instanceof Error ? error.message : 'Não foi possível preparar a imagem.')
+    } finally {
+      setIsPreparingAiImage(false)
+    }
+  }
+
+  const clearAiImageAttachment = () => {
+    setAiImageAttachment(null)
+    if (aiImageInputRef.current) aiImageInputRef.current.value = ''
   }
 
   const currentChatSession = chatSessions.find(s => s.id === currentChatId) || chatSessions[0] || {
@@ -4639,6 +4730,8 @@ export default function VetWorkspaceBeatrizV28() {
           if (response.status === 404) friendlyMessage = 'A rota /api/vet não foi encontrada no deploy. O backend do Copiloto precisa estar publicado.'
           if (response.status === 401 || response.status === 403) friendlyMessage = 'O backend da IA recusou a autenticação. Verifique a chave/configuração do provedor no servidor.'
           if (response.status === 429) friendlyMessage = 'O serviço de IA atingiu um limite temporário de requisições. Tente novamente em instantes.'
+          if (response.status === 413) friendlyMessage = 'A imagem ficou grande demais para o servidor. Tente uma foto menor ou recortada.'
+          if (response.status === 415) friendlyMessage = 'A rota /api/vet ainda não está aceitando imagens. O backend do Copiloto precisa ser atualizado para visão.'
           if (response.status >= 500) friendlyMessage = `O servidor da IA está indisponível no momento (${response.status}).`
 
           const error = new Error(friendlyMessage) as Error & { retryable?: boolean }
@@ -4672,9 +4765,11 @@ export default function VetWorkspaceBeatrizV28() {
 
   const handleSendAiMessage = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!chatInput.trim() || isAiLoading) return
+    if ((!chatInput.trim() && !aiImageAttachment) || isAiLoading || isPreparingAiImage) return
 
-    const userText = chatInput.trim()
+    const attachedImage = aiImageAttachment
+    const typedText = chatInput.trim()
+    const userText = typedText || 'Analise esta imagem e descreva os achados relevantes para o caso clínico.'
     const targetSession = chatSessions.find(session => session.id === currentChatId) || chatSessions[0]
 
     if (!targetSession) {
@@ -4691,9 +4786,15 @@ export default function VetWorkspaceBeatrizV28() {
       ? (userText.length > 34 ? userText.substring(0, 34) + '...' : userText)
       : targetSession.title
 
-    const userMsg: ChatMessage = { sender: 'user', text: userText }
+    const userMsg: ChatMessage = {
+      sender: 'user',
+      text: attachedImage
+        ? `📷 Imagem anexada: ${attachedImage.name}${typedText ? `\n\n${typedText}` : '\n\nSolicitação: analisar a imagem.'}`
+        : userText
+    }
 
     setChatInput('')
+    setAiImageAttachment(null)
     setIsAiLoading(true)
     setAiStatus('ready')
     setAiErrorDetail('')
@@ -4711,9 +4812,20 @@ export default function VetWorkspaceBeatrizV28() {
 
     const patientContext = buildAiPatientContext(aiPatientContextId)
     const copilotInstruction = buildCopilotInstruction()
+    const imageInstruction = attachedImage
+      ? [
+          'IMAGEM ANEXADA À SOLICITAÇÃO.',
+          'Analise visualmente a imagem fornecida junto com a pergunta.',
+          'Descreva apenas o que é realmente visível. Diferencie observação visual de interpretação clínica.',
+          'Se a imagem estiver desfocada, cortada, ilegível ou insuficiente, diga isso explicitamente e peça uma imagem melhor quando necessário.',
+          'Não invente texto, valores laboratoriais, estruturas anatômicas, diagnóstico ou achados que não estejam legíveis/visíveis.'
+        ].join('\n')
+      : ''
+
     const enrichedPrompt = [
       copilotInstruction,
       patientContext,
+      imageInstruction,
       'SOLICITAÇÃO DA DRA. BEATRIZ:',
       userText
     ].filter(Boolean).join('\n\n')
@@ -4728,7 +4840,17 @@ export default function VetWorkspaceBeatrizV28() {
         prompt: enrichedPrompt,
         messages: historyForApi,
         responseMode: aiResponseMode,
-        patientId: aiPatientContextId || null
+        patientId: aiPatientContextId || null,
+        image: attachedImage
+          ? {
+              name: attachedImage.name,
+              mimeType: attachedImage.mimeType,
+              dataUrl: attachedImage.dataUrl
+            }
+          : null,
+        imageDataUrl: attachedImage?.dataUrl || null,
+        imageMimeType: attachedImage?.mimeType || null,
+        imageName: attachedImage?.name || null
       })
 
       lastLocalMutationRef.current = Date.now()
@@ -4747,7 +4869,8 @@ export default function VetWorkspaceBeatrizV28() {
       const message = error instanceof Error ? error.message : 'Falha na conexão com a IA.'
       setAiStatus('error')
       setAiErrorDetail(message)
-      setChatInput(userText)
+      setChatInput(typedText)
+      if (attachedImage) setAiImageAttachment(attachedImage)
 
       lastLocalMutationRef.current = Date.now()
       setChatSessions(prevSessions => {
@@ -6184,6 +6307,7 @@ export default function VetWorkspaceBeatrizV28() {
                       ))}
                     </select>
                     <p className="text-[9px] text-stone-400 mt-1">Envia apenas contexto clínico do animal; o nome do tutor não é incluído automaticamente.</p>
+                    <p className="text-[9px] text-violet-500 mt-0.5">📷 O botão de câmera permite enviar imagem junto da consulta para análise visual.</p>
                   </div>
 
                   <div>
@@ -6269,13 +6393,57 @@ export default function VetWorkspaceBeatrizV28() {
               </div>
 
               <form onSubmit={handleSendAiMessage} className="p-4 border-t border-pink-100 bg-white flex gap-2 items-end select-none">
-                <button type="button" onClick={toggleListening} title={isListening ? "Ouvindo..." : "Falar por voz"} className={`p-3 rounded-xl transition flex items-center justify-center mb-0.5 ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-pink-100 hover:bg-pink-200 text-pink-700'}`}>
-                  {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                </button>
+                <input
+                  ref={aiImageInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAiImageSelect}
+                  className="hidden"
+                />
+
+                <div className="flex gap-2 mb-0.5">
+                  <button
+                    type="button"
+                    onClick={() => aiImageInputRef.current?.click()}
+                    disabled={isAiLoading || isPreparingAiImage}
+                    title="Anexar foto para a IA analisar"
+                    className="p-3 rounded-xl transition flex items-center justify-center bg-violet-100 hover:bg-violet-200 text-violet-700 disabled:opacity-50"
+                  >
+                    {isPreparingAiImage ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                  </button>
+
+                  <button type="button" onClick={toggleListening} title={isListening ? "Ouvindo..." : "Falar por voz"} className={`p-3 rounded-xl transition flex items-center justify-center ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-pink-100 hover:bg-pink-200 text-pink-700'}`}>
+                    {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                  </button>
+                </div>
+
                 <div className="flex-1">
+                  {aiImageAttachment && (
+                    <div className="mb-2 bg-violet-50 border border-violet-200 rounded-2xl p-2.5 flex items-center gap-3">
+                      <img
+                        src={aiImageAttachment.previewUrl}
+                        alt="Imagem anexada para análise"
+                        className="w-16 h-16 rounded-xl object-cover border border-violet-200 bg-white shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[10px] font-extrabold text-violet-900">📷 Imagem pronta para análise</div>
+                        <div className="text-[10px] text-violet-700 truncate mt-0.5">{aiImageAttachment.name}</div>
+                        <div className="text-[9px] text-stone-400 mt-1">Você pode enviar só a foto ou escrever uma pergunta junto.</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={clearAiImageAttachment}
+                        className="p-2 rounded-lg text-violet-500 hover:text-rose-600 hover:bg-white"
+                        title="Remover imagem"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+
                   <textarea
                     rows={2}
-                    placeholder={isListening ? "Ouvindo sua fala..." : "Digite o caso, uma dúvida clínica ou escolha um template acima..."}
+                    placeholder={isListening ? "Ouvindo sua fala..." : aiImageAttachment ? "Pergunte algo sobre a foto (opcional)..." : "Digite o caso, uma dúvida clínica ou anexe uma foto..."}
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyDown={(e) => {
@@ -6286,9 +6454,9 @@ export default function VetWorkspaceBeatrizV28() {
                     }}
                     className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-4 py-3 text-xs text-pink-950 focus:outline-none font-medium resize-none select-text"
                   />
-                  <div className="text-[9px] text-stone-400 mt-1 px-1">Enter envia • Shift + Enter cria uma nova linha • em falha, a pergunta volta para o campo automaticamente</div>
+                  <div className="text-[9px] text-stone-400 mt-1 px-1">📷 Foto + texto ou só foto • Enter envia • Shift + Enter cria nova linha • em falha, texto e imagem voltam para o campo</div>
                 </div>
-                <button type="submit" disabled={isAiLoading || !chatInput.trim()} className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mb-0.5">
+                <button type="submit" disabled={isAiLoading || isPreparingAiImage || (!chatInput.trim() && !aiImageAttachment)} className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mb-0.5">
                   {isAiLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   {isAiLoading ? 'Aguarde' : 'Perguntar'}
                 </button>
