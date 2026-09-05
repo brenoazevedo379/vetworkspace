@@ -3202,6 +3202,11 @@ export default function VetWorkspaceBeatrizV28() {
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [isListening, setIsListening] = useState(false)
   const [copiedMessageIdx, setCopiedMessageIdx] = useState<number | null>(null)
+  const [aiStatus, setAiStatus] = useState<'ready' | 'online' | 'error'>('ready')
+  const [aiErrorDetail, setAiErrorDetail] = useState('')
+  const [aiPatientContextId, setAiPatientContextId] = useState('')
+  const [aiResponseMode, setAiResponseMode] = useState<'clinical' | 'tutor' | 'record'>('clinical')
+  const chatScrollRef = useRef<HTMLDivElement>(null)
 
   const handleCopyMessageText = (text: string, idx: number) => {
     navigator.clipboard.writeText(text)
@@ -3444,7 +3449,27 @@ export default function VetWorkspaceBeatrizV28() {
     setTimeout(() => setCopiedCondolenceId(null), 2500)
   }
 
-  const currentChatSession = chatSessions.find(s => s.id === currentChatId) || chatSessions[0]
+  const currentChatSession = chatSessions.find(s => s.id === currentChatId) || chatSessions[0] || {
+    id: 'temporary-session',
+    title: 'Novo Caso Clínico',
+    messages: [{ sender: 'ai' as const, text: 'Olá, Dra. Beatriz! Descreva o caso clínico para começarmos.' }]
+  }
+
+  useEffect(() => {
+    if (chatSessions.length === 0) return
+    if (!chatSessions.some(session => session.id === currentChatId)) {
+      setCurrentChatId(chatSessions[0].id)
+    }
+  }, [chatSessions, currentChatId])
+
+  useEffect(() => {
+    if (activeTab !== 'ia') return
+    const timer = window.setTimeout(() => {
+      const el = chatScrollRef.current
+      if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    }, 80)
+    return () => window.clearTimeout(timer)
+  }, [activeTab, currentChatId, chatSessions, isAiLoading])
 
   const handleNewChatSession = () => {
     lastLocalMutationRef.current = Date.now()
@@ -3873,7 +3898,22 @@ export default function VetWorkspaceBeatrizV28() {
             setEvents(normalizedEvents)
             localStorage.setItem('vet_events_v28', JSON.stringify(normalizedEvents))
           }
-          if (d.chatSessions) { setChatSessions(d.chatSessions); localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(d.chatSessions)); }
+          if (Array.isArray(d.chatSessions) && d.chatSessions.length > 0) {
+            setChatSessions(prevSessions => {
+              const meaningfulLocal = prevSessions.filter(session => !(session.id === 'default-session' && session.messages.length === 1))
+              const merged = d.chatSessions.map((remoteSession: ChatSession) => {
+                const localSession = meaningfulLocal.find(session => session.id === remoteSession.id)
+                return localSession && localSession.messages.length > remoteSession.messages.length
+                  ? localSession
+                  : remoteSession
+              })
+              const remoteIds = new Set(d.chatSessions.map((session: ChatSession) => session.id))
+              const localOnly = meaningfulLocal.filter(session => !remoteIds.has(session.id))
+              const finalSessions = [...merged, ...localOnly]
+              localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(finalSessions))
+              return finalSessions
+            })
+          }
           if (d.clinics) { setClinics(d.clinics); localStorage.setItem('vet_clinics_v28', JSON.stringify(d.clinics)); }
           if (d.shifts) { setShifts(d.shifts); localStorage.setItem('vet_shifts_v28', JSON.stringify(d.shifts)); }
           if (d.specialistConsultations) { setSpecialistConsultations(d.specialistConsultations); localStorage.setItem('vet_specialist_consultations_v28', JSON.stringify(d.specialistConsultations)); }
@@ -4453,93 +4493,254 @@ export default function VetWorkspaceBeatrizV28() {
     )
   }
 
+  const buildAiPatientContext = (patientId: string) => {
+    if (!patientId) return ''
+    const patient = patients.find(p => p.id === patientId)
+    if (!patient) return ''
+
+    const recentEvolutions = (patient.evolutions || []).slice(0, 5).map(evolution =>
+      `- ${evolution.date}: peso ${evolution.weight || 'N/I'}; temperatura ${evolution.temperature || 'N/I'}; ${evolution.notes || 'sem observações'}`
+    )
+
+    const recentTimeline = (patient.timeline || []).slice(0, 6).map(item =>
+      `- ${item.date}: ${item.title}${item.notes ? ` — ${item.notes}` : ''}`
+    )
+
+    const activeAlerts = (patient.alerts || []).filter(alert => !alert.resolved).slice(0, 5).map(alert =>
+      `- ${alert.title}: ${alert.message}`
+    )
+
+    return [
+      'CONTEXTO CLÍNICO DO PRONTUÁRIO SELECIONADO:',
+      `Paciente: ${patient.petName}`,
+      `Espécie: ${patient.species || 'N/I'}`,
+      `Raça: ${patient.breed || 'N/I'}`,
+      `Idade: ${patient.age || 'N/I'}`,
+      `Status: ${patient.status || 'N/I'}`,
+      patient.neoplasia ? `Neoplasia/diagnóstico registrado: ${patient.neoplasia}` : '',
+      patient.complaint ? `Queixa registrada: ${patient.complaint}` : '',
+      patient.continuousMedications?.length ? `Medicações contínuas: ${patient.continuousMedications.join(', ')}` : '',
+      recentEvolutions.length ? `Evoluções recentes:\n${recentEvolutions.join('\n')}` : '',
+      recentTimeline.length ? `Timeline recente:\n${recentTimeline.join('\n')}` : '',
+      activeAlerts.length ? `Alertas ativos:\n${activeAlerts.join('\n')}` : '',
+      'Observação de privacidade: o nome do tutor não foi incluído neste contexto.'
+    ].filter(Boolean).join('\n')
+  }
+
+  const buildCopilotInstruction = () => {
+    const common = [
+      'Você está auxiliando uma médica-veterinária em contexto profissional.',
+      'Responda em português do Brasil, com linguagem técnica clara e objetiva.',
+      'Não invente dados do paciente, resultados de exames, doses, referências laboratoriais ou protocolos.',
+      'Quando faltarem informações relevantes, diga explicitamente o que falta e faça perguntas clínicas úteis.',
+      'Diferencie fato fornecido, hipótese/diferencial e recomendação a ser confirmada pela veterinária.',
+      'Destaque sinais de alarme e situações que exigem atendimento imediato quando forem pertinentes.',
+      'Em fármacos, quimioterapia ou situações de maior risco, priorize checagem de dose, concentração, protocolo, contraindicações e referências profissionais antes da decisão final.'
+    ]
+
+    if (aiResponseMode === 'tutor') {
+      return [...common,
+        'MODO: EXPLICAÇÃO AO TUTOR.',
+        'Transforme a orientação em texto compreensível ao tutor, sem alarmismo e sem afirmar diagnóstico que não esteja confirmado.',
+        'Inclua sinais de alerta e quando procurar atendimento, se aplicável.'
+      ].join('\n')
+    }
+
+    if (aiResponseMode === 'record') {
+      return [...common,
+        'MODO: ORGANIZAÇÃO DE PRONTUÁRIO.',
+        'Organize a resposta de forma concisa e clínica, adequada para revisão pela veterinária antes de salvar no prontuário.',
+        'Não acrescente achados que não foram fornecidos.'
+      ].join('\n')
+    }
+
+    return [...common,
+      'MODO: ANÁLISE CLÍNICA.',
+      'Quando fizer sentido, estruture em: resumo do caso, dados críticos/red flags, principais diferenciais, exames/avaliações úteis, próximos passos e informações ainda faltantes.',
+      'Evite listas enormes de diferenciais sem priorização.'
+    ].join('\n')
+  }
+
+  const extractAiReply = (payload: any) => {
+    const candidates = [
+      payload?.reply,
+      payload?.message,
+      payload?.text,
+      payload?.content,
+      payload?.answer,
+      payload?.result,
+      payload?.rawText,
+      payload?.choices?.[0]?.message?.content,
+      payload?.choices?.[0]?.text
+    ]
+
+    const found = candidates.find(value => typeof value === 'string' && value.trim())
+    return typeof found === 'string' ? found.trim() : ''
+  }
+
+  const requestVetAi = async (payload: any) => {
+    let lastError: Error | null = null
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const controller = new AbortController()
+      const timeout = window.setTimeout(() => controller.abort(), 35000)
+
+      try {
+        const response = await fetch('/api/vet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        })
+
+        const rawText = await response.text()
+        let data: any = {}
+
+        if (rawText) {
+          try {
+            data = JSON.parse(rawText)
+          } catch {
+            data = { rawText }
+          }
+        }
+
+        if (!response.ok) {
+          const serverMessage = typeof data?.error === 'string'
+            ? data.error
+            : typeof data?.message === 'string'
+              ? data.message
+              : ''
+
+          let friendlyMessage = serverMessage || `O servidor da IA respondeu com erro ${response.status}.`
+          if (response.status === 404) friendlyMessage = 'A rota /api/vet não foi encontrada no deploy. O backend do Copiloto precisa estar publicado.'
+          if (response.status === 401 || response.status === 403) friendlyMessage = 'O backend da IA recusou a autenticação. Verifique a chave/configuração do provedor no servidor.'
+          if (response.status === 429) friendlyMessage = 'O serviço de IA atingiu um limite temporário de requisições. Tente novamente em instantes.'
+          if (response.status >= 500) friendlyMessage = `O servidor da IA está indisponível no momento (${response.status}).`
+
+          const error = new Error(friendlyMessage) as Error & { retryable?: boolean }
+          error.retryable = [408, 429, 500, 502, 503, 504].includes(response.status)
+          throw error
+        }
+
+        const reply = extractAiReply(data)
+        if (!reply) {
+          throw new Error('A IA respondeu, mas o servidor não retornou um texto utilizável.')
+        }
+
+        return reply
+      } catch (error: any) {
+        if (error?.name === 'AbortError') {
+          lastError = new Error('A resposta da IA demorou mais de 35 segundos e foi interrompida.')
+        } else {
+          lastError = error instanceof Error ? error : new Error('Falha desconhecida ao consultar a IA.')
+        }
+
+        const retryable = error?.name === 'AbortError' || error?.retryable === true || error instanceof TypeError
+        if (!retryable || attempt === 1) break
+        await new Promise(resolve => window.setTimeout(resolve, 900))
+      } finally {
+        window.clearTimeout(timeout)
+      }
+    }
+
+    throw lastError || new Error('Não foi possível consultar a IA.')
+  }
+
   const handleSendAiMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!chatInput.trim() || isAiLoading) return
 
     const userText = chatInput.trim()
+    const targetSession = chatSessions.find(session => session.id === currentChatId) || chatSessions[0]
+
+    if (!targetSession) {
+      setAiStatus('error')
+      setAiErrorDetail('Não foi possível localizar a conversa atual. Crie um novo caso e tente novamente.')
+      return
+    }
+
+    const targetSessionId = targetSession.id
+    if (currentChatId !== targetSessionId) setCurrentChatId(targetSessionId)
+
+    const isDefaultTitle = targetSession.title === 'Novo Caso Clínico' || targetSession.title === 'Caso Clínico Inicial'
+    const newTitle = isDefaultTitle
+      ? (userText.length > 34 ? userText.substring(0, 34) + '...' : userText)
+      : targetSession.title
+
+    const userMsg: ChatMessage = { sender: 'user', text: userText }
+
     setChatInput('')
     setIsAiLoading(true)
-
+    setAiStatus('ready')
+    setAiErrorDetail('')
     lastLocalMutationRef.current = Date.now()
 
-    let currentHistory: ChatMessage[] = []
-
-    setChatSessions((prevSessions: ChatSession[]) => {
-      const updated = prevSessions.map(session => {
-        if (session.id === currentChatId) {
-          const isDefaultTitle = session.title === 'Novo Caso Clínico' || session.title === 'Caso Clínico Inicial'
-          const newTitle = isDefaultTitle
-            ? (userText.length > 28 ? userText.substring(0, 28) + '...' : userText)
-            : session.title
-
-          const userMsg: ChatMessage = { sender: 'user', text: userText }
-          const newMessages: ChatMessage[] = [...session.messages, userMsg]
-          currentHistory = newMessages
-
-          return {
-            ...session,
-            title: newTitle,
-            messages: newMessages
-          }
-        }
-        return session
-      })
-
+    setChatSessions(prevSessions => {
+      const updated = prevSessions.map(session =>
+        session.id === targetSessionId
+          ? { ...session, title: newTitle, messages: [...session.messages, userMsg] }
+          : session
+      )
       localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(updated))
       return updated
     })
 
+    const patientContext = buildAiPatientContext(aiPatientContextId)
+    const copilotInstruction = buildCopilotInstruction()
+    const enrichedPrompt = [
+      copilotInstruction,
+      patientContext,
+      'SOLICITAÇÃO DA DRA. BEATRIZ:',
+      userText
+    ].filter(Boolean).join('\n\n')
+
+    const historyForApi: ChatMessage[] = [
+      ...targetSession.messages.slice(-14),
+      { sender: 'user', text: enrichedPrompt }
+    ]
+
     try {
-      const response = await fetch('/api/vet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: userText, messages: currentHistory })
+      const replyText = await requestVetAi({
+        prompt: enrichedPrompt,
+        messages: historyForApi,
+        responseMode: aiResponseMode,
+        patientId: aiPatientContextId || null
       })
 
-      let replyText = 'Não foi possível obter resposta no momento.'
-
-      if (response.ok) {
-        const data = await response.json()
-        replyText = data.reply || replyText
-      } else {
-        const errData = await response.json().catch(() => ({}))
-        replyText = errData.error || `Erro no servidor (${response.status}).`
-      }
-
       lastLocalMutationRef.current = Date.now()
+      setAiStatus('online')
 
-      setChatSessions((prevSessions: ChatSession[]) => {
-        const updated = prevSessions.map(session => {
-          if (session.id === currentChatId) {
-            const aiMsg: ChatMessage = { sender: 'ai', text: replyText }
-            return {
-              ...session,
-              messages: [...session.messages, aiMsg]
-            }
-          }
-          return session
-        })
-
+      setChatSessions(prevSessions => {
+        const updated = prevSessions.map(session =>
+          session.id === targetSessionId
+            ? { ...session, messages: [...session.messages, { sender: 'ai' as const, text: replyText }] }
+            : session
+        )
         localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(updated))
         return updated
       })
-    } catch (err: any) {
+    } catch (error: any) {
+      const message = error instanceof Error ? error.message : 'Falha na conexão com a IA.'
+      setAiStatus('error')
+      setAiErrorDetail(message)
+      setChatInput(userText)
+
       lastLocalMutationRef.current = Date.now()
-      setChatSessions((prevSessions: ChatSession[]) => {
-        const updated = prevSessions.map(session => {
-          if (session.id === currentChatId) {
-            const errorMsg: ChatMessage = { 
-              sender: 'ai', 
-              text: '⚠️ Falha na conexão ao enviar mensagem. Tente novamente.' 
-            }
-            return {
-              ...session,
-              messages: [...session.messages, errorMsg]
-            }
-          }
-          return session
-        })
+      setChatSessions(prevSessions => {
+        const updated = prevSessions.map(session =>
+          session.id === targetSessionId
+            ? {
+                ...session,
+                messages: [
+                  ...session.messages,
+                  {
+                    sender: 'ai' as const,
+                    text: `⚠️ Não consegui concluir esta resposta. ${message}\n\nSua pergunta foi mantida no campo abaixo para você tentar novamente.`
+                  }
+                ]
+              }
+            : session
+        )
         localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(updated))
         return updated
       })
@@ -5856,12 +6057,23 @@ export default function VetWorkspaceBeatrizV28() {
                     <div className="w-10 h-10 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Bot className="w-5 h-5" /></div>
                     <div>
                       <h2 className="text-sm font-extrabold text-pink-950">Copiloto IA Veterinária - {currentChatSession.title}</h2>
-                      <p className="text-[11px] text-pink-500 font-medium">Raciocínio clínico ilimitado, selecione ou copie qualquer mensagem</p>
+                      <p className="text-[11px] text-pink-500 font-medium">Apoio clínico com histórico da conversa, contexto opcional do prontuário e respostas estruturadas</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={handleNewChatSession} className="bg-pink-600 hover:bg-pink-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition">+ Novo Caso</button>
-                    <span className="text-[10px] bg-pink-100 text-pink-700 px-3 py-1 rounded-full font-bold">API Conectada</span>
+                    <span className={`text-[10px] px-3 py-1 rounded-full font-bold flex items-center gap-1.5 ${
+                      isAiLoading
+                        ? 'bg-amber-100 text-amber-800'
+                        : aiStatus === 'online'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : aiStatus === 'error'
+                            ? 'bg-rose-100 text-rose-800'
+                            : 'bg-pink-100 text-pink-700'
+                    }`}>
+                      {isAiLoading ? <RefreshCw className="w-3 h-3 animate-spin" /> : aiStatus === 'error' ? <AlertTriangle className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
+                      {isAiLoading ? 'Analisando...' : aiStatus === 'online' ? 'IA respondeu' : aiStatus === 'error' ? 'Falha na IA' : 'Pronto'}
+                    </span>
                   </div>
                 </div>
 
@@ -5871,9 +6083,53 @@ export default function VetWorkspaceBeatrizV28() {
                   <button onClick={() => applyAnamnesisTemplate('gato_flutd')} className="bg-white hover:bg-pink-100 text-pink-800 border border-pink-200 px-3 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap shadow-2xs">🐈 Gato: Urinário (FLUTD)</button>
                   <button onClick={() => applyAnamnesisTemplate('dermato')} className="bg-white hover:bg-pink-100 text-pink-800 border border-pink-200 px-3 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap shadow-2xs">🩺 Dermatologia Geral</button>
                 </div>
+
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
+                  <div>
+                    <label className="text-[10px] font-extrabold text-pink-800 uppercase tracking-wider block mb-1">Usar prontuário como contexto</label>
+                    <select
+                      value={aiPatientContextId}
+                      onChange={(e) => setAiPatientContextId(e.target.value)}
+                      className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-[11px] text-pink-950 font-medium focus:outline-none"
+                    >
+                      <option value="">Sem prontuário — conversa livre</option>
+                      {patients.map(patient => (
+                        <option key={patient.id} value={patient.id}>🐾 {patient.petName} • {patient.species} • {patient.age || 'idade N/I'}</option>
+                      ))}
+                    </select>
+                    <p className="text-[9px] text-stone-400 mt-1">Envia apenas contexto clínico do animal; o nome do tutor não é incluído automaticamente.</p>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-extrabold text-pink-800 uppercase tracking-wider block mb-1">Formato da resposta</label>
+                    <select
+                      value={aiResponseMode}
+                      onChange={(e) => setAiResponseMode(e.target.value as 'clinical' | 'tutor' | 'record')}
+                      className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-[11px] text-pink-950 font-medium focus:outline-none"
+                    >
+                      <option value="clinical">🩺 Análise clínica estruturada</option>
+                      <option value="tutor">💬 Explicação para o tutor</option>
+                      <option value="record">📋 Organizar para prontuário</option>
+                    </select>
+                  </div>
+                </div>
+
+                {aiErrorDetail && (
+                  <div className="flex items-start justify-between gap-3 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2.5">
+                    <div className="flex items-start gap-2 min-w-0">
+                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-[10px] font-extrabold text-rose-800">O Copiloto encontrou um problema</div>
+                        <div className="text-[10px] text-rose-700 mt-0.5 break-words">{aiErrorDetail}</div>
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => setAiErrorDetail('')} className="text-rose-500 hover:text-rose-800 p-1"><X className="w-3.5 h-3.5" /></button>
+                  </div>
+                )}
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-6 space-y-4 scroll-smooth">
                 {currentChatSession.messages.map((msg, idx) => {
                   const isCopied = copiedMessageIdx === idx
                   return (
@@ -5921,19 +6177,35 @@ export default function VetWorkspaceBeatrizV28() {
                 {isAiLoading && (
                   <div className="flex justify-start px-6 select-none">
                     <div className="bg-pink-50/70 border border-pink-100 p-4 rounded-2xl text-xs text-pink-600 flex items-center gap-2 animate-pulse">
-                      <Sparkles className="w-4 h-4 animate-spin" /> A IA está analisando o caso clínico...
+                      <Sparkles className="w-4 h-4 animate-spin" /> Analisando o caso e preparando uma resposta estruturada...
                     </div>
                   </div>
                 )}
               </div>
 
-              <form onSubmit={handleSendAiMessage} className="p-4 border-t border-pink-100 bg-white flex gap-2 items-center select-none">
-                <button type="button" onClick={toggleListening} title={isListening ? "Ouvindo..." : "Falar por voz"} className={`p-3 rounded-xl transition flex items-center justify-center ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-pink-100 hover:bg-pink-200 text-pink-700'}`}>
+              <form onSubmit={handleSendAiMessage} className="p-4 border-t border-pink-100 bg-white flex gap-2 items-end select-none">
+                <button type="button" onClick={toggleListening} title={isListening ? "Ouvindo..." : "Falar por voz"} className={`p-3 rounded-xl transition flex items-center justify-center mb-0.5 ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-pink-100 hover:bg-pink-200 text-pink-700'}`}>
                   {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                 </button>
-                <input type="text" placeholder={isListening ? "Ouvindo sua fala..." : "Digite o caso ou escolha um template acima..."} value={chatInput} onChange={(e) => setChatInput(e.target.value)} className="flex-1 bg-pink-50/50 border border-pink-200 rounded-xl px-4 py-3 text-xs text-pink-950 focus:outline-none font-medium select-text" />
-                <button type="submit" disabled={isAiLoading} className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50">
-                  <Send className="w-4 h-4" /> Perguntar
+                <div className="flex-1">
+                  <textarea
+                    rows={2}
+                    placeholder={isListening ? "Ouvindo sua fala..." : "Digite o caso, uma dúvida clínica ou escolha um template acima..."}
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        e.currentTarget.form?.requestSubmit()
+                      }
+                    }}
+                    className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-4 py-3 text-xs text-pink-950 focus:outline-none font-medium resize-none select-text"
+                  />
+                  <div className="text-[9px] text-stone-400 mt-1 px-1">Enter envia • Shift + Enter cria uma nova linha • em falha, a pergunta volta para o campo automaticamente</div>
+                </div>
+                <button type="submit" disabled={isAiLoading || !chatInput.trim()} className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mb-0.5">
+                  {isAiLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  {isAiLoading ? 'Aguarde' : 'Perguntar'}
                 </button>
               </form>
             </div>
