@@ -198,11 +198,13 @@ interface ChatMessage {
   text: string
 }
 
-interface AiImageAttachment {
+interface AiAttachment {
+  id: string
   name: string
   mimeType: string
   dataUrl: string
-  previewUrl: string
+  previewUrl?: string
+  kind: 'image' | 'pdf'
 }
 
 interface ChatSession {
@@ -3213,10 +3215,11 @@ export default function VetWorkspaceBeatrizV28() {
   const [aiErrorDetail, setAiErrorDetail] = useState('')
   const [aiPatientContextId, setAiPatientContextId] = useState('')
   const [aiResponseMode, setAiResponseMode] = useState<'clinical' | 'tutor' | 'record'>('clinical')
-  const [aiImageAttachment, setAiImageAttachment] = useState<AiImageAttachment | null>(null)
-  const [isPreparingAiImage, setIsPreparingAiImage] = useState(false)
+  const [aiAttachments, setAiAttachments] = useState<AiAttachment[]>([])
+  const [isPreparingAiAttachment, setIsPreparingAiAttachment] = useState(false)
+  const [lastAiRequestFiles, setLastAiRequestFiles] = useState<Record<string, string[]>>({})
   const chatScrollRef = useRef<HTMLDivElement>(null)
-  const aiImageInputRef = useRef<HTMLInputElement>(null)
+  const aiAttachmentInputRef = useRef<HTMLInputElement>(null)
 
   const handleCopyMessageText = (text: string, idx: number) => {
     navigator.clipboard.writeText(text)
@@ -3483,85 +3486,185 @@ export default function VetWorkspaceBeatrizV28() {
     setTimeout(() => setCopiedCondolenceId(null), 2500)
   }
 
-  const resizeImageForAi = (file: File) => new Promise<AiImageAttachment>((resolve, reject) => {
+  const MAX_AI_ATTACHMENTS = 5
+  const MAX_AI_FILE_BYTES = 15 * 1024 * 1024
+
+  const fileToDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
+    reader.onerror = () => reject(new Error(`Não foi possível ler o arquivo ${file.name}.`))
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.readAsDataURL(file)
+  })
 
-    reader.onerror = () => reject(new Error('Não foi possível ler esta imagem.'))
-    reader.onload = () => {
-      const originalDataUrl = String(reader.result || '')
+  const prepareAiAttachment = async (file: File): Promise<AiAttachment> => {
+    const isImage = file.type.startsWith('image/')
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+
+    if (!isImage && !isPdf) {
+      throw new Error(`"${file.name}" não é uma imagem nem um PDF compatível.`)
+    }
+    if (file.size > MAX_AI_FILE_BYTES) {
+      throw new Error(`"${file.name}" ultrapassa 15 MB. Use um arquivo menor.`)
+    }
+
+    if (isPdf) {
+      const dataUrl = await fileToDataUrl(file)
+      return {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        name: file.name,
+        mimeType: 'application/pdf',
+        dataUrl,
+        kind: 'pdf',
+      }
+    }
+
+    const originalDataUrl = await fileToDataUrl(file)
+
+    // Para fotos de laudo/exame e screenshots, preservar o arquivo original
+    // é muito melhor para leitura de letras pequenas do que recomprimir tudo.
+    const preserveOriginal =
+      file.size <= 7 * 1024 * 1024 &&
+      ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type.toLowerCase())
+
+    if (preserveOriginal) {
+      return {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        name: file.name,
+        mimeType: file.type || 'image/jpeg',
+        dataUrl: originalDataUrl,
+        previewUrl: originalDataUrl,
+        kind: 'image',
+      }
+    }
+
+    // Só reduz imagens realmente grandes. Mantém resolução alta para texto pequeno.
+    return new Promise<AiAttachment>((resolve, reject) => {
       const image = new Image()
-
-      image.onerror = () => reject(new Error('O arquivo selecionado não pôde ser aberto como imagem.'))
+      image.onerror = () => reject(new Error(`A imagem "${file.name}" não pôde ser aberta.`))
       image.onload = () => {
-        const maxSide = 1600
+        const maxSide = 3200
         const scale = Math.min(1, maxSide / Math.max(image.width, image.height))
-        const width = Math.max(1, Math.round(image.width * scale))
-        const height = Math.max(1, Math.round(image.height * scale))
-
         const canvas = document.createElement('canvas')
-        canvas.width = width
-        canvas.height = height
+        canvas.width = Math.max(1, Math.round(image.width * scale))
+        canvas.height = Math.max(1, Math.round(image.height * scale))
 
         const ctx = canvas.getContext('2d')
-        if (!ctx) {
-          reject(new Error('Seu navegador não conseguiu preparar a imagem.'))
-          return
-        }
+        if (!ctx) return reject(new Error('Seu navegador não conseguiu preparar a imagem.'))
 
-        ctx.drawImage(image, 0, 0, width, height)
+        ctx.imageSmoothingEnabled = true
+        ctx.imageSmoothingQuality = 'high'
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
 
-        const outputMime = file.type === 'image/png' && file.size < 1_500_000
-          ? 'image/png'
-          : 'image/jpeg'
-
+        const outputMime = file.type === 'image/png' ? 'image/png' : 'image/jpeg'
         const dataUrl = outputMime === 'image/png'
           ? canvas.toDataURL('image/png')
-          : canvas.toDataURL('image/jpeg', 0.82)
+          : canvas.toDataURL('image/jpeg', 0.95)
 
         resolve({
+          id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
           name: file.name,
           mimeType: outputMime,
           dataUrl,
           previewUrl: dataUrl,
+          kind: 'image',
         })
       }
-
       image.src = originalDataUrl
-    }
+    })
+  }
 
-    reader.readAsDataURL(file)
-  })
-
-  const handleAiImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+  const handleAiAttachmentsSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(e.target.files || [])
     e.target.value = ''
-    if (!file) return
+    if (!selectedFiles.length) return
 
-    if (!file.type.startsWith('image/')) {
-      setAiErrorDetail('Selecione uma imagem JPG, PNG, WEBP ou outro formato de imagem compatível.')
-      return
-    }
-
-    if (file.size > 15 * 1024 * 1024) {
-      setAiErrorDetail('A imagem é muito grande. Escolha uma foto com até 15 MB.')
+    const availableSlots = Math.max(0, MAX_AI_ATTACHMENTS - aiAttachments.length)
+    if (!availableSlots) {
+      setAiErrorDetail(`O limite é de ${MAX_AI_ATTACHMENTS} arquivos por mensagem.`)
       return
     }
 
     try {
-      setIsPreparingAiImage(true)
+      setIsPreparingAiAttachment(true)
       setAiErrorDetail('')
-      const prepared = await resizeImageForAi(file)
-      setAiImageAttachment(prepared)
+      const prepared: AiAttachment[] = []
+      for (const file of selectedFiles.slice(0, availableSlots)) {
+        prepared.push(await prepareAiAttachment(file))
+      }
+      setAiAttachments(prev => [...prev, ...prepared])
+
+      if (selectedFiles.length > availableSlots) {
+        setAiErrorDetail(`Foram adicionados ${availableSlots} arquivo(s). O limite é ${MAX_AI_ATTACHMENTS}.`)
+      }
     } catch (error: any) {
-      setAiErrorDetail(error instanceof Error ? error.message : 'Não foi possível preparar a imagem.')
+      setAiErrorDetail(error instanceof Error ? error.message : 'Não foi possível preparar os arquivos.')
     } finally {
-      setIsPreparingAiImage(false)
+      setIsPreparingAiAttachment(false)
     }
   }
 
-  const clearAiImageAttachment = () => {
-    setAiImageAttachment(null)
-    if (aiImageInputRef.current) aiImageInputRef.current.value = ''
+  const removeAiAttachment = (id: string) => {
+    setAiAttachments(prev => prev.filter(file => file.id !== id))
+  }
+
+  const clearAiAttachments = () => {
+    setAiAttachments([])
+    if (aiAttachmentInputRef.current) aiAttachmentInputRef.current.value = ''
+  }
+
+  const escapePrintHtml = (value: string) => value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;')
+
+  const printAiResponse = (responseText: string, messageIndex: number) => {
+    const patient = patients.find(p => p.id === aiPatientContextId)
+    const fileNames = lastAiRequestFiles[`${currentChatSession.id}-${messageIndex}`] || []
+    const printWindow = window.open('', '_blank', 'width=900,height=760')
+
+    if (!printWindow) {
+      alert('O navegador bloqueou a janela de impressão. Permita pop-ups e tente novamente.')
+      return
+    }
+
+    const filesHtml = fileNames.length
+      ? `<div class="files"><strong>Arquivos analisados:</strong> ${fileNames.map(escapePrintHtml).join(', ')}</div>`
+      : ''
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html lang="pt-BR">
+        <head>
+          <meta charset="utf-8" />
+          <title>Resposta do Copiloto IA Veterinária</title>
+          <style>
+            body { font-family: Arial, sans-serif; color: #351628; margin: 30px; line-height: 1.55; }
+            h1 { font-size: 21px; margin: 0 0 6px; }
+            .meta { color: #666; font-size: 11px; margin-bottom: 16px; }
+            .files { font-size: 11px; background: #faf5f8; border: 1px solid #ead6df; padding: 10px; border-radius: 8px; margin-bottom: 16px; }
+            .answer { white-space: pre-wrap; font-size: 13px; }
+            .notice { margin-top: 22px; border-top: 1px solid #ead6df; padding-top: 12px; font-size: 10px; color: #777; }
+            @media print { body { margin: 12mm; } }
+          </style>
+        </head>
+        <body>
+          <h1>Copiloto IA Veterinária</h1>
+          <div class="meta">
+            Dra. Beatriz • ${escapePrintHtml(new Date().toLocaleString('pt-BR'))}
+            ${patient ? ` • Paciente: ${escapePrintHtml(patient.petName)}` : ''}
+          </div>
+          ${filesHtml}
+          <div class="answer">${escapePrintHtml(responseText)}</div>
+          <div class="notice">
+            Material de apoio gerado por IA. A resposta deve ser revisada pela médica-veterinária antes de integrar o prontuário ou orientar conduta.
+          </div>
+          <script>window.onload = () => window.print()</script>
+        </body>
+      </html>
+    `)
+    printWindow.document.close()
   }
 
   const currentChatSession = chatSessions.find(s => s.id === currentChatId) || chatSessions[0] || {
@@ -4765,11 +4868,15 @@ export default function VetWorkspaceBeatrizV28() {
 
   const handleSendAiMessage = async (e: React.FormEvent) => {
     e.preventDefault()
-    if ((!chatInput.trim() && !aiImageAttachment) || isAiLoading || isPreparingAiImage) return
+    if ((!chatInput.trim() && aiAttachments.length === 0) || isAiLoading || isPreparingAiAttachment) return
 
-    const attachedImage = aiImageAttachment
+    const attachedFiles = [...aiAttachments]
     const typedText = chatInput.trim()
-    const userText = typedText || 'Analise esta imagem e descreva os achados relevantes para o caso clínico.'
+    const userText = typedText || (
+      attachedFiles.length === 1
+        ? `Analise este ${attachedFiles[0].kind === 'pdf' ? 'PDF' : 'arquivo'} e descreva os achados relevantes para o caso clínico.`
+        : 'Analise estes arquivos em conjunto, correlacione as informações e destaque achados relevantes, concordâncias e diferenças.'
+    )
     const targetSession = chatSessions.find(session => session.id === currentChatId) || chatSessions[0]
 
     if (!targetSession) {
@@ -4786,15 +4893,19 @@ export default function VetWorkspaceBeatrizV28() {
       ? (userText.length > 34 ? userText.substring(0, 34) + '...' : userText)
       : targetSession.title
 
+    const attachmentSummary = attachedFiles.length
+      ? attachedFiles.map(file => `${file.kind === 'pdf' ? '📄' : '📷'} ${file.name}`).join('\n')
+      : ''
+
     const userMsg: ChatMessage = {
       sender: 'user',
-      text: attachedImage
-        ? `📷 Imagem anexada: ${attachedImage.name}${typedText ? `\n\n${typedText}` : '\n\nSolicitação: analisar a imagem.'}`
+      text: attachmentSummary
+        ? `${attachmentSummary}${typedText ? `\n\n${typedText}` : '\n\nSolicitação: analisar os arquivos anexados.'}`
         : userText
     }
 
     setChatInput('')
-    setAiImageAttachment(null)
+    setAiAttachments([])
     setIsAiLoading(true)
     setAiStatus('ready')
     setAiErrorDetail('')
@@ -4812,13 +4923,17 @@ export default function VetWorkspaceBeatrizV28() {
 
     const patientContext = buildAiPatientContext(aiPatientContextId)
     const copilotInstruction = buildCopilotInstruction()
-    const imageInstruction = attachedImage
+    const imageInstruction = attachedFiles.length
       ? [
-          'IMAGEM ANEXADA À SOLICITAÇÃO.',
-          'Analise visualmente a imagem fornecida junto com a pergunta.',
-          'Descreva apenas o que é realmente visível. Diferencie observação visual de interpretação clínica.',
-          'Se a imagem estiver desfocada, cortada, ilegível ou insuficiente, diga isso explicitamente e peça uma imagem melhor quando necessário.',
-          'Não invente texto, valores laboratoriais, estruturas anatômicas, diagnóstico ou achados que não estejam legíveis/visíveis.'
+          `${attachedFiles.length} ARQUIVO(S) ANEXADO(S) À SOLICITAÇÃO.`,
+          'Analise todos os arquivos fornecidos junto com a pergunta e correlacione as informações quando fizer sentido.',
+          'Para arquivos com texto (laudos, exames, prescrições, resultados, telas ou documentos), LEIA PRIMEIRO e só depois interprete.',
+          'Faça uma checagem visual cuidadosa de nomes, números, unidades, datas, siglas e valores antes de responder.',
+          'Não autocorrija nem complete palavras duvidosas. Quando um trecho não puder ser lido com segurança, marque como [ilegível] ou [incerto] em vez de adivinhar.',
+          'Para imagens, descreva apenas o que é realmente visível. Para PDFs, use apenas conteúdo efetivamente legível no documento.',
+          'Diferencie claramente: 1) texto/achado observado; 2) interpretação clínica.',
+          'Se algum arquivo estiver desfocado, cortado, ilegível, incompleto ou insuficiente, identifique qual arquivo apresenta a limitação.',
+          'Não invente texto, resultados, medidas, estruturas anatômicas, diagnóstico ou achados ausentes.'
         ].join('\n')
       : ''
 
@@ -4841,27 +4956,39 @@ export default function VetWorkspaceBeatrizV28() {
         messages: historyForApi,
         responseMode: aiResponseMode,
         patientId: aiPatientContextId || null,
-        image: attachedImage
+        files: attachedFiles.map(file => ({
+          name: file.name,
+          mimeType: file.mimeType,
+          dataUrl: file.dataUrl,
+          kind: file.kind,
+        })),
+        image: attachedFiles.length === 1 && attachedFiles[0].kind === 'image'
           ? {
-              name: attachedImage.name,
-              mimeType: attachedImage.mimeType,
-              dataUrl: attachedImage.dataUrl
+              name: attachedFiles[0].name,
+              mimeType: attachedFiles[0].mimeType,
+              dataUrl: attachedFiles[0].dataUrl
             }
-          : null,
-        imageDataUrl: attachedImage?.dataUrl || null,
-        imageMimeType: attachedImage?.mimeType || null,
-        imageName: attachedImage?.name || null
+          : null
       })
 
       lastLocalMutationRef.current = Date.now()
       setAiStatus('online')
 
       setChatSessions(prevSessions => {
-        const updated = prevSessions.map(session =>
-          session.id === targetSessionId
-            ? { ...session, messages: [...session.messages, { sender: 'ai' as const, text: replyText }] }
-            : session
-        )
+        let aiMessageIndex = -1
+        const updated = prevSessions.map(session => {
+          if (session.id !== targetSessionId) return session
+          aiMessageIndex = session.messages.length
+          return { ...session, messages: [...session.messages, { sender: 'ai' as const, text: replyText }] }
+        })
+
+        if (attachedFiles.length && aiMessageIndex >= 0) {
+          setLastAiRequestFiles(prev => ({
+            ...prev,
+            [`${targetSessionId}-${aiMessageIndex}`]: attachedFiles.map(file => file.name)
+          }))
+        }
+
         localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(updated))
         return updated
       })
@@ -4870,7 +4997,7 @@ export default function VetWorkspaceBeatrizV28() {
       setAiStatus('error')
       setAiErrorDetail(message)
       setChatInput(typedText)
-      if (attachedImage) setAiImageAttachment(attachedImage)
+      if (attachedFiles.length) setAiAttachments(attachedFiles)
 
       lastLocalMutationRef.current = Date.now()
       setChatSessions(prevSessions => {
@@ -6307,7 +6434,7 @@ export default function VetWorkspaceBeatrizV28() {
                       ))}
                     </select>
                     <p className="text-[9px] text-stone-400 mt-1">Envia apenas contexto clínico do animal; o nome do tutor não é incluído automaticamente.</p>
-                    <p className="text-[9px] text-violet-500 mt-0.5">📷 O botão de câmera permite enviar imagem junto da consulta para análise visual.</p>
+                    <p className="text-[9px] text-violet-500 mt-0.5">📎 Você pode enviar até 5 fotos/PDFs juntos para comparar exames, laudos e imagens.</p>
                   </div>
 
                   <div>
@@ -6358,6 +6485,18 @@ export default function VetWorkspaceBeatrizV28() {
                           <span>{isCopied ? 'Copiado!' : 'Copiar Texto'}</span>
                         </button>
 
+                        {msg.sender === 'ai' && (
+                          <button
+                            type="button"
+                            onClick={() => printAiResponse(msg.text, idx)}
+                            className="text-[10px] font-bold text-stone-700 hover:text-pink-950 flex items-center gap-1 bg-white hover:bg-pink-50 px-2.5 py-1 rounded-lg border border-stone-200 transition cursor-pointer shadow-2xs select-none"
+                            title="Imprimir ou salvar esta resposta como PDF"
+                          >
+                            <Printer className="w-3 h-3" />
+                            <span>Imprimir / PDF</span>
+                          </button>
+                        )}
+
                         {msg.sender === 'ai' && patients.length > 0 && (
                           <>
                             <select 
@@ -6375,7 +6514,7 @@ export default function VetWorkspaceBeatrizV28() {
                               }}
                               className="bg-pink-100 hover:bg-pink-200 text-pink-800 px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 border border-pink-200 shadow-2xs cursor-pointer select-none"
                             >
-                              📥 Enviar para Prontuário
+                              📥 Anexar ao Prontuário
                             </button>
                           </>
                         )}
@@ -6394,22 +6533,23 @@ export default function VetWorkspaceBeatrizV28() {
 
               <form onSubmit={handleSendAiMessage} className="p-4 border-t border-pink-100 bg-white flex gap-2 items-end select-none">
                 <input
-                  ref={aiImageInputRef}
+                  ref={aiAttachmentInputRef}
                   type="file"
-                  accept="image/*"
-                  onChange={handleAiImageSelect}
+                  accept="image/*,application/pdf,.pdf"
+                  multiple
+                  onChange={handleAiAttachmentsSelect}
                   className="hidden"
                 />
 
                 <div className="flex gap-2 mb-0.5">
                   <button
                     type="button"
-                    onClick={() => aiImageInputRef.current?.click()}
-                    disabled={isAiLoading || isPreparingAiImage}
-                    title="Anexar foto para a IA analisar"
+                    onClick={() => aiAttachmentInputRef.current?.click()}
+                    disabled={isAiLoading || isPreparingAiAttachment || aiAttachments.length >= MAX_AI_ATTACHMENTS}
+                    title="Anexar fotos ou PDFs"
                     className="p-3 rounded-xl transition flex items-center justify-center bg-violet-100 hover:bg-violet-200 text-violet-700 disabled:opacity-50"
                   >
-                    {isPreparingAiImage ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                    {isPreparingAiAttachment ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
                   </button>
 
                   <button type="button" onClick={toggleListening} title={isListening ? "Ouvindo..." : "Falar por voz"} className={`p-3 rounded-xl transition flex items-center justify-center ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-pink-100 hover:bg-pink-200 text-pink-700'}`}>
@@ -6418,32 +6558,42 @@ export default function VetWorkspaceBeatrizV28() {
                 </div>
 
                 <div className="flex-1">
-                  {aiImageAttachment && (
-                    <div className="mb-2 bg-violet-50 border border-violet-200 rounded-2xl p-2.5 flex items-center gap-3">
-                      <img
-                        src={aiImageAttachment.previewUrl}
-                        alt="Imagem anexada para análise"
-                        className="w-16 h-16 rounded-xl object-cover border border-violet-200 bg-white shrink-0"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[10px] font-extrabold text-violet-900">📷 Imagem pronta para análise</div>
-                        <div className="text-[10px] text-violet-700 truncate mt-0.5">{aiImageAttachment.name}</div>
-                        <div className="text-[9px] text-stone-400 mt-1">Você pode enviar só a foto ou escrever uma pergunta junto.</div>
+                  {aiAttachments.length > 0 && (
+                    <div className="mb-2 bg-violet-50 border border-violet-200 rounded-2xl p-2.5">
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="text-[10px] font-extrabold text-violet-900">
+                          📎 {aiAttachments.length} arquivo(s) pronto(s) para análise
+                        </div>
+                        <button type="button" onClick={clearAiAttachments} className="text-[9px] font-bold text-violet-600 hover:underline">
+                          Remover todos
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={clearAiImageAttachment}
-                        className="p-2 rounded-lg text-violet-500 hover:text-rose-600 hover:bg-white"
-                        title="Remover imagem"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+                      <div className="flex gap-2 overflow-x-auto pb-1">
+                        {aiAttachments.map(file => (
+                          <div key={file.id} className="relative shrink-0 w-24 bg-white border border-violet-200 rounded-xl p-2">
+                            {file.kind === 'image' && file.previewUrl ? (
+                              <img src={file.previewUrl} alt={file.name} className="w-full h-14 object-cover rounded-lg mb-1.5" />
+                            ) : (
+                              <div className="w-full h-14 rounded-lg bg-rose-50 flex items-center justify-center text-2xl mb-1.5">📄</div>
+                            )}
+                            <div className="text-[8px] text-stone-600 truncate" title={file.name}>{file.name}</div>
+                            <button
+                              type="button"
+                              onClick={() => removeAiAttachment(file.id)}
+                              className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-white border border-violet-200 rounded-full flex items-center justify-center text-violet-600 hover:text-rose-600 shadow-sm"
+                              title="Remover arquivo"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
                   <textarea
                     rows={2}
-                    placeholder={isListening ? "Ouvindo sua fala..." : aiImageAttachment ? "Pergunte algo sobre a foto (opcional)..." : "Digite o caso, uma dúvida clínica ou anexe uma foto..."}
+                    placeholder={isListening ? "Ouvindo sua fala..." : aiAttachments.length ? "Pergunte algo sobre os arquivos (opcional)..." : "Digite o caso ou anexe fotos/PDFs..."}
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyDown={(e) => {
@@ -6454,9 +6604,9 @@ export default function VetWorkspaceBeatrizV28() {
                     }}
                     className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-4 py-3 text-xs text-pink-950 focus:outline-none font-medium resize-none select-text"
                   />
-                  <div className="text-[9px] text-stone-400 mt-1 px-1">📷 Foto + texto ou só foto • Enter envia • Shift + Enter cria nova linha • em falha, texto e imagem voltam para o campo</div>
+                  <div className="text-[9px] text-stone-400 mt-1 px-1">📎 Até 5 fotos/PDFs • imagens nítidas são enviadas em alta qualidade • para laudos/exames, a IA lê primeiro e interpreta depois</div>
                 </div>
-                <button type="submit" disabled={isAiLoading || isPreparingAiImage || (!chatInput.trim() && !aiImageAttachment)} className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mb-0.5">
+                <button type="submit" disabled={isAiLoading || isPreparingAiAttachment || (!chatInput.trim() && aiAttachments.length === 0)} className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mb-0.5">
                   {isAiLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   {isAiLoading ? 'Aguarde' : 'Perguntar'}
                 </button>
