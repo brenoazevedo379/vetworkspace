@@ -3474,10 +3474,11 @@ export default function VetWorkspaceBeatrizV28() {
   const [newPetBiaTribute, setNewPetBiaTribute] = useState('')
   const [newPetBiaMemorial, setNewPetBiaMemorial] = useState(false)
   const [newPetBiaPhotoUrl, setNewPetBiaPhotoUrl] = useState('')
+  const [isPetPhotoProcessing, setIsPetPhotoProcessing] = useState(false)
 
   const handleAddPersonalPet = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newPetBiaName.trim()) return
+    if (!newPetBiaName.trim() || isPetPhotoProcessing) return
     lastLocalMutationRef.current = Date.now()
     const newP: PersonalPet = {
       id: Date.now().toString(),
@@ -3485,7 +3486,7 @@ export default function VetWorkspaceBeatrizV28() {
       species: newPetBiaSpecies.trim(),
       age: newPetBiaAge.trim() || 'Idade não informada',
       tribute: newPetBiaTribute.trim() || 'Amor eterno',
-      photoUrl: newPetBiaPhotoUrl || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=400&auto=format&fit=crop&q=80',
+      photoUrl: newPetBiaPhotoUrl || '',
       isMemorial: newPetBiaMemorial
     }
     setPersonalPets([newP, ...personalPets])
@@ -3496,13 +3497,65 @@ export default function VetWorkspaceBeatrizV28() {
     setNewPetBiaMemorial(false)
   }
 
-  const handlePetPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
-    const file = files[0]
-    const fileUrl = URL.createObjectURL(file)
-    setNewPetBiaPhotoUrl(fileUrl)
+  const handlePetPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
     e.target.value = ''
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      alert('Selecione uma imagem válida.')
+      return
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      alert('A foto é muito grande. Escolha uma imagem com até 15 MB.')
+      return
+    }
+
+    setIsPetPhotoProcessing(true)
+
+    try {
+      const originalDataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onerror = () => reject(new Error('Não foi possível ler a foto.'))
+        reader.onload = () => resolve(String(reader.result || ''))
+        reader.readAsDataURL(file)
+      })
+
+      const persistentDataUrl = await new Promise<string>((resolve, reject) => {
+        const image = new Image()
+        image.onerror = () => reject(new Error('Não foi possível abrir a foto selecionada.'))
+        image.onload = () => {
+          const maxSide = 1000
+          const scale = Math.min(1, maxSide / Math.max(image.width, image.height))
+          const width = Math.max(1, Math.round(image.width * scale))
+          const height = Math.max(1, Math.round(image.height * scale))
+
+          const canvas = document.createElement('canvas')
+          canvas.width = width
+          canvas.height = height
+
+          const ctx = canvas.getContext('2d')
+          if (!ctx) {
+            reject(new Error('O navegador não conseguiu preparar a foto.'))
+            return
+          }
+
+          ctx.imageSmoothingEnabled = true
+          ctx.imageSmoothingQuality = 'high'
+          ctx.drawImage(image, 0, 0, width, height)
+
+          resolve(canvas.toDataURL('image/jpeg', 0.82))
+        }
+        image.src = originalDataUrl
+      })
+
+      setNewPetBiaPhotoUrl(persistentDataUrl)
+    } catch (error: any) {
+      alert(error instanceof Error ? error.message : 'Não foi possível preparar a foto.')
+    } finally {
+      setIsPetPhotoProcessing(false)
+    }
   }
 
   const handleShiftPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -5658,10 +5711,10 @@ export default function VetWorkspaceBeatrizV28() {
                       <Heart className="w-4 h-4 text-pink-500 fill-pink-200" /> Cantinho Especial & Mural de Homenagem aos Pets
                     </div>
                     <h2 className="text-xl font-extrabold text-pink-950 mt-1">A Família de Quatro Patas da Dra. Beatriz (Atuais e Eternos)</h2>
-                    <p className="text-xs text-stone-500 mt-0.5">Cadastre seus pets informando nome, idade, foto e homenagem.</p>
+                    <p className="text-xs text-stone-500 mt-0.5">Cadastre seus pets informando nome, idade, foto e homenagem. Fotos enviadas agora ficam sincronizadas entre os dispositivos.</p>
                   </div>
 
-                  <input type="file" ref={petPhotoInputRef} onChange={handlePetPhotoUpload} className="hidden" accept=".png,.jpg,.jpeg" />
+                  <input type="file" ref={petPhotoInputRef} onChange={handlePetPhotoUpload} className="hidden" accept="image/*" />
 
                   <form onSubmit={handleAddPersonalPet} className="flex flex-wrap items-center gap-2 bg-pink-50/60 p-3 rounded-2xl border border-pink-200">
                     <input type="text" placeholder="Nome do Pet" value={newPetBiaName} onChange={(e) => setNewPetBiaName(e.target.value)} className="bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs font-medium text-pink-950 focus:outline-none w-28" required />
@@ -5669,21 +5722,23 @@ export default function VetWorkspaceBeatrizV28() {
                     <input type="text" placeholder="Homenagem / Descrição" value={newPetBiaTribute} onChange={(e) => setNewPetBiaTribute(e.target.value)} className="bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs font-medium text-pink-950 focus:outline-none w-36" />
                     
                     <div className="flex items-center gap-1">
-                      <input type="text" placeholder="URL da Foto ou faça upload" value={newPetBiaPhotoUrl} onChange={(e) => setNewPetBiaPhotoUrl(e.target.value)} className="bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs font-medium text-pink-950 focus:outline-none w-32" />
+                      <input type="text" placeholder="URL externa (opcional)" value={newPetBiaPhotoUrl.startsWith('data:image/') ? 'Foto enviada ✓' : newPetBiaPhotoUrl} onChange={(e) => { if (!newPetBiaPhotoUrl.startsWith('data:image/')) setNewPetBiaPhotoUrl(e.target.value) }} readOnly={newPetBiaPhotoUrl.startsWith('data:image/')} className="bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs font-medium text-pink-950 focus:outline-none w-32" />
                       <button 
-                        type="button" 
-                        onClick={() => petPhotoInputRef.current?.click()} 
-                        className="bg-pink-100 hover:bg-pink-200 text-pink-800 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer"
+                        type="button"
+                        onClick={() => petPhotoInputRef.current?.click()}
+                        disabled={isPetPhotoProcessing}
+                        className="bg-pink-100 hover:bg-pink-200 disabled:opacity-50 text-pink-800 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer"
                         title="Enviar foto do computador"
                       >
-                        <Upload className="w-3.5 h-3.5" /> Foto
+                        {isPetPhotoProcessing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                        {isPetPhotoProcessing ? 'Preparando...' : newPetBiaPhotoUrl.startsWith('data:image/') ? 'Foto pronta ✓' : 'Foto'}
                       </button>
                     </div>
 
                     <label className="flex items-center gap-1 text-[11px] font-bold text-stone-700 cursor-pointer">
                       <input type="checkbox" checked={newPetBiaMemorial} onChange={(e) => setNewPetBiaMemorial(e.target.checked)} className="accent-pink-500 w-3.5 h-3.5" /> Memorial 🕊️
                     </label>
-                    <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1">
+                    <button type="submit" disabled={isPetPhotoProcessing} className="bg-pink-500 hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1">
                       <Plus className="w-3.5 h-3.5" /> Adicionar
                     </button>
                   </form>
@@ -5702,7 +5757,28 @@ export default function VetWorkspaceBeatrizV28() {
                     {personalPets.map(pet => (
                       <div key={pet.id} className={`group relative bg-white border rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col ${pet.isMemorial ? 'border-pink-300 bg-pink-50/20' : 'border-pink-100'}`}>
                         <div className="relative h-48 w-full bg-pink-100 overflow-hidden">
-                          <img src={pet.photoUrl} alt={pet.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" onError={(e)=>{(e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=400&auto=format&fit=crop&q=80'}} />
+                          {pet.photoUrl && !pet.photoUrl.startsWith('blob:') ? (
+                            <img
+                              src={pet.photoUrl}
+                              alt={pet.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                              onError={(e) => {
+                                const img = e.currentTarget
+                                img.style.display = 'none'
+                                const fallback = img.nextElementSibling as HTMLElement | null
+                                if (fallback) fallback.style.display = 'flex'
+                              }}
+                            />
+                          ) : null}
+                          <div
+                            className="w-full h-full bg-pink-50 flex-col items-center justify-center text-pink-400 gap-2"
+                            style={{ display: !pet.photoUrl || pet.photoUrl.startsWith('blob:') ? 'flex' : 'none' }}
+                          >
+                            <Camera className="w-8 h-8" />
+                            <span className="text-[10px] font-bold text-center px-3">
+                              {pet.photoUrl?.startsWith('blob:') ? 'Foto antiga precisa ser reenviada' : 'Sem foto'}
+                            </span>
+                          </div>
                           {pet.isMemorial && (
                             <span className="absolute top-3 left-3 bg-stone-900/80 text-white text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-md flex items-center gap-1">
                               🕊️ Eterno no Coração
