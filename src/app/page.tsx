@@ -1920,12 +1920,14 @@ export function ClinicalDashboard({
   tasks,
   onOpenPatient,
   onResolveAlert,
+  onToggleTask,
 }: {
   patients: ClinicalPatientLite[]
   events: CalendarEventLite[]
   tasks: TaskLite[]
   onOpenPatient: (id: string) => void
   onResolveAlert?: (patientId: string, alertId: string) => void
+  onToggleTask: (taskId: string) => void
 }) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -1969,6 +1971,8 @@ export function ClinicalDashboard({
     })
 
   const pendingTasks = tasks.filter(t => !t.completed)
+  const completedTasks = tasks.filter(t => t.completed)
+  const dashboardTasks = [...pendingTasks, ...completedTasks]
 
   return (
     <div className="bg-white/95 border border-pink-100 rounded-3xl shadow-sm p-6 space-y-4">
@@ -1987,33 +1991,67 @@ export function ClinicalDashboard({
               <CheckSquare className="w-4 h-4" /> Lista de Tarefas
             </div>
             <span className="text-[10px] font-extrabold bg-white border border-violet-200 text-violet-700 px-2.5 py-1 rounded-full">
-              {pendingTasks.length} pendente{pendingTasks.length === 1 ? '' : 's'}
+              {pendingTasks.length} pendente{pendingTasks.length === 1 ? '' : 's'} • {completedTasks.length} concluída{completedTasks.length === 1 ? '' : 's'}
             </span>
           </div>
 
-          <div className="mt-4 space-y-2 max-h-64 overflow-y-auto pr-1">
-            {pendingTasks.length === 0 ? (
+          <div className="mt-4 space-y-2 max-h-72 overflow-y-auto pr-1">
+            {dashboardTasks.length === 0 ? (
               <div className="h-40 flex flex-col items-center justify-center text-center bg-white/70 border border-dashed border-violet-200 rounded-2xl px-5">
                 <CheckCircle2 className="w-7 h-7 text-emerald-500 mb-2" />
-                <p className="text-xs font-bold text-stone-600">Tudo em dia por aqui.</p>
-                <p className="text-[10px] text-stone-400 mt-1">As tarefas pendentes cadastradas na Lista de Tarefas aparecerão neste painel.</p>
+                <p className="text-xs font-bold text-stone-600">Nenhuma tarefa cadastrada.</p>
+                <p className="text-[10px] text-stone-400 mt-1">As tarefas criadas no Gerenciador de Tarefas aparecerão aqui automaticamente.</p>
               </div>
             ) : (
-              pendingTasks.map((task, idx) => (
-                <div key={task.id} className="bg-white border border-violet-100 rounded-xl p-3 flex items-start gap-3 shadow-2xs">
-                  <div className="w-6 h-6 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center text-[10px] font-extrabold shrink-0">
-                    {idx + 1}
-                  </div>
+              dashboardTasks.map((task, idx) => (
+                <label
+                  key={task.id}
+                  className={`bg-white border rounded-xl p-3 flex items-start gap-3 shadow-2xs cursor-pointer transition ${
+                    task.completed
+                      ? 'border-emerald-200 bg-emerald-50/60'
+                      : 'border-violet-100 hover:border-violet-300 hover:bg-violet-50/40'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={task.completed}
+                    onChange={() => onToggleTask(task.id)}
+                    className="w-5 h-5 mt-0.5 accent-pink-500 cursor-pointer shrink-0"
+                  />
                   <div className="min-w-0 flex-1">
-                    <div className="text-xs font-bold text-pink-950 leading-relaxed">{task.text}</div>
-                    {task.category && (
-                      <div className="text-[9px] text-violet-600 font-bold uppercase tracking-wide mt-1">{task.category}</div>
-                    )}
+                    <div className={`text-xs font-bold leading-relaxed ${
+                      task.completed ? 'line-through text-stone-400' : 'text-pink-950'
+                    }`}>
+                      {task.text}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      {task.category && (
+                        <span className={`text-[9px] font-bold uppercase tracking-wide ${
+                          task.completed ? 'text-emerald-600' : 'text-violet-600'
+                        }`}>
+                          {task.category}
+                        </span>
+                      )}
+                      {task.completed && (
+                        <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                          ✓ Concluída
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
+                </label>
               ))
             )}
           </div>
+
+          {dashboardTasks.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-violet-200/70 flex items-center justify-between gap-3">
+              <span className="text-[9px] text-stone-400">Marque ou desmarque qualquer tarefa diretamente aqui.</span>
+              <span className="text-[10px] font-bold text-violet-700">
+                {completedTasks.length}/{dashboardTasks.length} concluídas
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="bg-sky-50/60 border border-sky-200 rounded-2xl p-5 min-h-[260px]">
@@ -5517,6 +5555,14 @@ export default function VetWorkspaceBeatrizV28() {
                 tasks={tasks}
                 onOpenPatient={handleOpenPatient}
                 onResolveAlert={handleResolvePatientAlert}
+                onToggleTask={(taskId) => {
+                  lastLocalMutationRef.current = Date.now()
+                  setTasks(prevTasks =>
+                    prevTasks.map(task =>
+                      task.id === taskId ? { ...task, completed: !task.completed } : task
+                    )
+                  )
+                }}
               />
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div onClick={() => setActiveTab('financas')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
