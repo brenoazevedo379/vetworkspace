@@ -27,6 +27,42 @@ interface GeminiContent {
 const DEFAULT_MODEL = 'gemini-2.0-flash'
 const MAX_INLINE_IMAGE_BYTES = 8 * 1024 * 1024
 
+const SIMPLE_GREETING_PATTERNS = [
+  /^(oi|olá|ola|oie|oii+|olá+|hey|hello)[!.?,\s]*$/i,
+  /^(bom dia|boa tarde|boa noite)[!.?,\s]*$/i,
+  /^(tudo bem|tudo bom|como vai|como você está|como voce esta)[?!. ,\s]*$/i,
+  /^(oi|olá|ola)[, ]+(tudo bem|tudo bom|bom dia|boa tarde|boa noite)[?!. ,\s]*$/i,
+]
+
+function isSimpleGreeting(text?: string) {
+  if (!text || typeof text !== 'string') return false
+  const normalized = text.trim()
+  if (!normalized || normalized.length > 60) return false
+  return SIMPLE_GREETING_PATTERNS.some((pattern) => pattern.test(normalized))
+}
+
+function buildGreetingReply(text: string) {
+  const normalized = text.trim().toLowerCase()
+
+  if (normalized.includes('bom dia')) {
+    return 'Bom dia, Dra. Beatriz! 🐾 Estou por aqui. Pode me contar o caso, mandar uma dúvida clínica ou anexar uma imagem quando quiser.'
+  }
+
+  if (normalized.includes('boa tarde')) {
+    return 'Boa tarde, Dra. Beatriz! 🐾 Estou pronta para ajudar. Pode me contar o caso, fazer uma pergunta ou mandar uma imagem.'
+  }
+
+  if (normalized.includes('boa noite')) {
+    return 'Boa noite, Dra. Beatriz! 🐾 Pode mandar o que você precisar — caso clínico, dúvida, prontuário ou imagem.'
+  }
+
+  if (normalized.includes('tudo bem') || normalized.includes('tudo bom') || normalized.includes('como vai') || normalized.includes('como você está') || normalized.includes('como voce esta')) {
+    return 'Tudo certo por aqui 😊 E com você? Quando quiser, pode começar me contando o caso ou mandar uma imagem para eu analisar.'
+  }
+
+  return 'Oi, Dra. Beatriz! 🐾 Estou por aqui. Pode falar comigo normalmente e, quando quiser, me contar o caso, tirar uma dúvida ou mandar uma imagem.'
+}
+
 function parseImageDataUrl(dataUrl?: string, fallbackMimeType?: string) {
   if (!dataUrl || typeof dataUrl !== 'string') return null
 
@@ -133,7 +169,10 @@ async function callGeminiAPI(
                 {
                   text: [
                     'Você é um copiloto clínico veterinário e assistente técnico da Dra. Beatriz Contreiras.',
-                    'Responda em português do Brasil, com linguagem técnica, precisa, fundamentada, prática e sem inventar dados ausentes.',
+                    'Responda em português do Brasil e adapte o tom ao contexto.',
+                    'Se a mensagem for apenas uma saudação, conversa breve ou abertura de chat, responda de forma natural, curta e acolhedora. Não faça análise clínica, não crie estrutura de caso e não fale em fatos clínicos que ainda não foram fornecidos.',
+                    'Só entre em modo técnico/clínico quando a Dra. Beatriz realmente apresentar sintomas, histórico, exame, imagem, laudo, resultados, conduta, diagnóstico diferencial ou uma pergunta veterinária.',
+                    'Quando houver conteúdo clínico, seja técnico, preciso, fundamentado, prático e não invente dados ausentes.',
                     'Mantenha o contexto das mensagens anteriores.',
                     'Quando houver imagem, descreva primeiro o que está efetivamente visível e depois apresente a interpretação clínica possível.',
                     'Diferencie observação visual de hipótese diagnóstica.',
@@ -275,6 +314,17 @@ export async function POST(req: Request) {
         { error: 'Nenhuma mensagem ou imagem foi enviada.' },
         { status: 400 }
       )
+    }
+
+    const latestUserMessage = [...chatHistory]
+      .reverse()
+      .find((message) => message.sender === 'user')?.text || ''
+
+    if (!parsedImage && isSimpleGreeting(latestUserMessage)) {
+      return NextResponse.json({
+        reply: buildGreetingReply(latestUserMessage),
+        conversational: true,
+      })
     }
 
     if (chatHistory.length === 0 && parsedImage) {
