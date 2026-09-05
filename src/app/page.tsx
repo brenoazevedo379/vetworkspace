@@ -3379,9 +3379,29 @@ export default function VetWorkspaceBeatrizV28() {
 
   const handleAddShift = (e: React.FormEvent) => {
     e.preventDefault()
+
+    const rate = shiftBaseRate.trim() === '' ? 0 : Number(shiftBaseRate)
+    const comm = shiftCommission.trim() === '' ? 0 : Number(shiftCommission)
+
+    if (!Number.isFinite(rate) || rate < 0 || !Number.isFinite(comm) || comm < 0) {
+      alert('Confira os valores da diária e da comissão.')
+      return
+    }
+
+    if (rate === 0 && comm === 0) {
+      alert('Informe pelo menos o valor da diária ou o valor da comissão.')
+      return
+    }
+
+    const automaticDetails =
+      rate > 0 && comm > 0
+        ? 'Diária + comissão'
+        : rate > 0
+          ? 'Somente diária'
+          : 'Somente comissão'
+
     lastLocalMutationRef.current = Date.now()
-    const rate = parseFloat(shiftBaseRate) || 200
-    const comm = parseFloat(shiftCommission) || 0
+
     const newS: ShiftRecord = {
       id: Date.now().toString(),
       clinicId: selectedShiftClinicId,
@@ -3389,14 +3409,18 @@ export default function VetWorkspaceBeatrizV28() {
       baseRate: rate,
       commission: comm,
       status: shiftStatus,
-      details: shiftDetails || 'Plantão normal'
+      details: shiftDetails.trim() || automaticDetails
     }
+
     setShifts([newS, ...shifts])
+    setShiftBaseRate('')
     setShiftCommission('')
     setShiftDetails('')
   }
 
-  const totalShiftsAmount = shifts.reduce((acc, s) => acc + s.baseRate + s.commission, 0)
+  const totalShiftsAmount = shifts.reduce((acc, s) => acc + (Number(s.baseRate) || 0) + (Number(s.commission) || 0), 0)
+  const totalShiftDailyAmount = shifts.reduce((acc, s) => acc + (Number(s.baseRate) || 0), 0)
+  const totalShiftCommissionAmount = shifts.reduce((acc, s) => acc + (Number(s.commission) || 0), 0)
 
   const [bsaWeightKg, setBsaWeightKg] = useState<string>('')
   const [bsaSpecies, setBsaSpecies] = useState<'cao' | 'gato'>('cao')
@@ -5389,7 +5413,7 @@ export default function VetWorkspaceBeatrizV28() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                   <div className="space-y-4">
-                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Registrar Plantão</h3>
+                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Registrar diária / comissão</h3>
                      
                     <input type="file" ref={shiftPhotoInputRef} onChange={handleShiftPhotoUpload} className="hidden" accept=".png,.jpg,.jpeg" />
 
@@ -5416,7 +5440,9 @@ export default function VetWorkspaceBeatrizV28() {
                           onChange={(e) => {
                             setSelectedShiftClinicId(e.target.value)
                             const found = clinics.find(c => c.id === e.target.value)
-                            if (found) setShiftBaseRate(found.defaultRate.toString())
+                            if (found && shiftBaseRate.trim() === '') {
+                              setShiftBaseRate(found.defaultRate.toString())
+                            }
                           }} 
                           className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
                         >
@@ -5426,21 +5452,60 @@ export default function VetWorkspaceBeatrizV28() {
                         </select>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-bold text-stone-700 block mb-1">Data do recebimento / lançamento</label>
+                        <input type="date" value={shiftDate} onChange={(e) => setShiftDate(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
+                        <p className="text-[10px] text-stone-400 mt-1">Use a data em que esse valor deve entrar no controle financeiro.</p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                          <label className="text-xs font-bold text-stone-700 block mb-1">Data</label>
-                          <input type="date" value={shiftDate} onChange={(e) => setShiftDate(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <label className="text-xs font-bold text-stone-700">Valor da diária (R$) <span className="font-normal text-stone-400">— opcional</span></label>
+                            {shiftBaseRate !== '' && (
+                              <button type="button" onClick={() => setShiftBaseRate('')} className="text-[9px] font-bold text-pink-600 hover:underline">Sem diária</button>
+                            )}
+                          </div>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="Deixe vazio se não houver diária"
+                            value={shiftBaseRate}
+                            onChange={(e) => setShiftBaseRate(e.target.value)}
+                            className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium"
+                          />
                         </div>
                         <div>
-                          <label className="text-xs font-bold text-stone-700 block mb-1">Valor Diária (R$)</label>
-                          <input type="number" step="0.01" value={shiftBaseRate} onChange={(e) => setShiftBaseRate(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
+                          <label className="text-xs font-bold text-stone-700 block mb-1">Comissão (R$) <span className="font-normal text-stone-400">— opcional</span></label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="Deixe vazio se não houver comissão"
+                            value={shiftCommission}
+                            onChange={(e) => setShiftCommission(e.target.value)}
+                            className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium"
+                          />
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 text-[10px] text-emerald-900 leading-relaxed">
+                        <strong>Os valores são independentes:</strong> pode salvar somente a diária, somente a comissão ou os dois juntos. Pelo menos um dos dois precisa ter valor.
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                          <label className="text-xs font-bold text-stone-700 block mb-1">Comissão (R$)</label>
-                          <input type="number" step="0.01" placeholder="Ex: 150.00" value={shiftCommission} onChange={(e) => setShiftCommission(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                          <label className="text-xs font-bold text-stone-700 block mb-1">Tipo do lançamento</label>
+                          <div className="h-[34px] flex items-center px-3.5 rounded-xl bg-stone-50 border border-stone-200 text-[10px] font-bold text-stone-600">
+                            {shiftBaseRate.trim() !== '' && Number(shiftBaseRate) > 0 && shiftCommission.trim() !== '' && Number(shiftCommission) > 0
+                              ? 'Diária + comissão'
+                              : shiftBaseRate.trim() !== '' && Number(shiftBaseRate) > 0
+                                ? 'Somente diária'
+                                : shiftCommission.trim() !== '' && Number(shiftCommission) > 0
+                                  ? 'Somente comissão'
+                                  : 'Informe um dos valores'}
+                          </div>
                         </div>
                         <div>
                           <label className="text-xs font-bold text-stone-700 block mb-1">Status Repasse</label>
@@ -5452,12 +5517,18 @@ export default function VetWorkspaceBeatrizV28() {
                       </div>
 
                       <div>
-                        <label className="text-xs font-bold text-stone-700 block mb-1">Detalhes / Procedimentos</label>
-                        <input type="text" placeholder="Ex: 2 cirurgias, 1 ultrassom..." value={shiftDetails} onChange={(e) => setShiftDetails(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" />
+                        <label className="text-xs font-bold text-stone-700 block mb-1">Detalhes / referência <span className="font-normal text-stone-400">— opcional</span></label>
+                        <input
+                          type="text"
+                          placeholder="Ex.: comissão referente a agosto / 2 cirurgias..."
+                          value={shiftDetails}
+                          onChange={(e) => setShiftDetails(e.target.value)}
+                          className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium"
+                        />
                       </div>
 
                       <button type="submit" className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
-                        <Plus className="w-4 h-4" /> Salvar Lançamento do Plantão
+                        <Plus className="w-4 h-4" /> Salvar lançamento
                       </button>
                     </form>
                   </div>
@@ -5466,8 +5537,18 @@ export default function VetWorkspaceBeatrizV28() {
                     <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Consolidado Geral das Clínicas</h3>
                     <div className="bg-pink-50 border border-pink-200 p-5 rounded-2xl space-y-4">
                       <div>
-                        <span className="text-[10px] font-bold text-pink-600 uppercase">Total Bruto Acumulado (Diárias + Comissões)</span>
+                        <span className="text-[10px] font-bold text-pink-600 uppercase">Total Bruto Acumulado</span>
                         <div className="text-3xl font-extrabold text-pink-950 mt-1">{maskValue(totalShiftsAmount)}</div>
+                        <div className="grid grid-cols-2 gap-2 mt-3">
+                          <div className="bg-white border border-pink-100 rounded-xl p-2.5">
+                            <div className="text-[9px] font-bold text-stone-400 uppercase">Diárias</div>
+                            <div className="text-sm font-extrabold text-pink-950 mt-0.5">{maskValue(totalShiftDailyAmount)}</div>
+                          </div>
+                          <div className="bg-white border border-pink-100 rounded-xl p-2.5">
+                            <div className="text-[9px] font-bold text-stone-400 uppercase">Comissões</div>
+                            <div className="text-sm font-extrabold text-emerald-700 mt-0.5">{maskValue(totalShiftCommissionAmount)}</div>
+                          </div>
+                        </div>
                       </div>
 
                       <div className="pt-3 border-t border-pink-200/60 space-y-2">
@@ -5482,7 +5563,11 @@ export default function VetWorkspaceBeatrizV28() {
                                 <div key={s.id} className="bg-white border border-pink-200 p-3 rounded-xl text-xs flex items-center justify-between shadow-2xs">
                                   <div>
                                     <div className="font-extrabold text-pink-950">{clinicObj?.name || 'Clínica'} ({s.date})</div>
-                                    <div className="text-[10px] text-stone-600">Diária: {maskValue(s.baseRate)} + Comissões: {maskValue(s.commission)} {s.details ? `• ${s.details}` : ''}</div>
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-stone-600 mt-0.5">
+                                      {(Number(s.baseRate) || 0) > 0 && <span>Diária: <strong>{maskValue(Number(s.baseRate) || 0)}</strong></span>}
+                                      {(Number(s.commission) || 0) > 0 && <span>Comissão: <strong>{maskValue(Number(s.commission) || 0)}</strong></span>}
+                                      {s.details && <span className="text-stone-400">• {s.details}</span>}
+                                    </div>
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${s.status === 'Pago' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
