@@ -227,6 +227,7 @@ interface ShiftRecord {
   commission: number
   status: 'Pago' | 'Pendente'
   details: string
+  paidDate?: string
 }
 
 interface SpecialistConsultationItem {
@@ -3607,7 +3608,8 @@ export default function VetWorkspaceBeatrizV28() {
       baseRate: rate,
       commission: comm,
       status: shiftStatus,
-      details: shiftDetails.trim() || automaticDetails
+      details: shiftDetails.trim() || automaticDetails,
+      paidDate: shiftStatus === 'Pago' ? shiftDate : undefined
     }
 
     setShifts([newS, ...shifts])
@@ -3616,9 +3618,23 @@ export default function VetWorkspaceBeatrizV28() {
     setShiftDetails('')
   }
 
-  const totalShiftsAmount = shifts.reduce((acc, s) => acc + (Number(s.baseRate) || 0) + (Number(s.commission) || 0), 0)
+  const getShiftValue = (shift: ShiftRecord) => (Number(shift.baseRate) || 0) + (Number(shift.commission) || 0)
+  const totalShiftsAmount = shifts.reduce((acc, s) => acc + getShiftValue(s), 0)
   const totalShiftDailyAmount = shifts.reduce((acc, s) => acc + (Number(s.baseRate) || 0), 0)
   const totalShiftCommissionAmount = shifts.reduce((acc, s) => acc + (Number(s.commission) || 0), 0)
+  const totalShiftsPaidAmount = shifts.filter(s => s.status === 'Pago').reduce((acc, s) => acc + getShiftValue(s), 0)
+  const totalShiftsPendingAmount = shifts.filter(s => s.status !== 'Pago').reduce((acc, s) => acc + getShiftValue(s), 0)
+
+  const handleToggleShiftStatus = (shiftId: string) => {
+    lastLocalMutationRef.current = Date.now()
+    setShifts(prev => prev.map(shift => {
+      if (shift.id !== shiftId) return shift
+      if (shift.status === 'Pago') {
+        return { ...shift, status: 'Pendente', paidDate: undefined }
+      }
+      return { ...shift, status: 'Pago', paidDate: todayDateKey }
+    }))
+  }
 
   const [bsaWeightKg, setBsaWeightKg] = useState<string>('')
   const [bsaSpecies, setBsaSpecies] = useState<'cao' | 'gato'>('cao')
@@ -4187,6 +4203,19 @@ export default function VetWorkspaceBeatrizV28() {
   const [isEditingIncome, setIsEditingIncome] = useState(false)
   const [tempIncomeInput, setTempIncomeInput] = useState<string>('')
 
+  const [otherIncome, setOtherIncome] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_other_income_v28')
+      if (saved) {
+        const parsed = parseFloat(saved)
+        if (!isNaN(parsed)) return parsed
+      }
+    }
+    return 0
+  })
+  const [isEditingOtherIncome, setIsEditingOtherIncome] = useState(false)
+  const [tempOtherIncomeInput, setTempOtherIncomeInput] = useState<string>('')
+
   const [finances, setFinances] = useState<FinancialItem[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vet_finances_v28')
@@ -4288,6 +4317,10 @@ export default function VetWorkspaceBeatrizV28() {
             setMonthlyIncome(d.monthlyIncome); 
             localStorage.setItem('vet_income_v28', d.monthlyIncome.toString()); 
           }
+          if (d.otherIncome !== undefined) {
+            setOtherIncome(d.otherIncome)
+            localStorage.setItem('vet_other_income_v28', d.otherIncome.toString())
+          }
           if (d.cofrinhoAmount !== undefined) {
             setCofrinhoAmount(d.cofrinhoAmount);
             localStorage.setItem('vet_cofrinho_v28', d.cofrinhoAmount.toString());
@@ -4354,6 +4387,10 @@ export default function VetWorkspaceBeatrizV28() {
               setMonthlyIncome(d.monthlyIncome); 
               localStorage.setItem('vet_income_v28', d.monthlyIncome.toString()); 
             }
+            if (d.otherIncome !== undefined) {
+              setOtherIncome(d.otherIncome)
+              localStorage.setItem('vet_other_income_v28', d.otherIncome.toString())
+            }
             if (d.cofrinhoAmount !== undefined) {
               setCofrinhoAmount(d.cofrinhoAmount);
               localStorage.setItem('vet_cofrinho_v28', d.cofrinhoAmount.toString());
@@ -4411,6 +4448,7 @@ export default function VetWorkspaceBeatrizV28() {
     localStorage.setItem('vet_recipes_v28', JSON.stringify(recipes))
     localStorage.setItem('vet_custom_drugs_v28', JSON.stringify(customDrugs))
     localStorage.setItem('vet_income_v28', monthlyIncome.toString())
+    localStorage.setItem('vet_other_income_v28', otherIncome.toString())
     localStorage.setItem('vet_cofrinho_v28', cofrinhoAmount.toString())
     localStorage.setItem('vet_finances_v28', JSON.stringify(finances))
     localStorage.setItem('vet_tasks_v28', JSON.stringify(tasks))
@@ -4440,6 +4478,7 @@ export default function VetWorkspaceBeatrizV28() {
           recipes,
           customDrugs,
           monthlyIncome,
+          otherIncome,
           cofrinhoAmount,
           finances,
           tasks,
@@ -4475,7 +4514,7 @@ export default function VetWorkspaceBeatrizV28() {
 
     const timer = setTimeout(syncToCloud, 800)
     return () => clearTimeout(timer)
-  }, [isInitialized, items, patients, recipes, customDrugs, monthlyIncome, cofrinhoAmount, finances, tasks, events, chatSessions, clinics, shifts, specialistConsultations, personalPets, skincareDone, mimosWishlist, descompressaoNotes])
+  }, [isInitialized, items, patients, recipes, customDrugs, monthlyIncome, otherIncome, cofrinhoAmount, finances, tasks, events, chatSessions, clinics, shifts, specialistConsultations, personalPets, skincareDone, mimosWishlist, descompressaoNotes])
 
   const selectedItem = items.find(i => i.id === selectedItemId && i.type === 'page') || items.find(i => i.type === 'page')
 
@@ -4515,9 +4554,94 @@ export default function VetWorkspaceBeatrizV28() {
     }))
   }
 
-  const totalGastos = finances.reduce((acc, f) => acc + f.amount, 0)
-  const totalRendaGeral = monthlyIncome + totalShiftsAmount + totalSpecialistIncome
+  const financeNow = new Date()
+  const financeYear = financeNow.getFullYear()
+  const financeMonth = financeNow.getMonth() + 1
+
+  const isIsoInCurrentFinanceMonth = (value?: string) => {
+    if (!value) return false
+    const [year, month] = value.split('-').map(Number)
+    return year === financeYear && month === financeMonth
+  }
+
+  const isBrDateInCurrentFinanceMonth = (value?: string) => {
+    if (!value) return false
+    const [day, month, year] = value.split('/').map(Number)
+    return Boolean(day) && year === financeYear && month === financeMonth
+  }
+
+  const paidShiftsThisMonth = shifts.filter(
+    shift => shift.status === 'Pago' && isIsoInCurrentFinanceMonth(shift.paidDate || shift.date)
+  )
+  const pendingShiftsForFinance = shifts.filter(shift => shift.status !== 'Pago')
+
+  const totalPaidShiftsThisMonth = paidShiftsThisMonth.reduce((acc, shift) => acc + getShiftValue(shift), 0)
+  const totalPendingShiftsForFinance = pendingShiftsForFinance.reduce((acc, shift) => acc + getShiftValue(shift), 0)
+  const totalPaidDailyThisMonth = paidShiftsThisMonth.reduce((acc, shift) => acc + (Number(shift.baseRate) || 0), 0)
+  const totalPaidCommissionThisMonth = paidShiftsThisMonth.reduce((acc, shift) => acc + (Number(shift.commission) || 0), 0)
+
+  const specialistIncomeThisMonth = specialistConsultations
+    .filter(item => isIsoInCurrentFinanceMonth(item.date))
+    .reduce((acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.unitValue) || 0), 0)
+
+  const financesThisMonth = finances.filter(item => isBrDateInCurrentFinanceMonth(item.date))
+  const totalGastos = financesThisMonth.reduce((acc, f) => acc + (Number(f.amount) || 0), 0)
+
+  // Caixa real: pendente é conta a receber; somente Pago entra como renda.
+  const totalRendaGeral = monthlyIncome + otherIncome + totalPaidShiftsThisMonth + specialistIncomeThisMonth
   const saldoRestante = totalRendaGeral - totalGastos
+
+  const expensePalette = ['#db2777', '#7c3aed', '#2563eb', '#0891b2', '#059669', '#d97706', '#dc2626', '#64748b']
+
+  const expenseDescriptionMap = new Map<string, { label: string; category: string; amount: number }>()
+  financesThisMonth.forEach(item => {
+    const key = item.description.trim().toLocaleLowerCase('pt-BR') || item.category
+    const current = expenseDescriptionMap.get(key)
+    if (current) {
+      current.amount += Number(item.amount) || 0
+    } else {
+      expenseDescriptionMap.set(key, {
+        label: item.description.trim() || item.category,
+        category: item.category,
+        amount: Number(item.amount) || 0,
+      })
+    }
+  })
+  const expenseByDescription = Array.from(expenseDescriptionMap.values()).sort((a, b) => b.amount - a.amount)
+
+  const expenseChartItems = (() => {
+    if (expenseByDescription.length <= 7) return expenseByDescription
+    const visible = expenseByDescription.slice(0, 7)
+    const remaining = expenseByDescription.slice(7).reduce((acc, item) => acc + item.amount, 0)
+    return [...visible, { label: 'Outros lançamentos', category: 'Outros', amount: remaining }]
+  })()
+
+  const totalIncomeCommittedPct = totalRendaGeral > 0 ? (totalGastos / totalRendaGeral) * 100 : 0
+  const chartUsesIncomeScale = totalRendaGeral > 0 && totalGastos <= totalRendaGeral
+  const expenseChartBase = chartUsesIncomeScale ? totalRendaGeral : Math.max(totalGastos, 1)
+
+  let expenseChartCursor = 0
+  const expenseChartSegments = expenseChartItems.map((item, index) => {
+    const start = expenseChartCursor
+    const share = (item.amount / expenseChartBase) * 100
+    const end = Math.min(100, start + share)
+    expenseChartCursor = end
+    return {
+      ...item,
+      color: expensePalette[index % expensePalette.length],
+      incomePercent: totalRendaGeral > 0 ? (item.amount / totalRendaGeral) * 100 : 0,
+      start,
+      end,
+    }
+  })
+
+  const availableChartPct = chartUsesIncomeScale ? Math.max(0, 100 - expenseChartCursor) : 0
+  const expenseDonutGradient = expenseChartSegments.length > 0
+    ? `conic-gradient(${[
+        ...expenseChartSegments.map(segment => `${segment.color} ${segment.start.toFixed(2)}% ${segment.end.toFixed(2)}%`),
+        ...(availableChartPct > 0 ? [`#e7e5e4 ${expenseChartCursor.toFixed(2)}% 100%`] : []),
+      ].join(', ')})`
+    : 'conic-gradient(#e7e5e4 0% 100%)'
 
   const handleAddFinancial = (e: React.FormEvent) => {
     e.preventDefault()
@@ -5620,7 +5744,7 @@ export default function VetWorkspaceBeatrizV28() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div onClick={() => setActiveTab('financas')} className="bg-white/90 backdrop-blur-sm border border-pink-100 p-5 rounded-2xl shadow-xs flex items-center justify-between cursor-pointer hover:border-pink-300 transition">
                   <div>
-                    <span className="text-xs font-semibold text-pink-400">Renda do Mês</span>
+                    <span className="text-xs font-semibold text-pink-400">Renda Recebida no Mês</span>
                     <div className="text-2xl font-extrabold text-emerald-600 mt-1">{maskValue(totalRendaGeral)}</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600"><Wallet className="w-5 h-5" /></div>
@@ -5919,9 +6043,9 @@ export default function VetWorkspaceBeatrizV28() {
                       </div>
 
                       <div>
-                        <label className="text-xs font-bold text-stone-700 block mb-1">Data do recebimento / lançamento</label>
+                        <label className="text-xs font-bold text-stone-700 block mb-1">{shiftStatus === 'Pago' ? 'Data do recebimento' : 'Data do lançamento / previsão'}</label>
                         <input type="date" value={shiftDate} onChange={(e) => setShiftDate(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2 text-xs text-pink-950 focus:outline-none font-medium" required />
-                        <p className="text-[10px] text-stone-400 mt-1">Use a data em que esse valor deve entrar no controle financeiro.</p>
+                        <p className="text-[10px] text-stone-400 mt-1">{shiftStatus === 'Pago' ? 'Como está Pago, esta data entra no caixa financeiro.' : 'Enquanto estiver Pendente, este valor fica apenas em “A receber” e não entra na renda.'}</p>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -6002,44 +6126,79 @@ export default function VetWorkspaceBeatrizV28() {
                   <div className="space-y-4">
                     <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Consolidado Geral das Clínicas</h3>
                     <div className="bg-pink-50 border border-pink-200 p-5 rounded-2xl space-y-4">
-                      <div>
-                        <span className="text-[10px] font-bold text-pink-600 uppercase">Total Bruto Acumulado</span>
-                        <div className="text-3xl font-extrabold text-pink-950 mt-1">{maskValue(totalShiftsAmount)}</div>
-                        <div className="grid grid-cols-2 gap-2 mt-3">
-                          <div className="bg-white border border-pink-100 rounded-xl p-2.5">
-                            <div className="text-[9px] font-bold text-stone-400 uppercase">Diárias</div>
-                            <div className="text-sm font-extrabold text-pink-950 mt-0.5">{maskValue(totalShiftDailyAmount)}</div>
-                          </div>
-                          <div className="bg-white border border-pink-100 rounded-xl p-2.5">
-                            <div className="text-[9px] font-bold text-stone-400 uppercase">Comissões</div>
-                            <div className="text-sm font-extrabold text-emerald-700 mt-0.5">{maskValue(totalShiftCommissionAmount)}</div>
-                          </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                          <div className="text-[9px] font-bold text-emerald-700 uppercase">Recebido</div>
+                          <div className="text-lg font-extrabold text-emerald-800 mt-0.5">{maskValue(totalShiftsPaidAmount)}</div>
+                          <div className="text-[9px] text-emerald-600 mt-1">Somente lançamentos marcados como Pago</div>
+                        </div>
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                          <div className="text-[9px] font-bold text-amber-700 uppercase">A receber</div>
+                          <div className="text-lg font-extrabold text-amber-800 mt-0.5">{maskValue(totalShiftsPendingAmount)}</div>
+                          <div className="text-[9px] text-amber-600 mt-1">Ainda não entra como renda</div>
+                        </div>
+                        <div className="bg-white border border-pink-200 rounded-xl p-3">
+                          <div className="text-[9px] font-bold text-stone-500 uppercase">Total lançado</div>
+                          <div className="text-lg font-extrabold text-pink-950 mt-0.5">{maskValue(totalShiftsAmount)}</div>
+                          <div className="text-[9px] text-stone-400 mt-1">Pago + pendente</div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-white border border-pink-100 rounded-xl p-2.5">
+                          <div className="text-[9px] font-bold text-stone-400 uppercase">Diárias lançadas</div>
+                          <div className="text-sm font-extrabold text-pink-950 mt-0.5">{maskValue(totalShiftDailyAmount)}</div>
+                        </div>
+                        <div className="bg-white border border-pink-100 rounded-xl p-2.5">
+                          <div className="text-[9px] font-bold text-stone-400 uppercase">Comissões lançadas</div>
+                          <div className="text-sm font-extrabold text-pink-950 mt-0.5">{maskValue(totalShiftCommissionAmount)}</div>
                         </div>
                       </div>
 
                       <div className="pt-3 border-t border-pink-200/60 space-y-2">
-                        <span className="text-xs font-extrabold text-pink-950">Extrato Recente de Plantões:</span>
-                        <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-extrabold text-pink-950">Extrato de Plantões e Comissões</span>
+                          <span className="text-[9px] text-stone-400">Clique no status para alterar</span>
+                        </div>
+                        <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
                           {shifts.length === 0 ? (
-                            <p className="text-xs text-stone-400 text-center py-6">Nenhum plantão registrado ainda.</p>
+                            <p className="text-xs text-stone-400 text-center py-6">Nenhum lançamento registrado ainda.</p>
                           ) : (
                             shifts.map(s => {
                               const clinicObj = clinics.find(c => c.id === s.clinicId)
                               return (
-                                <div key={s.id} className="bg-white border border-pink-200 p-3 rounded-xl text-xs flex items-center justify-between shadow-2xs">
-                                  <div>
-                                    <div className="font-extrabold text-pink-950">{clinicObj?.name || 'Clínica'} ({s.date})</div>
-                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-stone-600 mt-0.5">
-                                      {(Number(s.baseRate) || 0) > 0 && <span>Diária: <strong>{maskValue(Number(s.baseRate) || 0)}</strong></span>}
-                                      {(Number(s.commission) || 0) > 0 && <span>Comissão: <strong>{maskValue(Number(s.commission) || 0)}</strong></span>}
-                                      {s.details && <span className="text-stone-400">• {s.details}</span>}
+                                <div key={s.id} className="bg-white border border-pink-200 p-3 rounded-xl text-xs shadow-2xs">
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <div className="font-extrabold text-pink-950">{clinicObj?.name || 'Clínica'}</div>
+                                      <div className="text-[10px] text-stone-500 mt-0.5">
+                                        Lançado/previsão: {formatLocalDate(s.date)}
+                                        {s.status === 'Pago' && <span className="text-emerald-700 font-bold"> • Recebido: {formatLocalDate(s.paidDate || s.date)}</span>}
+                                      </div>
+                                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-stone-600 mt-1">
+                                        {(Number(s.baseRate) || 0) > 0 && <span>Diária: <strong>{maskValue(Number(s.baseRate) || 0)}</strong></span>}
+                                        {(Number(s.commission) || 0) > 0 && <span>Comissão: <strong>{maskValue(Number(s.commission) || 0)}</strong></span>}
+                                        <span>Total: <strong>{maskValue(getShiftValue(s))}</strong></span>
+                                      </div>
+                                      {s.details && <div className="text-[10px] text-stone-400 mt-1">{s.details}</div>}
                                     </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${s.status === 'Pago' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                                      {s.status}
-                                    </span>
-                                    <button onClick={() => { lastLocalMutationRef.current = Date.now(); setShifts(shifts.filter(item => item.id !== s.id)); }} className="text-stone-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleToggleShiftStatus(s.id)}
+                                        className={`text-[10px] font-extrabold px-3 py-1.5 rounded-xl border transition ${
+                                          s.status === 'Pago'
+                                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                                            : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                                        }`}
+                                        title={s.status === 'Pago' ? 'Marcar novamente como pendente' : 'Confirmar que este valor foi recebido'}
+                                      >
+                                        {s.status === 'Pago' ? '✓ Pago' : '○ Pendente'} ↔
+                                      </button>
+                                      <button onClick={() => { lastLocalMutationRef.current = Date.now(); setShifts(shifts.filter(item => item.id !== s.id)); }} className="text-stone-400 hover:text-red-500">
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
                               )
@@ -6060,8 +6219,8 @@ export default function VetWorkspaceBeatrizV28() {
                 <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
                   <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Stethoscope className="w-6 h-6" /></div>
                   <div>
-                    <h2 className="text-base font-extrabold text-pink-950">Consultas com Especialistas 🩺 (Finanças Extras por Fora)</h2>
-                    <p className="text-xs text-pink-500 font-medium">Selecione a clínica onde o atendimento foi realizado, cadastre a especialidade e o valor. Integrado automaticamente com as finanças.</p>
+                    <h2 className="text-base font-extrabold text-pink-950">Consultas com Especialistas 🩺</h2>
+                    <p className="text-xs text-pink-500 font-medium">Selecione a clínica, cadastre a especialidade e o valor recebido. O mês da data informada entra automaticamente na composição da renda.</p>
                   </div>
                 </div>
 
@@ -6120,7 +6279,7 @@ export default function VetWorkspaceBeatrizV28() {
                       <div>
                         <span className="text-[10px] font-bold text-pink-600 uppercase">Total Acumulado com Especialistas</span>
                         <div className="text-3xl font-extrabold text-pink-950 mt-1">{maskValue(totalSpecialistIncome)}</div>
-                        <p className="text-[11px] text-stone-500 mt-1">Este valor soma automaticamente nas suas finanças totais ("por fora").</p>
+                        <p className="text-[11px] text-stone-500 mt-1">Este valor entra automaticamente em “Especialistas” nas finanças do mês correspondente à data cadastrada.</p>
                       </div>
 
                       <div className="pt-3 border-t border-pink-200/60 space-y-2">
@@ -7870,59 +8029,112 @@ export default function VetWorkspaceBeatrizV28() {
                 </button>
               </div>
               
-              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Renda Base / Extra ("Por Fora")</h3>
-                  {!isEditingIncome && (
-                    <button 
-                      onClick={() => { setIsEditingIncome(true); setTempIncomeInput(monthlyIncome.toString()); }}
-                      className="text-xs font-bold text-pink-600 hover:underline bg-pink-50 px-3 py-1 rounded-lg border border-pink-200 cursor-pointer"
-                    >
-                      ✏️ Editar Renda
-                    </button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Renda base do mês</h3>
+                      <p className="text-[10px] text-stone-400 mt-1">Salário/fixo. Não inclua plantões, comissões ou especialistas aqui.</p>
+                    </div>
+                    {!isEditingIncome && (
+                      <button
+                        type="button"
+                        onClick={() => { setIsEditingIncome(true); setTempIncomeInput(monthlyIncome.toString()) }}
+                        className="text-[10px] font-bold text-pink-600 bg-pink-50 px-2.5 py-1 rounded-lg border border-pink-200"
+                      >
+                        ✏️ Editar
+                      </button>
+                    )}
+                  </div>
+
+                  {isEditingIncome ? (
+                    <div className="space-y-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={tempIncomeInput}
+                        onChange={(e) => setTempIncomeInput(e.target.value)}
+                        className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
+                        placeholder="Ex.: 3500"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const val = Number(tempIncomeInput)
+                            if (Number.isFinite(val) && val >= 0) {
+                              lastLocalMutationRef.current = Date.now()
+                              setMonthlyIncome(val)
+                              setIsEditingIncome(false)
+                            }
+                          }}
+                          className="flex-1 bg-pink-500 hover:bg-pink-600 text-white px-3 py-2 rounded-xl text-xs font-bold"
+                        >
+                          Salvar
+                        </button>
+                        <button type="button" onClick={() => setIsEditingIncome(false)} className="px-3 py-2 rounded-xl text-xs font-bold bg-stone-100 text-stone-600">
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-2xl font-extrabold text-emerald-600">{maskValue(monthlyIncome)}</div>
                   )}
                 </div>
 
-                {isEditingIncome ? (
-                  <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
-                    <input 
-                      type="number" 
-                      step="0.01" 
-                      value={tempIncomeInput} 
-                      onChange={(e) => setTempIncomeInput(e.target.value)} 
-                      className="w-full sm:w-64 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
-                      placeholder="Ex: 3500.00"
-                    />
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          const val = parseFloat(tempIncomeInput)
-                          if (!isNaN(val)) {
-                            lastLocalMutationRef.current = Date.now()
-                            setMonthlyIncome(val)
-                            setIsEditingIncome(false)
-                            alert('Renda base atualizada com sucesso!')
-                          }
-                        }} 
-                        className="flex-1 sm:flex-none bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
-                      >
-                        💾 Salvar
-                      </button>
-                      <button 
-                        type="button" 
-                        onClick={() => setIsEditingIncome(false)} 
-                        className="flex-1 sm:flex-none bg-stone-100 hover:bg-stone-200 text-stone-700 px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer"
-                      >
-                        Cancelar
-                      </button>
+                <div className="bg-white/95 backdrop-blur-md border border-violet-100 p-5 rounded-2xl shadow-xs space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-xs font-bold text-violet-900 uppercase tracking-wider">Outras rendas recebidas</h3>
+                      <p className="text-[10px] text-stone-400 mt-1">Somente valores que não estejam em plantões/comissões ou especialistas.</p>
                     </div>
+                    {!isEditingOtherIncome && (
+                      <button
+                        type="button"
+                        onClick={() => { setIsEditingOtherIncome(true); setTempOtherIncomeInput(otherIncome.toString()) }}
+                        className="text-[10px] font-bold text-violet-600 bg-violet-50 px-2.5 py-1 rounded-lg border border-violet-200"
+                      >
+                        ✏️ Editar
+                      </button>
+                    )}
                   </div>
-                ) : (
-                  <div className="text-xl font-extrabold text-emerald-600">
-                    {maskValue(monthlyIncome)}
-                  </div>
-                )}
+
+                  {isEditingOtherIncome ? (
+                    <div className="space-y-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={tempOtherIncomeInput}
+                        onChange={(e) => setTempOtherIncomeInput(e.target.value)}
+                        className="w-full bg-violet-50/50 border border-violet-200 rounded-xl px-3.5 py-2.5 text-xs text-violet-950 focus:outline-none font-medium"
+                        placeholder="Ex.: 400"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const val = Number(tempOtherIncomeInput)
+                            if (Number.isFinite(val) && val >= 0) {
+                              lastLocalMutationRef.current = Date.now()
+                              setOtherIncome(val)
+                              setIsEditingOtherIncome(false)
+                            }
+                          }}
+                          className="flex-1 bg-violet-600 hover:bg-violet-700 text-white px-3 py-2 rounded-xl text-xs font-bold"
+                        >
+                          Salvar
+                        </button>
+                        <button type="button" onClick={() => setIsEditingOtherIncome(false)} className="px-3 py-2 rounded-xl text-xs font-bold bg-stone-100 text-stone-600">
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-2xl font-extrabold text-violet-700">{maskValue(otherIncome)}</div>
+                  )}
+                </div>
               </div>
 
               {/* CARD DE COFRINHO */}
@@ -7985,32 +8197,146 @@ export default function VetWorkspaceBeatrizV28() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs">
-                  <span className="text-xs font-bold text-stone-400">Renda Base + Plantões</span>
-                  <div className="text-xl font-extrabold text-emerald-600 mt-2">{maskValue(monthlyIncome + totalShiftsAmount)}</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+                <div className="bg-emerald-50/70 border border-emerald-200 p-4 rounded-2xl">
+                  <span className="text-[10px] font-bold text-emerald-700 uppercase">Total recebido no mês</span>
+                  <div className="text-xl font-extrabold text-emerald-800 mt-1">{maskValue(totalRendaGeral)}</div>
+                  <div className="text-[9px] text-emerald-600 mt-1">Somente dinheiro recebido</div>
                 </div>
 
-                <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs">
-                  <span className="text-xs font-bold text-stone-400">Finanças Extras (Especialistas)</span>
-                  <div className="text-xl font-extrabold text-pink-600 mt-2">{maskValue(totalSpecialistIncome)}</div>
+                <div className="bg-white border border-pink-100 p-4 rounded-2xl">
+                  <span className="text-[10px] font-bold text-stone-500 uppercase">Plantões/comissões pagos</span>
+                  <div className="text-xl font-extrabold text-pink-950 mt-1">{maskValue(totalPaidShiftsThisMonth)}</div>
+                  <div className="text-[9px] text-stone-400 mt-1">Diárias {maskValue(totalPaidDailyThisMonth)} • Comissões {maskValue(totalPaidCommissionThisMonth)}</div>
                 </div>
 
-                <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs">
-                  <span className="text-xs font-bold text-stone-400">Total de Despesas</span>
-                  <div className="text-xl font-extrabold text-rose-500 mt-2">{maskValue(totalGastos)}</div>
+                <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-2xl">
+                  <span className="text-[10px] font-bold text-amber-700 uppercase">A receber</span>
+                  <div className="text-xl font-extrabold text-amber-800 mt-1">{maskValue(totalPendingShiftsForFinance)}</div>
+                  <div className="text-[9px] text-amber-600 mt-1">Total pendente • não entra no saldo</div>
                 </div>
 
-                <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs">
-                  <span className="text-xs font-bold text-stone-400">Saldo Restante</span>
-                  <div className={`text-xl font-extrabold mt-2 ${saldoRestante >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {maskValue(saldoRestante)}
+                <div className="bg-white border border-rose-100 p-4 rounded-2xl">
+                  <span className="text-[10px] font-bold text-stone-500 uppercase">Despesas do mês</span>
+                  <div className="text-xl font-extrabold text-rose-600 mt-1">{maskValue(totalGastos)}</div>
+                  <div className="text-[9px] text-stone-400 mt-1">{financesThisMonth.length} lançamento{financesThisMonth.length === 1 ? '' : 's'}</div>
+                </div>
+
+                <div className={`border p-4 rounded-2xl ${saldoRestante >= 0 ? 'bg-sky-50/70 border-sky-200' : 'bg-rose-50 border-rose-200'}`}>
+                  <span className={`text-[10px] font-bold uppercase ${saldoRestante >= 0 ? 'text-sky-700' : 'text-rose-700'}`}>Saldo após gastos</span>
+                  <div className={`text-xl font-extrabold mt-1 ${saldoRestante >= 0 ? 'text-sky-800' : 'text-rose-700'}`}>{maskValue(saldoRestante)}</div>
+                  <div className="text-[9px] text-stone-400 mt-1">Recebido − despesas</div>
+                </div>
+              </div>
+
+              <div className="bg-white/95 border border-pink-100 p-5 rounded-2xl shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-xs font-extrabold text-pink-950 uppercase tracking-wider">Composição da renda recebida</h3>
+                    <p className="text-[10px] text-stone-400 mt-1">Cada valor entra uma vez, sem duplicar plantões ou especialistas.</p>
+                  </div>
+                  <span className="text-[10px] font-bold text-stone-500">Mês atual</span>
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-4">
+                  <div className="bg-pink-50 rounded-xl p-3"><div className="text-[9px] text-stone-400 uppercase font-bold">Renda base</div><div className="text-sm font-extrabold text-pink-950 mt-1">{maskValue(monthlyIncome)}</div></div>
+                  <div className="bg-pink-50 rounded-xl p-3"><div className="text-[9px] text-stone-400 uppercase font-bold">Plantões + comissões pagos</div><div className="text-sm font-extrabold text-pink-950 mt-1">{maskValue(totalPaidShiftsThisMonth)}</div></div>
+                  <div className="bg-pink-50 rounded-xl p-3"><div className="text-[9px] text-stone-400 uppercase font-bold">Especialistas</div><div className="text-sm font-extrabold text-pink-950 mt-1">{maskValue(specialistIncomeThisMonth)}</div></div>
+                  <div className="bg-pink-50 rounded-xl p-3"><div className="text-[9px] text-stone-400 uppercase font-bold">Outras rendas</div><div className="text-sm font-extrabold text-pink-950 mt-1">{maskValue(otherIncome)}</div></div>
+                </div>
+              </div>
+
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-3xl shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-xs font-extrabold text-pink-950 uppercase tracking-wider">Gastos x renda recebida</h3>
+                    <p className="text-[10px] text-stone-400 mt-1">Atualiza automaticamente conforme a renda recebida e os gastos lançados no mês.</p>
+                  </div>
+                  <div className={`text-[10px] font-extrabold px-3 py-1.5 rounded-full ${
+                    totalIncomeCommittedPct <= 70
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : totalIncomeCommittedPct <= 100
+                        ? 'bg-amber-50 text-amber-700'
+                        : 'bg-rose-50 text-rose-700'
+                  }`}>
+                    {totalRendaGeral > 0 ? `${totalIncomeCommittedPct.toFixed(1)}% da renda comprometida` : 'Informe a renda para calcular %'}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 items-center mt-5">
+                  <div className="flex justify-center">
+                    <div
+                      className="w-56 h-56 rounded-full p-6 shadow-inner"
+                      style={{ background: expenseDonutGradient }}
+                      aria-label={`Gráfico circular: ${totalIncomeCommittedPct.toFixed(1)}% da renda comprometida com gastos`}
+                    >
+                      <div className="w-full h-full rounded-full bg-white flex flex-col items-center justify-center text-center px-4 shadow-sm">
+                        <div className="text-[10px] font-bold text-stone-400 uppercase">Gasto no mês</div>
+                        <div className="text-xl font-extrabold text-rose-600 mt-1">{maskValue(totalGastos)}</div>
+                        <div className="text-[11px] font-bold text-stone-600 mt-1">
+                          {totalRendaGeral > 0 ? `${totalIncomeCommittedPct.toFixed(1)}% da renda` : 'Renda não informada'}
+                        </div>
+                        <div className="text-[9px] text-stone-400 mt-1">Renda: {maskValue(totalRendaGeral)}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    {expenseChartSegments.length === 0 ? (
+                      <div className="border border-dashed border-pink-200 bg-pink-50/30 rounded-2xl p-8 text-center">
+                        <p className="text-xs font-bold text-stone-600">Nenhum gasto neste mês.</p>
+                        <p className="text-[10px] text-stone-400 mt-1">Quando uma despesa for lançada, ela aparecerá aqui com a porcentagem que representa da renda recebida.</p>
+                      </div>
+                    ) : (
+                      <>
+                        {expenseChartSegments.map(segment => (
+                          <div key={`${segment.label}-${segment.category}`} className="flex items-center justify-between gap-3 bg-stone-50/70 border border-stone-100 rounded-xl p-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: segment.color }} />
+                              <div className="min-w-0">
+                                <div className="text-xs font-extrabold text-pink-950 truncate">{segment.label}</div>
+                                <div className="text-[9px] text-stone-400 truncate">{segment.category}</div>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div className="text-xs font-extrabold text-stone-700">{maskValue(segment.amount)}</div>
+                              <div className={`text-[10px] font-bold ${
+                                segment.incomePercent >= 70 ? 'text-rose-600' : segment.incomePercent >= 40 ? 'text-amber-600' : 'text-emerald-600'
+                              }`}>
+                                {totalRendaGeral > 0 ? `${segment.incomePercent.toFixed(1)}% da renda` : '—'}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+
+                        {chartUsesIncomeScale && availableChartPct > 0 && (
+                          <div className="flex items-center justify-between gap-3 bg-emerald-50/50 border border-emerald-100 rounded-xl p-3">
+                            <div className="flex items-center gap-3">
+                              <span className="w-3 h-3 rounded-full bg-stone-200 shrink-0" />
+                              <div>
+                                <div className="text-xs font-extrabold text-emerald-800">Renda ainda disponível</div>
+                                <div className="text-[9px] text-emerald-600">Parte não consumida pelos gastos lançados</div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xs font-extrabold text-emerald-800">{maskValue(Math.max(0, saldoRestante))}</div>
+                              <div className="text-[10px] font-bold text-emerald-600">{availableChartPct.toFixed(1)}%</div>
+                            </div>
+                          </div>
+                        )}
+
+                        {totalRendaGeral > 0 && totalGastos > totalRendaGeral && (
+                          <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-[10px] text-rose-800">
+                            <strong>Atenção:</strong> os gastos ultrapassam a renda recebida em {maskValue(totalGastos - totalRendaGeral)}. As porcentagens ao lado continuam calculadas sobre a renda recebida.
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
 
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
-                <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Adicionar Despesa ou Gasto</h3>
+                <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Adicionar despesa do mês</h3>
                 <form onSubmit={handleAddFinancial} className="space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <input type="text" placeholder="Descrição do Gasto" value={finDesc} onChange={(e) => setFinDesc(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
