@@ -1984,8 +1984,7 @@ export function ClinicalDashboard({
     })
 
   const pendingTasks = tasks.filter(t => !t.completed)
-  const completedTasks = tasks.filter(t => t.completed)
-  const dashboardTasks = [...pendingTasks, ...completedTasks]
+  const dashboardTasks = pendingTasks
 
   return (
     <div className="bg-white/95 border border-pink-100 rounded-3xl shadow-sm p-6 space-y-4">
@@ -2004,7 +2003,7 @@ export function ClinicalDashboard({
               <CheckSquare className="w-4 h-4" /> Lista de Tarefas
             </div>
             <span className="text-[10px] font-extrabold bg-white border border-violet-200 text-violet-700 px-2.5 py-1 rounded-full">
-              {pendingTasks.length} pendente{pendingTasks.length === 1 ? '' : 's'} • {completedTasks.length} concluída{completedTasks.length === 1 ? '' : 's'}
+              {pendingTasks.length} pendente{pendingTasks.length === 1 ? '' : 's'}
             </span>
           </div>
 
@@ -2012,45 +2011,30 @@ export function ClinicalDashboard({
             {dashboardTasks.length === 0 ? (
               <div className="h-40 flex flex-col items-center justify-center text-center bg-white/70 border border-dashed border-violet-200 rounded-2xl px-5">
                 <CheckCircle2 className="w-7 h-7 text-emerald-500 mb-2" />
-                <p className="text-xs font-bold text-stone-600">Nenhuma tarefa cadastrada.</p>
-                <p className="text-[10px] text-stone-400 mt-1">As tarefas criadas no Gerenciador de Tarefas aparecerão aqui automaticamente.</p>
+                <p className="text-xs font-bold text-stone-600">Tudo concluído por aqui.</p>
+                <p className="text-[10px] text-stone-400 mt-1">Quando uma tarefa for concluída, ela sai automaticamente desta lista.</p>
               </div>
             ) : (
               dashboardTasks.map((task, idx) => (
                 <label
                   key={task.id}
-                  className={`bg-white border rounded-xl p-3 flex items-start gap-3 shadow-2xs cursor-pointer transition ${
-                    task.completed
-                      ? 'border-emerald-200 bg-emerald-50/60'
-                      : 'border-violet-100 hover:border-violet-300 hover:bg-violet-50/40'
-                  }`}
+                  className="bg-white border border-violet-100 rounded-xl p-3 flex items-start gap-3 shadow-2xs cursor-pointer transition hover:border-violet-300 hover:bg-violet-50/40"
                 >
                   <input
                     type="checkbox"
-                    checked={task.completed}
+                    checked={false}
                     onChange={() => onToggleTask(task.id)}
                     className="w-5 h-5 mt-0.5 accent-pink-500 cursor-pointer shrink-0"
                   />
                   <div className="min-w-0 flex-1">
-                    <div className={`text-xs font-bold leading-relaxed ${
-                      task.completed ? 'line-through text-stone-400' : 'text-pink-950'
-                    }`}>
+                    <div className="text-xs font-bold leading-relaxed text-pink-950">
                       {task.text}
                     </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      {task.category && (
-                        <span className={`text-[9px] font-bold uppercase tracking-wide ${
-                          task.completed ? 'text-emerald-600' : 'text-violet-600'
-                        }`}>
-                          {task.category}
-                        </span>
-                      )}
-                      {task.completed && (
-                        <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                          ✓ Concluída
-                        </span>
-                      )}
-                    </div>
+                    {task.category && (
+                      <div className="text-[9px] font-bold uppercase tracking-wide text-violet-600 mt-1">
+                        {task.category}
+                      </div>
+                    )}
                   </div>
                 </label>
               ))
@@ -2058,11 +2042,8 @@ export function ClinicalDashboard({
           </div>
 
           {dashboardTasks.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-violet-200/70 flex items-center justify-between gap-3">
-              <span className="text-[9px] text-stone-400">Marque ou desmarque qualquer tarefa diretamente aqui.</span>
-              <span className="text-[10px] font-bold text-violet-700">
-                {completedTasks.length}/{dashboardTasks.length} concluídas
-              </span>
+            <div className="mt-3 pt-3 border-t border-violet-200/70">
+              <span className="text-[9px] text-stone-400">Marcou como concluída? Ela sai automaticamente deste painel.</span>
             </div>
           )}
         </div>
