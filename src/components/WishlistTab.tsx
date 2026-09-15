@@ -119,6 +119,7 @@ export default function WishlistTab() {
   const [url, setUrl] = useState('')
   const [imageUrl, setImageUrl] = useState('')
   const [isPreparingImage, setIsPreparingImage] = useState(false)
+  const [previewItem, setPreviewItem] = useState<WishItem | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -126,6 +127,17 @@ export default function WishlistTab() {
     // O page.tsx envia o conteúdo dela para o registro dedicado da Wish List no Supabase.
     localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(items))
   }, [items])
+
+  useEffect(() => {
+    if (!previewItem) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPreviewItem(null)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [previewItem])
 
   const setPreparedImage = async (file: File) => {
     try {
@@ -360,15 +372,20 @@ export default function WishlistTab() {
                 {item.imageUrl ? (
                   <button
                     type="button"
-                    onClick={() => window.open(item.imageUrl, '_blank')}
-                    className="shrink-0"
-                    title="Abrir imagem"
+                    onClick={() => setPreviewItem(item)}
+                    className="shrink-0 relative group"
+                    title="Clique para ampliar a imagem"
                   >
                     <img
                       src={item.imageUrl}
                       alt={item.title}
-                      className="w-14 h-14 rounded-xl object-cover border border-pink-200 hover:scale-105 transition bg-white"
+                      className="w-14 h-14 rounded-xl object-cover border border-pink-200 group-hover:scale-105 group-hover:shadow-md transition bg-white"
                     />
+                    <span className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/10 transition flex items-center justify-center">
+                      <span className="opacity-0 group-hover:opacity-100 transition text-white text-[9px] font-extrabold bg-black/55 px-1.5 py-0.5 rounded-md">
+                        AMPLIAR
+                      </span>
+                    </span>
                   </button>
                 ) : (
                   <div className="w-14 h-14 rounded-xl bg-pink-50 border border-pink-100 flex items-center justify-center shrink-0">
@@ -421,6 +438,53 @@ export default function WishlistTab() {
           ))
         )}
       </div>
+
+      {previewItem?.imageUrl && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setPreviewItem(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Imagem ampliada de ${previewItem.title}`}
+        >
+          <div
+            className="relative max-w-5xl w-full max-h-[92vh] flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setPreviewItem(null)}
+              className="absolute -top-2 -right-2 z-10 w-10 h-10 rounded-full bg-white text-stone-700 shadow-lg flex items-center justify-center hover:bg-pink-50 transition"
+              title="Fechar imagem"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="bg-white rounded-2xl shadow-2xl p-2 max-h-[86vh] max-w-full overflow-auto">
+              <img
+                src={previewItem.imageUrl}
+                alt={previewItem.title}
+                className="block max-w-full max-h-[78vh] w-auto h-auto object-contain rounded-xl mx-auto"
+              />
+
+              <div className="px-2 pt-3 pb-1 text-center">
+                <div className="text-sm font-extrabold text-pink-950">
+                  {previewItem.title}
+                </div>
+                {previewItem.price && (
+                  <div className="text-xs font-bold text-pink-600 mt-1">
+                    {previewItem.price}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="text-white/80 text-[10px] mt-3 font-medium">
+              Clique fora da imagem ou pressione Esc para fechar
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
