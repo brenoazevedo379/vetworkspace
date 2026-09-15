@@ -77,7 +77,7 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
 interface AttachedFile {
   id: string
   name: string
-  type: 'image' | 'excel' | 'docx' | 'doc'
+  type: 'image' | 'pdf' | 'excel' | 'docx' | 'doc'
   size: string
   url: string
 }
@@ -3250,6 +3250,509 @@ function PreChemoChecklist({
   )
 }
 
+
+const readStudyFileAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error(`Não foi possível ler "${file.name}".`))
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.readAsDataURL(file)
+  })
+
+const compressStudyImage = async (
+  file: File,
+  maxSide = 1600,
+  quality = 0.88
+): Promise<string> => {
+  const originalDataUrl = await readStudyFileAsDataUrl(file)
+
+  return new Promise<string>((resolve, reject) => {
+    const image = new Image()
+    image.onerror = () => reject(new Error(`Não foi possível abrir a imagem "${file.name}".`))
+    image.onload = () => {
+      const scale = Math.min(1, maxSide / Math.max(image.width, image.height))
+      const width = Math.max(1, Math.round(image.width * scale))
+      const height = Math.max(1, Math.round(image.height * scale))
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        reject(new Error('O navegador não conseguiu preparar a imagem.'))
+        return
+      }
+
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
+      ctx.drawImage(image, 0, 0, width, height)
+
+      const mime = file.type === 'image/png' && file.size < 2_000_000
+        ? 'image/png'
+        : 'image/jpeg'
+
+      resolve(
+        mime === 'image/png'
+          ? canvas.toDataURL('image/png')
+          : canvas.toDataURL('image/jpeg', quality)
+      )
+    }
+    image.src = originalDataUrl
+  })
+}
+
+const preparePersistentStudyAttachment = async (file: File): Promise<AttachedFile> => {
+  const lower = file.name.toLowerCase()
+  const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(lower)
+  const isPdf = file.type === 'application/pdf' || lower.endsWith('.pdf')
+  const isExcel = /\.(xlsx|xls|csv)$/i.test(lower)
+  const isDocx = /\.(docx|doc)$/i.test(lower)
+
+  if (!isImage && !isPdf && !isExcel && !isDocx) {
+    throw new Error(`"${file.name}" não é um formato suportado.`)
+  }
+
+  if (isImage && file.size > 15 * 1024 * 1024) {
+    throw new Error(`"${file.name}" ultrapassa 15 MB.`)
+  }
+
+  if (!isImage && file.size > 6 * 1024 * 1024) {
+    throw new Error(`"${file.name}" ultrapassa 6 MB. Para materiais grandes, reduza o PDF antes de anexar.`)
+  }
+
+  const url = isImage
+    ? await compressStudyImage(file, 1600, 0.88)
+    : await readStudyFileAsDataUrl(file)
+
+  const type: AttachedFile['type'] = isImage
+    ? 'image'
+    : isPdf
+      ? 'pdf'
+      : isExcel
+        ? 'excel'
+        : isDocx
+          ? 'docx'
+          : 'doc'
+
+  const sizeMb = file.size / (1024 * 1024)
+  const size = sizeMb < 0.1
+    ? `${Math.max(1, Math.round(file.size / 1024))} KB`
+    : `${sizeMb.toFixed(1)} MB`
+
+  return {
+    id: `att-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    name: file.name,
+    type,
+    size,
+    url,
+  }
+}
+
+const escapeStudyPlainText = (value: string) =>
+  value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;')
+
+const normalizeStudyEditorValue = (value: string) => {
+  if (!value) return ''
+  const looksLikeHtml = /<(p|div|br|strong|b|em|i|u|s|strike|ol|ul|li|h1|h2|h3|blockquote|span|img|a|hr)\b/i.test(value)
+  return looksLikeHtml ? value : escapeStudyPlainText(value).replace(/\n/g, '<br>')
+}
+
+const sanitizeStudyHtml = (html: string) => {
+  if (typeof window === 'undefined') return html
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(`<div>${html}</div>`, 'text/html')
+  const root = doc.body.firstElementChild as HTMLElement | null
+  if (!root) return ''
+
+  root.querySelectorAll('script,style,iframe,object,embed,form,input,button,textarea,select').forEach(el => el.remove())
+
+  root.querySelectorAll('*').forEach(el => {
+    Array.from(el.attributes).forEach(attr => {
+      const name = attr.name.toLowerCase()
+      const value = attr.value.trim().toLowerCase()
+
+      if (name.startsWith('on')) el.removeAttribute(attr.name)
+      if ((name === 'href' || name === 'src') && value.startsWith('javascript:')) {
+        el.removeAttribute(attr.name)
+      }
+    })
+
+    if (el.tagName === 'A') {
+      el.setAttribute('target', '_blank')
+      el.setAttribute('rel', 'noopener noreferrer')
+    }
+
+    if (el.tagName === 'IMG') {
+      const img = el as HTMLImageElement
+      img.style.maxWidth = '100%'
+      img.style.height = 'auto'
+      img.style.borderRadius = '12px'
+      img.style.margin = '10px auto'
+      img.style.display = 'block'
+    }
+  })
+
+  return root.innerHTML
+}
+
+function StudyRichEditor({
+  value,
+  onChange,
+  placeholder,
+  onAttachMaterial,
+}: {
+  value: string
+  onChange: (html: string) => void
+  placeholder: string
+  onAttachMaterial?: () => void
+}) {
+  const editorRef = useRef<HTMLDivElement>(null)
+  const inlineImageInputRef = useRef<HTMLInputElement>(null)
+  const savedRangeRef = useRef<Range | null>(null)
+  const [isPreparingInlineImage, setIsPreparingInlineImage] = useState(false)
+
+  useEffect(() => {
+    const editor = editorRef.current
+    if (!editor) return
+    if (document.activeElement === editor) return
+
+    const next = normalizeStudyEditorValue(value)
+    if (editor.innerHTML !== next) editor.innerHTML = next
+  }, [value])
+
+  const rememberSelection = () => {
+    const selection = window.getSelection()
+    const editor = editorRef.current
+    if (!selection || !editor || selection.rangeCount === 0) return
+
+    const range = selection.getRangeAt(0)
+    if (editor.contains(range.commonAncestorContainer)) {
+      savedRangeRef.current = range.cloneRange()
+    }
+  }
+
+  const restoreSelection = () => {
+    const editor = editorRef.current
+    if (!editor) return
+
+    editor.focus()
+    if (!savedRangeRef.current) return
+
+    const selection = window.getSelection()
+    if (!selection) return
+    selection.removeAllRanges()
+    selection.addRange(savedRangeRef.current)
+  }
+
+  const emitChange = () => {
+    const editor = editorRef.current
+    if (!editor) return
+    const clean = sanitizeStudyHtml(editor.innerHTML)
+    onChange(clean)
+    rememberSelection()
+  }
+
+  const runCommand = (command: string, commandValue?: string) => {
+    restoreSelection()
+    document.execCommand(command, false, commandValue)
+    emitChange()
+  }
+
+  const toolbarButton = (
+    label: string,
+    command: string,
+    title: string,
+    commandValue?: string,
+    extraClass = ''
+  ) => (
+    <button
+      type="button"
+      title={title}
+      onMouseDown={e => {
+        e.preventDefault()
+        runCommand(command, commandValue)
+      }}
+      className={`h-8 min-w-8 px-2 rounded-lg border border-stone-200 bg-white hover:bg-pink-50 hover:border-pink-300 text-[11px] font-extrabold text-stone-700 transition ${extraClass}`}
+    >
+      {label}
+    </button>
+  )
+
+  const handleCreateLink = () => {
+    rememberSelection()
+    const url = window.prompt('Cole o endereço do link:')
+    if (!url) return
+    runCommand('createLink', url)
+  }
+
+  const handleInlineImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      alert('Escolha uma imagem.')
+      return
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      alert('A imagem ultrapassa 15 MB.')
+      return
+    }
+
+    try {
+      setIsPreparingInlineImage(true)
+      const dataUrl = await compressStudyImage(file, 1400, 0.9)
+      restoreSelection()
+      document.execCommand('insertImage', false, dataUrl)
+
+      const editor = editorRef.current
+      if (editor) {
+        editor.querySelectorAll('img').forEach(img => {
+          img.style.maxWidth = '100%'
+          img.style.height = 'auto'
+          img.style.borderRadius = '12px'
+          img.style.margin = '12px auto'
+          img.style.display = 'block'
+        })
+      }
+      emitChange()
+    } catch (error: any) {
+      alert(error instanceof Error ? error.message : 'Não foi possível inserir a imagem.')
+    } finally {
+      setIsPreparingInlineImage(false)
+    }
+  }
+
+  const handlePrintEditor = () => {
+    const html = sanitizeStudyHtml(editorRef.current?.innerHTML || normalizeStudyEditorValue(value))
+    const printWindow = window.open('', '_blank', 'width=900,height=760')
+    if (!printWindow) {
+      alert('O navegador bloqueou a janela de impressão.')
+      return
+    }
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html lang="pt-BR">
+        <head>
+          <meta charset="utf-8" />
+          <title>Anotação VetWorkspace</title>
+          <style>
+            @page { size: A4; margin: 16mm; }
+            body { font-family: Arial, sans-serif; color: #2f1b28; line-height: 1.55; font-size: 13px; }
+            h1 { font-size: 24px; } h2 { font-size: 20px; } h3 { font-size: 16px; }
+            img { max-width: 100%; height: auto; border-radius: 10px; }
+            blockquote { border-left: 4px solid #f9a8d4; padding-left: 12px; color: #666; }
+            table { border-collapse: collapse; width: 100%; }
+            a { color: #9d174d; }
+          </style>
+        </head>
+        <body>${html}</body>
+        <script>window.onload = () => window.print()</script>
+      </html>
+    `)
+    printWindow.document.close()
+  }
+
+  return (
+    <div className="border border-pink-200 rounded-2xl overflow-hidden bg-white shadow-2xs">
+      <input
+        ref={inlineImageInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleInlineImage}
+      />
+
+      <div className="bg-stone-50/90 border-b border-pink-100 p-2.5 flex flex-wrap items-center gap-1.5 sticky top-0 z-10">
+        {toolbarButton('↶', 'undo', 'Desfazer')}
+        {toolbarButton('↷', 'redo', 'Refazer')}
+
+        <span className="w-px h-6 bg-stone-200 mx-0.5" />
+
+        <select
+          defaultValue="P"
+          title="Estilo do parágrafo"
+          onMouseDown={rememberSelection}
+          onChange={e => {
+            runCommand('formatBlock', e.target.value)
+            e.target.value = 'P'
+          }}
+          className="h-8 bg-white border border-stone-200 rounded-lg px-2 text-[10px] font-bold text-stone-700"
+        >
+          <option value="P">Texto</option>
+          <option value="H1">Título 1</option>
+          <option value="H2">Título 2</option>
+          <option value="H3">Título 3</option>
+          <option value="BLOCKQUOTE">Citação</option>
+        </select>
+
+        <select
+          defaultValue="3"
+          title="Tamanho da fonte"
+          onMouseDown={rememberSelection}
+          onChange={e => {
+            runCommand('fontSize', e.target.value)
+            e.target.value = '3'
+          }}
+          className="h-8 bg-white border border-stone-200 rounded-lg px-2 text-[10px] font-bold text-stone-700"
+        >
+          <option value="2">Pequena</option>
+          <option value="3">Normal</option>
+          <option value="4">Grande</option>
+          <option value="5">Muito grande</option>
+        </select>
+
+        <span className="w-px h-6 bg-stone-200 mx-0.5" />
+
+        {toolbarButton('B', 'bold', 'Negrito', undefined, 'font-black')}
+        {toolbarButton('I', 'italic', 'Itálico', undefined, 'italic')}
+        {toolbarButton('U', 'underline', 'Sublinhado', undefined, 'underline')}
+        {toolbarButton('S', 'strikeThrough', 'Tachado', undefined, 'line-through')}
+
+        <label title="Cor do texto" className="h-8 px-2 rounded-lg border border-stone-200 bg-white hover:bg-pink-50 flex items-center gap-1 text-[9px] font-bold text-stone-500 cursor-pointer">
+          A
+          <input
+            type="color"
+            defaultValue="#5b213d"
+            className="w-4 h-4 p-0 border-0 bg-transparent cursor-pointer"
+            onMouseDown={rememberSelection}
+            onChange={e => runCommand('foreColor', e.target.value)}
+          />
+        </label>
+
+        <label title="Marca-texto" className="h-8 px-2 rounded-lg border border-stone-200 bg-white hover:bg-pink-50 flex items-center gap-1 text-[9px] font-bold text-stone-500 cursor-pointer">
+          🖍
+          <input
+            type="color"
+            defaultValue="#fff3a3"
+            className="w-4 h-4 p-0 border-0 bg-transparent cursor-pointer"
+            onMouseDown={rememberSelection}
+            onChange={e => runCommand('hiliteColor', e.target.value)}
+          />
+        </label>
+
+        <span className="w-px h-6 bg-stone-200 mx-0.5" />
+
+        {toolbarButton('• Lista', 'insertUnorderedList', 'Lista com marcadores')}
+        {toolbarButton('1. Lista', 'insertOrderedList', 'Lista numerada')}
+        {toolbarButton('←', 'outdent', 'Diminuir recuo')}
+        {toolbarButton('→', 'indent', 'Aumentar recuo')}
+
+        <span className="w-px h-6 bg-stone-200 mx-0.5" />
+
+        {toolbarButton('≡', 'justifyLeft', 'Alinhar à esquerda')}
+        {toolbarButton('≣', 'justifyCenter', 'Centralizar')}
+        {toolbarButton('☷', 'justifyRight', 'Alinhar à direita')}
+        {toolbarButton('―', 'insertHorizontalRule', 'Linha horizontal')}
+
+        <span className="w-px h-6 bg-stone-200 mx-0.5" />
+
+        <button
+          type="button"
+          title="Inserir link"
+          onMouseDown={e => {
+            e.preventDefault()
+            handleCreateLink()
+          }}
+          className="h-8 px-2 rounded-lg border border-stone-200 bg-white hover:bg-pink-50 text-[10px] font-bold text-stone-700"
+        >
+          🔗 Link
+        </button>
+
+        <button
+          type="button"
+          title="Inserir imagem dentro da anotação"
+          disabled={isPreparingInlineImage}
+          onMouseDown={e => {
+            e.preventDefault()
+            rememberSelection()
+            inlineImageInputRef.current?.click()
+          }}
+          className="h-8 px-2 rounded-lg border border-stone-200 bg-white hover:bg-pink-50 disabled:opacity-50 text-[10px] font-bold text-stone-700"
+        >
+          {isPreparingInlineImage ? 'Preparando…' : '🖼 Imagem'}
+        </button>
+
+        {onAttachMaterial && (
+          <button
+            type="button"
+            title="Anexar PDF, imagem, Word ou planilha"
+            onMouseDown={e => {
+              e.preventDefault()
+              rememberSelection()
+              onAttachMaterial()
+            }}
+            className="h-8 px-2 rounded-lg border border-pink-200 bg-pink-50 hover:bg-pink-100 text-[10px] font-bold text-pink-800"
+          >
+            📎 Anexar
+          </button>
+        )}
+
+        <button
+          type="button"
+          title="Remover formatação"
+          onMouseDown={e => {
+            e.preventDefault()
+            runCommand('removeFormat')
+          }}
+          className="h-8 px-2 rounded-lg border border-stone-200 bg-white hover:bg-stone-100 text-[10px] font-bold text-stone-600"
+        >
+          Limpar
+        </button>
+
+        <button
+          type="button"
+          title="Imprimir ou salvar em PDF"
+          onMouseDown={e => {
+            e.preventDefault()
+            handlePrintEditor()
+          }}
+          className="h-8 px-2 rounded-lg border border-stone-200 bg-white hover:bg-stone-100 text-[10px] font-bold text-stone-700"
+        >
+          🖨 Imprimir
+        </button>
+
+        <span className="ml-auto text-[9px] font-bold text-emerald-600 px-2">
+          ✓ Salvamento automático
+        </span>
+      </div>
+
+      <div
+        ref={editorRef}
+        contentEditable
+        suppressContentEditableWarning
+        data-placeholder={placeholder}
+        onInput={emitChange}
+        onMouseUp={rememberSelection}
+        onKeyUp={rememberSelection}
+        onFocus={rememberSelection}
+        onBlur={() => {
+          rememberSelection()
+          emitChange()
+        }}
+        className="min-h-[360px] max-h-[620px] overflow-y-auto p-5 md:p-6 text-sm leading-relaxed text-stone-800 focus:outline-none
+          empty:before:content-[attr(data-placeholder)] empty:before:text-stone-300
+          [&_h1]:text-2xl [&_h1]:font-extrabold [&_h1]:text-pink-950 [&_h1]:mb-3
+          [&_h2]:text-xl [&_h2]:font-extrabold [&_h2]:text-pink-950 [&_h2]:mb-2
+          [&_h3]:text-base [&_h3]:font-extrabold [&_h3]:text-pink-900 [&_h3]:mb-2
+          [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-2
+          [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-2
+          [&_li]:my-1
+          [&_blockquote]:border-l-4 [&_blockquote]:border-pink-200 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-stone-600
+          [&_a]:text-pink-700 [&_a]:underline
+          [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-xl [&_img]:my-3"
+      />
+    </div>
+  )
+}
+
 export default function VetWorkspaceBeatrizV28() {
   const [isMounted, setIsMounted] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
@@ -3311,6 +3814,7 @@ export default function VetWorkspaceBeatrizV28() {
   const todayDateKey = `${currentYear}-${padZero(currentMonth + 1)}-${padZero(currentDayNum)}`
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isStudyFileProcessing, setIsStudyFileProcessing] = useState(false)
   const shiftPhotoInputRef = useRef<HTMLInputElement>(null)
   const petPhotoInputRef = useRef<HTMLInputElement>(null)
 
@@ -3445,10 +3949,42 @@ export default function VetWorkspaceBeatrizV28() {
     if (typeof window !== 'undefined') return localStorage.getItem('vet_mimos_v28') || ''
     return ''
   })
+  const [wishlistSyncData, setWishlistSyncData] = useState<any[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('vet_wishlist')
+        return saved ? JSON.parse(saved) : []
+      } catch(e) {}
+    }
+    return []
+  })
+  const wishlistLocalSnapshotRef = useRef<string>('')
+
   const [descompressaoNotes, setDescompressaoNotes] = useState<string>(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('vet_descomp_v28') || ''
     return ''
   })
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const readWishlistFromLocalComponent = () => {
+      const raw = localStorage.getItem('vet_wishlist') || '[]'
+      if (raw === wishlistLocalSnapshotRef.current) return
+
+      try {
+        const parsed = JSON.parse(raw)
+        if (!Array.isArray(parsed)) return
+        wishlistLocalSnapshotRef.current = raw
+        setWishlistSyncData(parsed)
+        if (isInitialized) lastLocalMutationRef.current = Date.now()
+      } catch(e) {}
+    }
+
+    readWishlistFromLocalComponent()
+    const timer = window.setInterval(readWishlistFromLocalComponent, 900)
+    return () => window.clearInterval(timer)
+  }, [isInitialized])
 
   const [gameIndex, setGameIndex] = useState(0)
   const [cafeIndex, setCafeIndex] = useState(0)
@@ -4380,6 +4916,12 @@ export default function VetWorkspaceBeatrizV28() {
           if (d.specialistConsultations) { setSpecialistConsultations(d.specialistConsultations); localStorage.setItem('vet_specialist_consultations_v28', JSON.stringify(d.specialistConsultations)); }
           if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v28', JSON.stringify(d.personalPets)); }
           if (d.skincareDone) { setSkincareDone(d.skincareDone); localStorage.setItem('vet_skincare_checked_v28', JSON.stringify(d.skincareDone)); }
+          if (d.wishlist !== undefined && Array.isArray(d.wishlist)) {
+            setWishlistSyncData(d.wishlist)
+            const wishlistJson = JSON.stringify(d.wishlist)
+            wishlistLocalSnapshotRef.current = wishlistJson
+            localStorage.setItem('vet_wishlist', wishlistJson)
+          }
           if (d.mimosWishlist) { setMimosWishlist(d.mimosWishlist); localStorage.setItem('vet_mimos_v28', d.mimosWishlist); }
           if (d.descompressaoNotes) { setDescompressaoNotes(d.descompressaoNotes); localStorage.setItem('vet_descomp_v28', d.descompressaoNotes); }
           setSaveStatus('Sincronizado')
@@ -4465,6 +5007,12 @@ export default function VetWorkspaceBeatrizV28() {
             if (d.specialistConsultations) { setSpecialistConsultations(d.specialistConsultations); localStorage.setItem('vet_specialist_consultations_v28', JSON.stringify(d.specialistConsultations)); }
             if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v28', JSON.stringify(d.personalPets)); }
             if (d.skincareDone) { setSkincareDone(d.skincareDone); localStorage.setItem('vet_skincare_checked_v28', JSON.stringify(d.skincareDone)); }
+            if (d.wishlist !== undefined && Array.isArray(d.wishlist)) {
+              setWishlistSyncData(d.wishlist)
+              const wishlistJson = JSON.stringify(d.wishlist)
+              wishlistLocalSnapshotRef.current = wishlistJson
+              localStorage.setItem('vet_wishlist', wishlistJson)
+            }
           }
         }
       )
@@ -4500,12 +5048,8 @@ export default function VetWorkspaceBeatrizV28() {
     localStorage.setItem('vet_skincare_checked_v28', JSON.stringify(skincareDone))
     localStorage.setItem('vet_mimos_v28', mimosWishlist)
     localStorage.setItem('vet_descomp_v28', descompressaoNotes)
-
-    let wishlistData = []
-    try {
-      const savedWish = localStorage.getItem('vet_wishlist')
-      if (savedWish) wishlistData = JSON.parse(savedWish)
-    } catch(e) {}
+    localStorage.setItem('vet_wishlist', JSON.stringify(wishlistSyncData))
+    wishlistLocalSnapshotRef.current = JSON.stringify(wishlistSyncData)
 
     setSaveStatus('Salvando...')
 
@@ -4532,7 +5076,7 @@ export default function VetWorkspaceBeatrizV28() {
           skincareDone,
           mimosWishlist,
           descompressaoNotes,
-          wishlist: wishlistData
+          wishlist: wishlistSyncData
         }
 
         const { error } = await supabase
@@ -4555,32 +5099,51 @@ export default function VetWorkspaceBeatrizV28() {
 
     const timer = setTimeout(syncToCloud, 800)
     return () => clearTimeout(timer)
-  }, [isInitialized, items, patients, recipes, customDrugs, monthlyIncome, otherIncome, monthlyIncomeByMonth, otherIncomeByMonth, cofrinhoAmount, finances, tasks, events, chatSessions, clinics, shifts, specialistConsultations, personalPets, skincareDone, mimosWishlist, descompressaoNotes])
+  }, [isInitialized, items, patients, recipes, customDrugs, monthlyIncome, otherIncome, monthlyIncomeByMonth, otherIncomeByMonth, cofrinhoAmount, finances, tasks, events, chatSessions, clinics, shifts, specialistConsultations, personalPets, skincareDone, wishlistSyncData, mimosWishlist, descompressaoNotes])
 
   const selectedItem = items.find(i => i.id === selectedItemId && i.type === 'page') || items.find(i => i.type === 'page')
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
-    const file = files[0]
-    const fileUrl = URL.createObjectURL(file)
-    const fileName = file.name
-    const fileSize = (file.size / (1024 * 1024)).toFixed(1) + ' MB'
-    let fileType: 'image' | 'excel' | 'docx' | 'doc' = 'doc'
-    const lower = fileName.toLowerCase()
-    if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg')) fileType = 'image'
-    else if (lower.endsWith('.xlsx') || lower.endsWith('.xls') || lower.endsWith('.csv')) fileType = 'excel'
-    else if (lower.endsWith('.docx') || lower.endsWith('.doc')) fileType = 'docx'
-
-    const newAtt: AttachedFile = { id: Date.now().toString(), name: fileName, type: fileType, size: fileSize, url: fileUrl }
-
-    if (activeTaskForAttach) {
-      setTasks(prev => prev.map(t => t.id === activeTaskForAttach ? { ...t, attachments: [...(t.attachments || []), newAtt] } : t))
-      setActiveTaskForAttach(null)
-    } else if (selectedItem) {
-      setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, attachments: [...(i.attachments || []), newAtt] } : i))
-    }
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
     e.target.value = ''
+    if (files.length === 0) return
+
+    const targetTaskId = activeTaskForAttach
+    const targetItemId = targetTaskId ? null : selectedItem?.id || null
+
+    try {
+      setIsStudyFileProcessing(true)
+      const prepared: AttachedFile[] = []
+
+      for (const file of files.slice(0, 8)) {
+        prepared.push(await preparePersistentStudyAttachment(file))
+      }
+
+      lastLocalMutationRef.current = Date.now()
+
+      if (targetTaskId) {
+        setTasks(prev => prev.map(task =>
+          task.id === targetTaskId
+            ? { ...task, attachments: [...(task.attachments || []), ...prepared] }
+            : task
+        ))
+        setActiveTaskForAttach(null)
+      } else if (targetItemId) {
+        setItems(prev => prev.map(item =>
+          item.id === targetItemId
+            ? { ...item, attachments: [...(item.attachments || []), ...prepared] }
+            : item
+        ))
+      }
+
+      if (files.length > 8) {
+        alert('Foram adicionados os primeiros 8 arquivos. Para manter a página leve, envie os demais em outro lote.')
+      }
+    } catch (error: any) {
+      alert(error instanceof Error ? error.message : 'Não foi possível anexar o material.')
+    } finally {
+      setIsStudyFileProcessing(false)
+    }
   }
 
   const handleRemoveAttachment = (itemId: string, attachmentId: string) => {
@@ -5660,7 +6223,7 @@ export default function VetWorkspaceBeatrizV28() {
         </div>
       </div>
 
-      <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".docx,.doc,.xlsx,.xls,.png,.jpg,.jpeg,.pdf" />
+      <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" multiple accept=".docx,.doc,.xlsx,.xls,.csv,.png,.jpg,.jpeg,.webp,.pdf,image/*,application/pdf" />
 
       {/* BARRA LATERAL */}
       <div className={`${isSidebarOpen ? 'w-88' : 'w-0'} transition-all duration-200 bg-white/90 backdrop-blur-md border-r border-pink-100 flex flex-col z-10 overflow-hidden shadow-xs select-none shrink-0`}>
@@ -6905,36 +7468,92 @@ export default function VetWorkspaceBeatrizV28() {
                   />
                 </div>
                 <div className="flex items-center gap-2.5">
-                  <button onClick={() => { setActiveTaskForAttach(null); fileInputRef.current?.click(); }} className="bg-pink-100 hover:bg-pink-200 text-pink-800 px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-2xs flex items-center gap-1.5 cursor-pointer">
-                    <Paperclip className="w-4 h-4" /> Anexar Material ({selectedItem.attachments?.length || 0})
+                  <button
+                    disabled={isStudyFileProcessing}
+                    onClick={() => { setActiveTaskForAttach(null); fileInputRef.current?.click(); }}
+                    className="bg-pink-100 hover:bg-pink-200 disabled:opacity-50 text-pink-800 px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {isStudyFileProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+                    {isStudyFileProcessing ? 'Salvando material...' : `Anexar Material (${selectedItem.attachments?.length || 0})`}
                   </button>
                 </div>
               </div>
 
               {selectedItem.attachments && selectedItem.attachments.length > 0 && (
-                <div className="bg-pink-50/70 border border-pink-200 p-4 rounded-2xl space-y-2">
-                  <span className="text-xs font-extrabold text-pink-950">Arquivos Anexados a esta Página:</span>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedItem.attachments.map(att => (
-                      <div key={att.id} className="bg-white border border-pink-200 px-3 py-1.5 rounded-xl text-xs font-bold text-pink-700 hover:bg-pink-100 flex items-center gap-1.5 shadow-2xs">
-                        <a href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:underline">
-                          📎 {att.name} ({att.size})
-                        </a>
-                        <button
-                          type="button"
-                          title="Excluir Anexo"
-                          onClick={() => { lastLocalMutationRef.current = Date.now(); handleRemoveAttachment(selectedItem.id, att.id); }}
-                          className="text-stone-400 hover:text-red-500 p-0.5 ml-1 transition cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
+                <div className="bg-pink-50/70 border border-pink-200 p-4 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <span className="text-xs font-extrabold text-pink-950">Materiais desta página</span>
+                      <p className="text-[9px] text-stone-400 mt-0.5">Fotos e arquivos novos ficam salvos junto do workspace e aparecem nos outros dispositivos.</p>
+                    </div>
+                    <span className="text-[9px] font-bold text-pink-600">{selectedItem.attachments.length} arquivo(s)</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5">
+                    {selectedItem.attachments.map(att => {
+                      const legacyBlob = att.url?.startsWith('blob:')
+                      return (
+                        <div key={att.id} className="bg-white border border-pink-200 rounded-xl p-2.5 shadow-2xs min-w-0">
+                          {att.type === 'image' && !legacyBlob ? (
+                            <a href={att.url} target="_blank" rel="noopener noreferrer" className="block">
+                              <img src={att.url} alt={att.name} className="w-full h-28 object-cover rounded-lg border border-pink-100" />
+                            </a>
+                          ) : (
+                            <div className={`h-20 rounded-lg flex items-center justify-center text-3xl border ${
+                              legacyBlob ? 'bg-amber-50 border-amber-200' : att.type === 'pdf' ? 'bg-rose-50 border-rose-100' : 'bg-stone-50 border-stone-100'
+                            }`}>
+                              {legacyBlob ? '⚠️' : att.type === 'pdf' ? '📄' : att.type === 'excel' ? '📊' : '📝'}
+                            </div>
+                          )}
+
+                          <div className="mt-2 min-w-0">
+                            <div className="text-[10px] font-extrabold text-pink-950 truncate" title={att.name}>{att.name}</div>
+                            <div className="text-[9px] text-stone-400 mt-0.5">{att.size}</div>
+                            {legacyBlob && (
+                              <div className="text-[9px] text-amber-700 font-bold mt-1">Anexo antigo local — precisa ser reenviado.</div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1.5 mt-2">
+                            {!legacyBlob && (
+                              <a
+                                href={att.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                download={att.url.startsWith('data:') ? att.name : undefined}
+                                className="flex-1 text-center bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-700 px-2 py-1.5 rounded-lg text-[9px] font-bold"
+                              >
+                                {att.type === 'pdf' ? 'Abrir / Baixar PDF' : 'Abrir / Baixar'}
+                              </a>
+                            )}
+                            <button
+                              type="button"
+                              title="Excluir anexo"
+                              onClick={() => {
+                                lastLocalMutationRef.current = Date.now()
+                                handleRemoveAttachment(selectedItem.id, att.id)
+                              }}
+                              className="p-1.5 rounded-lg text-stone-400 hover:text-red-500 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )}
 
-              <div className="flex items-center gap-2 border-b border-pink-100 pb-3">
+              <div className="bg-white border border-pink-100 rounded-2xl px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <div className="text-[10px] font-extrabold text-pink-900 uppercase tracking-wider">Editor de estudos estilo mini Word</div>
+                  <div className="text-[9px] text-stone-400 mt-0.5">Formatação, listas numeradas, tópicos, títulos, cores, links, imagens no texto, impressão e anexos persistentes.</div>
+                </div>
+                <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">Salva automaticamente</span>
+              </div>
+
+              <div className="flex items-center gap-2 border-b border-pink-100 pb-3 overflow-x-auto">
                 <button onClick={() => setStudySubTab('resumo')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${studySubTab === 'resumo' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}>
                   <FileText className="w-3.5 h-3.5" /> Prescrição & Conteúdo
                 </button>
@@ -6949,19 +7568,46 @@ export default function VetWorkspaceBeatrizV28() {
               {studySubTab === 'resumo' && (
                 <div className="space-y-3">
                   <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><FileText className="w-3.5 h-3.5 text-pink-500" /> Prescrição ou Conteúdo Principal</label>
-                  <textarea value={selectedItem.content || ''} onChange={(e) => { lastLocalMutationRef.current = Date.now(); setItems(items.map(i => i.id === selectedItem.id ? { ...i, content: e.target.value } : i)); }} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300 select-text" placeholder="Escreva a receita, doses ou resumo da matéria..." />
+                  <StudyRichEditor
+                    key={`${selectedItem.id}-content`}
+                    value={selectedItem.content || ''}
+                    placeholder="Escreva a receita, resumo da aula ou conteúdo. Use títulos, listas, negrito, marca-texto, links e imagens..."
+                    onAttachMaterial={() => { setActiveTaskForAttach(null); fileInputRef.current?.click() }}
+                    onChange={(html) => {
+                      lastLocalMutationRef.current = Date.now()
+                      setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, content: html } : i))
+                    }}
+                  />
                 </div>
               )}
               {studySubTab === 'diferenciais' && (
                 <div className="space-y-3">
                   <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><Layers className="w-3.5 h-3.5 text-pink-500" /> Diagnósticos Diferenciais / Opções</label>
-                  <textarea value={selectedItem.differential || ''} onChange={(e) => { lastLocalMutationRef.current = Date.now(); setItems(items.map(i => i.id === selectedItem.id ? { ...i, differential: e.target.value } : i)); }} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300 select-text" placeholder="Liste aqui os diferenciais clínicos..." />
+                  <StudyRichEditor
+                    key={`${selectedItem.id}-differential`}
+                    value={selectedItem.differential || ''}
+                    placeholder="Liste diferenciais, hipóteses, comparações, tópicos de estudo e observações..."
+                    onAttachMaterial={() => { setActiveTaskForAttach(null); fileInputRef.current?.click() }}
+                    onChange={(html) => {
+                      lastLocalMutationRef.current = Date.now()
+                      setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, differential: html } : i))
+                    }}
+                  />
                 </div>
               )}
               {studySubTab === 'pontos' && (
                 <div className="space-y-3">
                   <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><Bookmark className="w-3.5 h-3.5 text-pink-500" /> Observações, Contraindicações & Avisos ao Tutor</label>
-                  <textarea value={selectedItem.notes || ''} onChange={(e) => { lastLocalMutationRef.current = Date.now(); setItems(items.map(i => i.id === selectedItem.id ? { ...i, notes: e.target.value } : i)); }} rows={14} className="w-full bg-pink-50/25 border border-pink-200 p-5 rounded-2xl text-stone-800 text-sm leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300 select-text" placeholder="Anotações importantes..." />
+                  <StudyRichEditor
+                    key={`${selectedItem.id}-notes`}
+                    value={selectedItem.notes || ''}
+                    placeholder="Anotações importantes, contraindicações, posologia, avisos, lembretes e pontos-chave..."
+                    onAttachMaterial={() => { setActiveTaskForAttach(null); fileInputRef.current?.click() }}
+                    onChange={(html) => {
+                      lastLocalMutationRef.current = Date.now()
+                      setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, notes: html } : i))
+                    }}
+                  />
                 </div>
               )}
             </div>
@@ -7411,7 +8057,7 @@ export default function VetWorkspaceBeatrizV28() {
           )}
 
           {activeTab === 'wishlist' && (
-            <WishlistTab />
+            <WishlistTab key={`wishlist-${JSON.stringify(wishlistSyncData)}`} />
           )}
 
           {activeTab === 'receitas' && (
