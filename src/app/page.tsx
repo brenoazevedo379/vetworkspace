@@ -82,6 +82,13 @@ interface AttachedFile {
   url: string
 }
 
+interface DocumentSection {
+  id: string
+  title: string
+  content: string
+  order: number
+}
+
 interface DocumentItem {
   id: string
   title: string
@@ -90,6 +97,7 @@ interface DocumentItem {
   content?: string
   differential?: string
   notes?: string
+  sections?: DocumentSection[]
   isOpen?: boolean 
   attachments?: AttachedFile[]
   order?: number
@@ -3753,6 +3761,52 @@ function StudyRichEditor({
   )
 }
 
+
+const buildStudySections = (item: DocumentItem): DocumentSection[] => {
+  if (Array.isArray(item.sections) && item.sections.length > 0) {
+    return [...item.sections]
+      .map((section, index) => ({
+        id: section.id || `section-${index}`,
+        title: section.title?.trim() || `Aba ${index + 1}`,
+        content: section.content || '',
+        order: Number.isFinite(section.order) ? section.order : index,
+      }))
+      .sort((a, b) => a.order - b.order)
+  }
+
+  // Migração transparente das três abas antigas para o novo sistema.
+  return [
+    {
+      id: 'resumo',
+      title: 'Prescrição & Conteúdo',
+      content: item.content || '',
+      order: 0,
+    },
+    {
+      id: 'diferenciais',
+      title: 'Diagnósticos Diferenciais',
+      content: item.differential || '',
+      order: 1,
+    },
+    {
+      id: 'pontos',
+      title: 'Observações & Posologia',
+      content: item.notes || '',
+      order: 2,
+    },
+  ]
+}
+
+const syncLegacyStudyFields = (
+  item: DocumentItem,
+  sections: DocumentSection[]
+): Partial<DocumentItem> => ({
+  // Mantém compatibilidade com versões antigas do VetWorkspace.
+  content: sections.find(section => section.id === 'resumo')?.content ?? item.content ?? '',
+  differential: sections.find(section => section.id === 'diferenciais')?.content ?? item.differential ?? '',
+  notes: sections.find(section => section.id === 'pontos')?.content ?? item.notes ?? '',
+})
+
 export default function VetWorkspaceBeatrizV28() {
   const [isMounted, setIsMounted] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
@@ -3818,7 +3872,11 @@ export default function VetWorkspaceBeatrizV28() {
   const shiftPhotoInputRef = useRef<HTMLInputElement>(null)
   const petPhotoInputRef = useRef<HTMLInputElement>(null)
 
-  const [studySubTab, setStudySubTab] = useState<'resumo' | 'diferenciais' | 'pontos'>('resumo')
+  const [studySubTab, setStudySubTab] = useState<string>('resumo')
+  const [isAddingStudyTab, setIsAddingStudyTab] = useState(false)
+  const [newStudyTabTitle, setNewStudyTabTitle] = useState('')
+  const [editingStudyTabId, setEditingStudyTabId] = useState<string | null>(null)
+  const [editingStudyTabTitle, setEditingStudyTabTitle] = useState('')
 
   const [chatSessions, setChatSessions] = useState<ChatSession[]>(() => {
     if (typeof window !== 'undefined') {
@@ -5102,6 +5160,150 @@ export default function VetWorkspaceBeatrizV28() {
   }, [isInitialized, items, patients, recipes, customDrugs, monthlyIncome, otherIncome, monthlyIncomeByMonth, otherIncomeByMonth, cofrinhoAmount, finances, tasks, events, chatSessions, clinics, shifts, specialistConsultations, personalPets, skincareDone, wishlistSyncData, mimosWishlist, descompressaoNotes])
 
   const selectedItem = items.find(i => i.id === selectedItemId && i.type === 'page') || items.find(i => i.type === 'page')
+
+  const selectedStudySections = selectedItem ? buildStudySections(selectedItem) : []
+  const activeStudySection =
+    selectedStudySections.find(section => section.id === studySubTab) ||
+    selectedStudySections[0] ||
+    null
+
+  const updateStudySections = (
+    itemId: string,
+    updater: (sections: DocumentSection[]) => DocumentSection[]
+  ) => {
+    lastLocalMutationRef.current = Date.now()
+    setItems(prev => prev.map(item => {
+      if (item.id !== itemId || item.type !== 'page') return item
+
+      const currentSections = buildStudySections(item)
+      const nextSections = updater(currentSections)
+        .map((section, index) => ({
+          ...section,
+          title: section.title.trim() || `Aba ${index + 1}`,
+          order: index,
+        }))
+
+      return {
+        ...item,
+        ...syncLegacyStudyFields(item, nextSections),
+        sections: nextSections,
+      }
+    }))
+  }
+
+  const handleAddStudyTab = () => {
+    if (!selectedItem) return
+    const title = newStudyTabTitle.trim()
+    if (!title) return
+
+    if (selectedStudySections.some(section =>
+      section.title.trim().toLocaleLowerCase('pt-BR') === title.toLocaleLowerCase('pt-BR')
+    )) {
+      alert('Já existe uma aba com esse nome nesta página.')
+      return
+    }
+
+    const id = `study-tab-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    updateStudySections(selectedItem.id, sections => [
+      ...sections,
+      {
+        id,
+        title,
+        content: '',
+        order: sections.length,
+      },
+    ])
+
+    setStudySubTab(id)
+    setNewStudyTabTitle('')
+    setIsAddingStudyTab(false)
+  }
+
+  const handleRenameStudyTab = (sectionId: string) => {
+    if (!selectedItem) return
+    const title = editingStudyTabTitle.trim()
+    if (!title) return
+
+    if (selectedStudySections.some(section =>
+      section.id !== sectionId &&
+      section.title.trim().toLocaleLowerCase('pt-BR') === title.toLocaleLowerCase('pt-BR')
+    )) {
+      alert('Já existe outra aba com esse nome.')
+      return
+    }
+
+    updateStudySections(selectedItem.id, sections =>
+      sections.map(section =>
+        section.id === sectionId ? { ...section, title } : section
+      )
+    )
+
+    setEditingStudyTabId(null)
+    setEditingStudyTabTitle('')
+  }
+
+  const handleDeleteStudyTab = (sectionId: string) => {
+    if (!selectedItem) return
+    if (selectedStudySections.length <= 1) {
+      alert('A página precisa ter pelo menos uma aba.')
+      return
+    }
+
+    const section = selectedStudySections.find(item => item.id === sectionId)
+    if (!section) return
+
+    if (!confirm(`Excluir a aba "${section.title}" e todo o conteúdo dela?`)) return
+
+    const remaining = selectedStudySections.filter(item => item.id !== sectionId)
+    updateStudySections(selectedItem.id, sections =>
+      sections.filter(item => item.id !== sectionId)
+    )
+
+    if (studySubTab === sectionId) {
+      setStudySubTab(remaining[0]?.id || '')
+    }
+
+    if (editingStudyTabId === sectionId) {
+      setEditingStudyTabId(null)
+      setEditingStudyTabTitle('')
+    }
+  }
+
+  const moveStudyTab = (sectionId: string, direction: -1 | 1) => {
+    if (!selectedItem) return
+    const currentIndex = selectedStudySections.findIndex(section => section.id === sectionId)
+    const targetIndex = currentIndex + direction
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= selectedStudySections.length) return
+
+    updateStudySections(selectedItem.id, sections => {
+      const next = [...sections]
+      const [moved] = next.splice(currentIndex, 1)
+      next.splice(targetIndex, 0, moved)
+      return next
+    })
+  }
+
+  // Ao abrir uma página antiga, migra as três abas legadas sem perder o texto já escrito.
+  useEffect(() => {
+    if (!selectedItem || selectedItem.type !== 'page') return
+    if (Array.isArray(selectedItem.sections) && selectedItem.sections.length > 0) return
+
+    const migrated = buildStudySections(selectedItem)
+    lastLocalMutationRef.current = Date.now()
+    setItems(prev => prev.map(item =>
+      item.id === selectedItem.id
+        ? { ...item, sections: migrated }
+        : item
+    ))
+  }, [selectedItem?.id])
+
+  // Se trocar de página ou apagar uma aba ativa, abre automaticamente uma aba válida.
+  useEffect(() => {
+    if (!selectedItem || selectedStudySections.length === 0) return
+    if (!selectedStudySections.some(section => section.id === studySubTab)) {
+      setStudySubTab(selectedStudySections[0].id)
+    }
+  }, [selectedItem?.id, selectedStudySections.map(section => section.id).join('|'), studySubTab])
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
@@ -7553,61 +7755,244 @@ export default function VetWorkspaceBeatrizV28() {
                 <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">Salva automaticamente</span>
               </div>
 
-              <div className="flex items-center gap-2 border-b border-pink-100 pb-3 overflow-x-auto">
-                <button onClick={() => setStudySubTab('resumo')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${studySubTab === 'resumo' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}>
-                  <FileText className="w-3.5 h-3.5" /> Prescrição & Conteúdo
-                </button>
-                <button onClick={() => setStudySubTab('diferenciais')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${studySubTab === 'diferenciais' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}>
-                  <Layers className="w-3.5 h-3.5" /> Diagnósticos Diferenciais
-                </button>
-                <button onClick={() => setStudySubTab('pontos')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${studySubTab === 'pontos' ? 'bg-pink-500 text-white shadow-xs' : 'bg-pink-50 text-pink-900/70 hover:bg-pink-100'}`}>
-                  <Bookmark className="w-3.5 h-3.5" /> Observações & Posologia
-                </button>
+              <div className="space-y-3">
+                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] font-extrabold text-pink-900 uppercase tracking-wider">Abas desta página</div>
+                    <div className="text-[9px] text-stone-400 mt-0.5">
+                      Renomeie, crie, exclua ou reorganize as abas. Cada uma tem seu próprio editor e conteúdo.
+                    </div>
+                  </div>
+
+                  {isAddingStudyTab ? (
+                    <div className="flex items-center gap-2 w-full xl:w-auto">
+                      <input
+                        autoFocus
+                        type="text"
+                        maxLength={80}
+                        value={newStudyTabTitle}
+                        onChange={e => setNewStudyTabTitle(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            handleAddStudyTab()
+                          }
+                          if (e.key === 'Escape') {
+                            setIsAddingStudyTab(false)
+                            setNewStudyTabTitle('')
+                          }
+                        }}
+                        placeholder="Ex.: Epidemiologia, Protocolo, Aula 2..."
+                        className="w-full xl:w-72 bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none focus:border-pink-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddStudyTab}
+                        disabled={!newStudyTabTitle.trim()}
+                        className="bg-pink-500 hover:bg-pink-600 disabled:opacity-40 text-white px-3 py-2 rounded-xl text-[10px] font-bold whitespace-nowrap"
+                      >
+                        Criar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddingStudyTab(false)
+                          setNewStudyTabTitle('')
+                        }}
+                        className="bg-stone-100 hover:bg-stone-200 text-stone-600 px-3 py-2 rounded-xl text-[10px] font-bold"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingStudyTab(true)}
+                      className="bg-pink-500 hover:bg-pink-600 text-white px-3.5 py-2 rounded-xl text-[10px] font-extrabold flex items-center gap-1.5 w-fit"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Nova aba
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 border-b border-pink-100 pb-3 overflow-x-auto">
+                  {selectedStudySections.map((section, index) => {
+                    const active = activeStudySection?.id === section.id
+                    const editing = editingStudyTabId === section.id
+
+                    return (
+                      <div
+                        key={section.id}
+                        className={`group shrink-0 flex items-center rounded-xl border transition ${
+                          active
+                            ? 'bg-pink-500 border-pink-500 text-white shadow-xs'
+                            : 'bg-pink-50 border-pink-100 text-pink-900 hover:bg-pink-100'
+                        }`}
+                      >
+                        {editing ? (
+                          <div className="flex items-center gap-1 p-1">
+                            <input
+                              autoFocus
+                              type="text"
+                              maxLength={80}
+                              value={editingStudyTabTitle}
+                              onChange={e => setEditingStudyTabTitle(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault()
+                                  handleRenameStudyTab(section.id)
+                                }
+                                if (e.key === 'Escape') {
+                                  setEditingStudyTabId(null)
+                                  setEditingStudyTabTitle('')
+                                }
+                              }}
+                              className="w-44 bg-white text-pink-950 border border-pink-200 rounded-lg px-2 py-1.5 text-[10px] font-bold focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRenameStudyTab(section.id)}
+                              className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 flex items-center justify-center"
+                              title="Salvar nome"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingStudyTabId(null)
+                                setEditingStudyTabTitle('')
+                              }}
+                              className="w-7 h-7 rounded-lg bg-stone-100 text-stone-500 hover:bg-stone-200 flex items-center justify-center"
+                              title="Cancelar"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setStudySubTab(section.id)}
+                              className="px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 max-w-[230px]"
+                              title={section.title}
+                            >
+                              {section.id === 'diferenciais'
+                                ? <Layers className="w-3.5 h-3.5 shrink-0" />
+                                : section.id === 'pontos'
+                                  ? <Bookmark className="w-3.5 h-3.5 shrink-0" />
+                                  : <FileText className="w-3.5 h-3.5 shrink-0" />}
+                              <span className="truncate">{section.title}</span>
+                            </button>
+
+                            <div className={`flex items-center pr-1 ${
+                              active ? 'text-pink-100' : 'text-pink-500'
+                            }`}>
+                              <button
+                                type="button"
+                                onClick={() => moveStudyTab(section.id, -1)}
+                                disabled={index === 0}
+                                className="w-6 h-7 rounded-md hover:bg-white/20 disabled:opacity-20 flex items-center justify-center"
+                                title="Mover aba para a esquerda"
+                              >
+                                ‹
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => moveStudyTab(section.id, 1)}
+                                disabled={index === selectedStudySections.length - 1}
+                                className="w-6 h-7 rounded-md hover:bg-white/20 disabled:opacity-20 flex items-center justify-center"
+                                title="Mover aba para a direita"
+                              >
+                                ›
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingStudyTabId(section.id)
+                                  setEditingStudyTabTitle(section.title)
+                                }}
+                                className="w-7 h-7 rounded-md hover:bg-white/20 flex items-center justify-center"
+                                title="Renomear aba"
+                              >
+                                <Edit3 className="w-3 h-3" />
+                              </button>
+                              {selectedStudySections.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteStudyTab(section.id)}
+                                  className="w-7 h-7 rounded-md hover:bg-red-500/20 flex items-center justify-center"
+                                  title="Excluir aba"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )
+                  })}
+
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingStudyTab(true)}
+                    className="shrink-0 px-3 py-2 rounded-xl border border-dashed border-pink-300 text-pink-600 hover:bg-pink-50 text-[10px] font-extrabold flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Aba
+                  </button>
+                </div>
               </div>
 
-              {studySubTab === 'resumo' && (
+              {activeStudySection ? (
                 <div className="space-y-3">
-                  <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><FileText className="w-3.5 h-3.5 text-pink-500" /> Prescrição ou Conteúdo Principal</label>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <label className="text-xs font-bold text-pink-900 flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-pink-500" />
+                      {activeStudySection.title}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingStudyTabId(activeStudySection.id)
+                        setEditingStudyTabTitle(activeStudySection.title)
+                      }}
+                      className="text-[9px] font-bold text-pink-600 hover:bg-pink-50 border border-pink-100 px-2.5 py-1 rounded-lg w-fit flex items-center gap-1"
+                    >
+                      <Edit3 className="w-3 h-3" /> Renomear esta aba
+                    </button>
+                  </div>
+
                   <StudyRichEditor
-                    key={`${selectedItem.id}-content`}
-                    value={selectedItem.content || ''}
-                    placeholder="Escreva a receita, resumo da aula ou conteúdo. Use títulos, listas, negrito, marca-texto, links e imagens..."
-                    onAttachMaterial={() => { setActiveTaskForAttach(null); fileInputRef.current?.click() }}
+                    key={`${selectedItem.id}-${activeStudySection.id}`}
+                    value={activeStudySection.content || ''}
+                    placeholder={`Escreva em "${activeStudySection.title}". Use títulos, listas, negrito, marca-texto, links, imagens e anexos...`}
+                    onAttachMaterial={() => {
+                      setActiveTaskForAttach(null)
+                      fileInputRef.current?.click()
+                    }}
                     onChange={(html) => {
-                      lastLocalMutationRef.current = Date.now()
-                      setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, content: html } : i))
+                      if (!selectedItem) return
+                      updateStudySections(selectedItem.id, sections =>
+                        sections.map(section =>
+                          section.id === activeStudySection.id
+                            ? { ...section, content: html }
+                            : section
+                        )
+                      )
                     }}
                   />
                 </div>
-              )}
-              {studySubTab === 'diferenciais' && (
-                <div className="space-y-3">
-                  <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><Layers className="w-3.5 h-3.5 text-pink-500" /> Diagnósticos Diferenciais / Opções</label>
-                  <StudyRichEditor
-                    key={`${selectedItem.id}-differential`}
-                    value={selectedItem.differential || ''}
-                    placeholder="Liste diferenciais, hipóteses, comparações, tópicos de estudo e observações..."
-                    onAttachMaterial={() => { setActiveTaskForAttach(null); fileInputRef.current?.click() }}
-                    onChange={(html) => {
-                      lastLocalMutationRef.current = Date.now()
-                      setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, differential: html } : i))
-                    }}
-                  />
-                </div>
-              )}
-              {studySubTab === 'pontos' && (
-                <div className="space-y-3">
-                  <label className="text-xs font-bold text-pink-900 flex items-center gap-1"><Bookmark className="w-3.5 h-3.5 text-pink-500" /> Observações, Contraindicações & Avisos ao Tutor</label>
-                  <StudyRichEditor
-                    key={`${selectedItem.id}-notes`}
-                    value={selectedItem.notes || ''}
-                    placeholder="Anotações importantes, contraindicações, posologia, avisos, lembretes e pontos-chave..."
-                    onAttachMaterial={() => { setActiveTaskForAttach(null); fileInputRef.current?.click() }}
-                    onChange={(html) => {
-                      lastLocalMutationRef.current = Date.now()
-                      setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, notes: html } : i))
-                    }}
-                  />
+              ) : (
+                <div className="border border-dashed border-pink-200 rounded-2xl p-8 text-center">
+                  <p className="text-xs font-bold text-stone-500">Nenhuma aba disponível.</p>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingStudyTab(true)}
+                    className="mt-3 bg-pink-500 text-white px-4 py-2 rounded-xl text-[10px] font-bold"
+                  >
+                    + Criar primeira aba
+                  </button>
                 </div>
               )}
             </div>
