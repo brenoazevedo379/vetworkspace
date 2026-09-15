@@ -4017,6 +4017,9 @@ export default function VetWorkspaceBeatrizV28() {
     return []
   })
   const wishlistLocalSnapshotRef = useRef<string>('')
+  const wishlistLastSyncedRef = useRef<string>('')
+  const [wishlistCloudReady, setWishlistCloudReady] = useState(false)
+  const [wishlistRemoteVersion, setWishlistRemoteVersion] = useState(0)
 
   const [descompressaoNotes, setDescompressaoNotes] = useState<string>(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('vet_descomp_v28') || ''
@@ -4024,7 +4027,85 @@ export default function VetWorkspaceBeatrizV28() {
   })
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    let cancelled = false
+
+    const applyWishlistFromCloud = (items: any[]) => {
+      if (cancelled) return
+      const normalized = Array.isArray(items) ? items : []
+      const json = JSON.stringify(normalized)
+      wishlistLastSyncedRef.current = json
+      wishlistLocalSnapshotRef.current = json
+      localStorage.setItem('vet_wishlist', json)
+      setWishlistSyncData(normalized)
+      setWishlistRemoteVersion(version => version + 1)
+    }
+
+    const loadWishlistCloud = async () => {
+      try {
+        const { data: dedicated, error: dedicatedError } = await supabase
+          .from('app_data')
+          .select('data')
+          .eq('id', 'beatriz_wishlist_v28')
+          .maybeSingle()
+
+        if (!dedicatedError && dedicated?.data && Array.isArray(dedicated.data.items)) {
+          applyWishlistFromCloud(dedicated.data.items)
+          return
+        }
+
+        // Migração: busca a lista que eventualmente já estava salva dentro do workspace principal.
+        const { data: workspace } = await supabase
+          .from('app_data')
+          .select('data')
+          .eq('id', 'beatriz_workspace_v28')
+          .maybeSingle()
+
+        if (workspace?.data && Array.isArray(workspace.data.wishlist)) {
+          applyWishlistFromCloud(workspace.data.wishlist)
+          return
+        }
+
+        // Se nunca houve lista na nuvem, usa o que existe neste navegador como ponto inicial.
+        const localRaw = localStorage.getItem('vet_wishlist') || '[]'
+        try {
+          const localItems = JSON.parse(localRaw)
+          applyWishlistFromCloud(Array.isArray(localItems) ? localItems : [])
+        } catch {
+          applyWishlistFromCloud([])
+        }
+      } finally {
+        if (!cancelled) setWishlistCloudReady(true)
+      }
+    }
+
+    loadWishlistCloud()
+
+    const channel = supabase
+      .channel('wishlist_realtime_v28')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'app_data', filter: 'id=eq.beatriz_wishlist_v28' },
+        (payload: any) => {
+          const remoteItems = payload?.new?.data?.items
+          if (!Array.isArray(remoteItems)) return
+
+          const json = JSON.stringify(remoteItems)
+          if (json === wishlistLastSyncedRef.current) return
+          applyWishlistFromCloud(remoteItems)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      cancelled = true
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
+  // WishlistTab ainda mantém seu estado interno no localStorage. Esta ponte captura
+  // somente alterações feitas neste navegador e leva para o estado sincronizado.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !wishlistCloudReady) return
 
     const readWishlistFromLocalComponent = () => {
       const raw = localStorage.getItem('vet_wishlist') || '[]'
@@ -4035,14 +4116,43 @@ export default function VetWorkspaceBeatrizV28() {
         if (!Array.isArray(parsed)) return
         wishlistLocalSnapshotRef.current = raw
         setWishlistSyncData(parsed)
-        if (isInitialized) lastLocalMutationRef.current = Date.now()
       } catch(e) {}
     }
 
     readWishlistFromLocalComponent()
-    const timer = window.setInterval(readWishlistFromLocalComponent, 900)
+    const timer = window.setInterval(readWishlistFromLocalComponent, 500)
     return () => window.clearInterval(timer)
-  }, [isInitialized])
+  }, [wishlistCloudReady])
+
+  // Salva a lista em uma linha própria. Assim alterações em finanças, tarefas,
+  // estudos etc. não conseguem sobrescrever uma wishlist nova com uma cópia antiga.
+  useEffect(() => {
+    if (!wishlistCloudReady) return
+
+    const json = JSON.stringify(wishlistSyncData)
+    localStorage.setItem('vet_wishlist', json)
+    wishlistLocalSnapshotRef.current = json
+
+    if (json === wishlistLastSyncedRef.current) return
+
+    const timer = window.setTimeout(async () => {
+      const { error } = await supabase
+        .from('app_data')
+        .upsert({
+          id: 'beatriz_wishlist_v28',
+          data: { items: wishlistSyncData },
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'id' })
+
+      if (!error) {
+        wishlistLastSyncedRef.current = json
+      } else {
+        console.error('Erro ao sincronizar wishlist:', error)
+      }
+    }, 500)
+
+    return () => window.clearTimeout(timer)
+  }, [wishlistCloudReady, wishlistSyncData])
 
   const [gameIndex, setGameIndex] = useState(0)
   const [cafeIndex, setCafeIndex] = useState(0)
@@ -4974,12 +5084,6 @@ export default function VetWorkspaceBeatrizV28() {
           if (d.specialistConsultations) { setSpecialistConsultations(d.specialistConsultations); localStorage.setItem('vet_specialist_consultations_v28', JSON.stringify(d.specialistConsultations)); }
           if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v28', JSON.stringify(d.personalPets)); }
           if (d.skincareDone) { setSkincareDone(d.skincareDone); localStorage.setItem('vet_skincare_checked_v28', JSON.stringify(d.skincareDone)); }
-          if (d.wishlist !== undefined && Array.isArray(d.wishlist)) {
-            setWishlistSyncData(d.wishlist)
-            const wishlistJson = JSON.stringify(d.wishlist)
-            wishlistLocalSnapshotRef.current = wishlistJson
-            localStorage.setItem('vet_wishlist', wishlistJson)
-          }
           if (d.mimosWishlist) { setMimosWishlist(d.mimosWishlist); localStorage.setItem('vet_mimos_v28', d.mimosWishlist); }
           if (d.descompressaoNotes) { setDescompressaoNotes(d.descompressaoNotes); localStorage.setItem('vet_descomp_v28', d.descompressaoNotes); }
           setSaveStatus('Sincronizado')
@@ -5065,12 +5169,6 @@ export default function VetWorkspaceBeatrizV28() {
             if (d.specialistConsultations) { setSpecialistConsultations(d.specialistConsultations); localStorage.setItem('vet_specialist_consultations_v28', JSON.stringify(d.specialistConsultations)); }
             if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v28', JSON.stringify(d.personalPets)); }
             if (d.skincareDone) { setSkincareDone(d.skincareDone); localStorage.setItem('vet_skincare_checked_v28', JSON.stringify(d.skincareDone)); }
-            if (d.wishlist !== undefined && Array.isArray(d.wishlist)) {
-              setWishlistSyncData(d.wishlist)
-              const wishlistJson = JSON.stringify(d.wishlist)
-              wishlistLocalSnapshotRef.current = wishlistJson
-              localStorage.setItem('vet_wishlist', wishlistJson)
-            }
           }
         }
       )
@@ -5106,8 +5204,6 @@ export default function VetWorkspaceBeatrizV28() {
     localStorage.setItem('vet_skincare_checked_v28', JSON.stringify(skincareDone))
     localStorage.setItem('vet_mimos_v28', mimosWishlist)
     localStorage.setItem('vet_descomp_v28', descompressaoNotes)
-    localStorage.setItem('vet_wishlist', JSON.stringify(wishlistSyncData))
-    wishlistLocalSnapshotRef.current = JSON.stringify(wishlistSyncData)
 
     setSaveStatus('Salvando...')
 
@@ -5133,8 +5229,7 @@ export default function VetWorkspaceBeatrizV28() {
           personalPets,
           skincareDone,
           mimosWishlist,
-          descompressaoNotes,
-          wishlist: wishlistSyncData
+          descompressaoNotes
         }
 
         const { error } = await supabase
@@ -5157,7 +5252,7 @@ export default function VetWorkspaceBeatrizV28() {
 
     const timer = setTimeout(syncToCloud, 800)
     return () => clearTimeout(timer)
-  }, [isInitialized, items, patients, recipes, customDrugs, monthlyIncome, otherIncome, monthlyIncomeByMonth, otherIncomeByMonth, cofrinhoAmount, finances, tasks, events, chatSessions, clinics, shifts, specialistConsultations, personalPets, skincareDone, wishlistSyncData, mimosWishlist, descompressaoNotes])
+  }, [isInitialized, items, patients, recipes, customDrugs, monthlyIncome, otherIncome, monthlyIncomeByMonth, otherIncomeByMonth, cofrinhoAmount, finances, tasks, events, chatSessions, clinics, shifts, specialistConsultations, personalPets, skincareDone, mimosWishlist, descompressaoNotes])
 
   const selectedItem = items.find(i => i.id === selectedItemId && i.type === 'page') || items.find(i => i.type === 'page')
 
@@ -8442,7 +8537,7 @@ export default function VetWorkspaceBeatrizV28() {
           )}
 
           {activeTab === 'wishlist' && (
-            <WishlistTab key={`wishlist-${JSON.stringify(wishlistSyncData)}`} />
+            <WishlistTab key={`wishlist-cloud-${wishlistRemoteVersion}`} />
           )}
 
           {activeTab === 'receitas' && (
