@@ -109,6 +109,8 @@ interface FinancialItem {
   category: string
   amount: number
   date: string
+  status?: 'Pago' | 'Pendente'
+  paidDate?: string
 }
 
 interface FinanceHistoryEntry {
@@ -121,6 +123,8 @@ interface FinanceHistoryEntry {
   date: string
   shiftId?: string
   expenseId?: string
+  expenseStatus?: 'Pago' | 'Pendente'
+  expensePaidDate?: string
 }
 
 interface TaskItem {
@@ -3498,40 +3502,73 @@ function StudyRichEditor({
     runCommand('createLink', url)
   }
 
+  const insertInlineStudyImage = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      throw new Error('O conteúdo colado não é uma imagem válida.')
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      throw new Error('A imagem ultrapassa 15 MB.')
+    }
+
+    const dataUrl = await compressStudyImage(file, 1800, 0.92)
+    restoreSelection()
+    document.execCommand('insertImage', false, dataUrl)
+
+    const editor = editorRef.current
+    if (editor) {
+      editor.querySelectorAll('img').forEach(img => {
+        img.style.maxWidth = '100%'
+        img.style.height = 'auto'
+        img.style.borderRadius = '12px'
+        img.style.margin = '12px auto'
+        img.style.display = 'block'
+      })
+    }
+
+    emitChange()
+  }
+
   const handleInlineImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
 
-    if (!file.type.startsWith('image/')) {
-      alert('Escolha uma imagem.')
-      return
+    try {
+      setIsPreparingInlineImage(true)
+      await insertInlineStudyImage(file)
+    } catch (error: any) {
+      alert(error instanceof Error ? error.message : 'Não foi possível inserir a imagem.')
+    } finally {
+      setIsPreparingInlineImage(false)
     }
+  }
 
-    if (file.size > 15 * 1024 * 1024) {
-      alert('A imagem ultrapassa 15 MB.')
-      return
-    }
+  const handleEditorPaste = async (e: React.ClipboardEvent<HTMLDivElement>) => {
+    const clipboardItems = Array.from(e.clipboardData?.items || [])
+    const imageFiles = clipboardItems
+      .filter(item => item.kind === 'file' && item.type.startsWith('image/'))
+      .map(item => item.getAsFile())
+      .filter((file): file is File => Boolean(file))
+
+    // Se não houver imagem, deixa o navegador colar texto normalmente.
+    if (imageFiles.length === 0) return
+
+    e.preventDefault()
+    rememberSelection()
 
     try {
       setIsPreparingInlineImage(true)
-      const dataUrl = await compressStudyImage(file, 1400, 0.9)
-      restoreSelection()
-      document.execCommand('insertImage', false, dataUrl)
 
-      const editor = editorRef.current
-      if (editor) {
-        editor.querySelectorAll('img').forEach(img => {
-          img.style.maxWidth = '100%'
-          img.style.height = 'auto'
-          img.style.borderRadius = '12px'
-          img.style.margin = '12px auto'
-          img.style.display = 'block'
-        })
+      for (const file of imageFiles.slice(0, 4)) {
+        await insertInlineStudyImage(file)
       }
-      emitChange()
+
+      if (imageFiles.length > 4) {
+        alert('Foram coladas as primeiras 4 imagens. Cole as demais em outro lote.')
+      }
     } catch (error: any) {
-      alert(error instanceof Error ? error.message : 'Não foi possível inserir a imagem.')
+      alert(error instanceof Error ? error.message : 'Não foi possível colar o print.')
     } finally {
       setIsPreparingInlineImage(false)
     }
@@ -3727,7 +3764,13 @@ function StudyRichEditor({
           🖨 Imprimir
         </button>
 
-        <span className="ml-auto text-[9px] font-bold text-emerald-600 px-2">
+        <span
+          className="ml-auto text-[9px] font-bold text-violet-600 bg-violet-50 border border-violet-100 px-2 py-1 rounded-lg"
+          title="No Windows: use Win + Shift + S, depois clique no texto e pressione Ctrl + V"
+        >
+          📋 Cole prints com Ctrl + V
+        </span>
+        <span className="text-[9px] font-bold text-emerald-600 px-2">
           ✓ Salvamento automático
         </span>
       </div>
@@ -3738,6 +3781,7 @@ function StudyRichEditor({
         suppressContentEditableWarning
         data-placeholder={placeholder}
         onInput={emitChange}
+        onPaste={handleEditorPaste}
         onMouseUp={rememberSelection}
         onKeyUp={rememberSelection}
         onFocus={rememberSelection}
@@ -3836,9 +3880,52 @@ export default function VetWorkspaceBeatrizV28() {
     }
   }, [showValues])
 
+  const parseCurrencyInput = (raw: string) => {
+    const cleaned = String(raw || '')
+      .trim()
+      .replace(/R\$/gi, '')
+      .replace(/\s+/g, '')
+      .replace(/[^0-9,.-]/g, '')
+
+    if (!cleaned) return NaN
+
+    const lastComma = cleaned.lastIndexOf(',')
+    const lastDot = cleaned.lastIndexOf('.')
+    let normalized = cleaned
+
+    if (lastComma > lastDot) {
+      // Formato brasileiro: 55.853,43 / 1500,50
+      normalized = cleaned.replace(/\./g, '').replace(',', '.')
+    } else if (lastDot > lastComma) {
+      if (lastComma >= 0) {
+        // Formato internacional: 55,853.43
+        normalized = cleaned.replace(/,/g, '')
+      } else {
+        const parts = cleaned.split('.')
+        // No Brasil, "55.853" normalmente significa 55 mil 853.
+        if (parts.length > 1 && parts.slice(1).every(part => part.length === 3)) {
+          normalized = parts.join('')
+        } else if (parts.length > 2) {
+          const decimal = parts.pop() || ''
+          normalized = `${parts.join('')}.${decimal}`
+        }
+      }
+    } else if (lastComma >= 0) {
+      normalized = cleaned.replace(',', '.')
+    }
+
+    const value = Number(normalized)
+    return Number.isFinite(value) ? value : NaN
+  }
+
   const maskValue = (val: number) => {
     if (!showValues) return 'R$ •••••'
-    return `R$ ${val.toFixed(2)}`
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Number(val) || 0)
   }
 
   const [todayObj, setTodayObj] = useState(() => new Date())
@@ -4899,6 +4986,7 @@ export default function VetWorkspaceBeatrizV28() {
 
   const [isEditingIncome, setIsEditingIncome] = useState(false)
   const [tempIncomeInput, setTempIncomeInput] = useState<string>('')
+  const [baseIncomeAddInput, setBaseIncomeAddInput] = useState<string>('')
 
   const [otherIncome, setOtherIncome] = useState<number>(() => {
     if (typeof window !== 'undefined') {
@@ -4912,6 +5000,7 @@ export default function VetWorkspaceBeatrizV28() {
   })
   const [isEditingOtherIncome, setIsEditingOtherIncome] = useState(false)
   const [tempOtherIncomeInput, setTempOtherIncomeInput] = useState<string>('')
+  const [otherIncomeAddInput, setOtherIncomeAddInput] = useState<string>('')
 
   const currentFinanceMonthKey = todayDateKey.slice(0, 7)
   const [financeSelectedMonth, setFinanceSelectedMonth] = useState(currentFinanceMonthKey)
@@ -4949,6 +5038,7 @@ export default function VetWorkspaceBeatrizV28() {
   const [finCustomCategory, setFinCustomCategory] = useState('')
   const [finAmount, setFinAmount] = useState('')
   const [finDate, setFinDate] = useState(todayDateKey)
+  const [finStatus, setFinStatus] = useState<'Pago' | 'Pendente'>('Pendente')
 
   const [tasks, setTasks] = useState<TaskItem[]>(() => {
     if (typeof window !== 'undefined') {
@@ -5462,6 +5552,8 @@ export default function VetWorkspaceBeatrizV28() {
     setFinanceSelectedMonth(monthKey)
     setIsEditingIncome(false)
     setIsEditingOtherIncome(false)
+    setBaseIncomeAddInput('')
+    setOtherIncomeAddInput('')
     setFinanceHistoryFilter('all')
     setFinanceHistorySearch('')
     setFinDate(monthKey === currentFinanceMonthKey ? todayDateKey : `${monthKey}-01`)
@@ -5554,12 +5646,49 @@ export default function VetWorkspaceBeatrizV28() {
     .filter(item => isIsoInFinanceMonth(item.date))
     .reduce((acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.unitValue) || 0), 0)
 
-  const financesThisMonth = finances.filter(item => isBrDateInFinanceMonth(item.date))
-  const totalGastos = financesThisMonth.reduce((acc, f) => acc + (Number(f.amount) || 0), 0)
+  const getExpenseStatus = (item: FinancialItem): 'Pago' | 'Pendente' => {
+    if (item.status === 'Pago' || item.status === 'Pendente') return item.status
+    // Compatibilidade com lançamentos antigos: compras/faturas de cartão entram como pendentes
+    // para que possam ser marcadas como pagas; demais gastos antigos permanecem como pagos.
+    return item.category.toLocaleLowerCase('pt-BR').includes('cartão') ? 'Pendente' : 'Pago'
+  }
 
-  // Caixa real do mês selecionado: pendente é conta a receber e não compõe renda.
+  const financesThisMonth = finances.filter(item => isBrDateInFinanceMonth(item.date))
+
+  // CONTAS A PAGAR: ficam aqui até a confirmação do pagamento.
+  // Enquanto estiverem pendentes, não reduzem o saldo disponível.
+  const pendingExpensesForFinance = finances
+    .filter(item => getExpenseStatus(item) === 'Pendente')
+
+  const totalPendingExpensesForFinance = pendingExpensesForFinance
+    .reduce((acc, item) => acc + (Number(item.amount) || 0), 0)
+
+  const pendingExpensesThisMonth = pendingExpensesForFinance
+    .filter(item => isBrDateInFinanceMonth(item.date))
+
+  const totalPendingExpensesThisMonth = pendingExpensesThisMonth
+    .reduce((acc, item) => acc + (Number(item.amount) || 0), 0)
+
+  // DESPESAS PAGAS: saem do caixa no mês em que foram realmente pagas.
+  // Registros antigos sem paidDate usam a data original do lançamento.
+  const paidExpensesThisMonth = finances.filter(item => {
+    if (getExpenseStatus(item) !== 'Pago') return false
+    return item.paidDate
+      ? isIsoInFinanceMonth(item.paidDate)
+      : isBrDateInFinanceMonth(item.date)
+  })
+
+  const totalPaidExpensesThisMonth = paidExpensesThisMonth
+    .reduce((acc, item) => acc + (Number(item.amount) || 0), 0)
+
+  const totalGastosLancadosThisMonth = financesThisMonth
+    .reduce((acc, item) => acc + (Number(item.amount) || 0), 0)
+
+  // "totalGastos" representa o dinheiro que efetivamente saiu do caixa.
+  const totalGastos = totalPaidExpensesThisMonth
+
   const totalRendaGeral = selectedBaseIncome + selectedOtherIncome + totalPaidShiftsThisMonth + specialistIncomeThisMonth
-  const saldoRestante = totalRendaGeral - totalGastos
+  const saldoRestante = totalRendaGeral - totalPaidExpensesThisMonth
 
   // Dashboard principal sempre usa o mês atual, independentemente do mês aberto em Finanças.
   const currentPaidShiftsAmount = shifts
@@ -5575,7 +5704,7 @@ export default function VetWorkspaceBeatrizV28() {
   const expensePalette = ['#db2777', '#7c3aed', '#2563eb', '#0891b2', '#059669', '#d97706', '#dc2626', '#64748b']
 
   const expenseDescriptionMap = new Map<string, { label: string; category: string; amount: number }>()
-  financesThisMonth.forEach(item => {
+  paidExpensesThisMonth.forEach(item => {
     const key = item.description.trim().toLocaleLowerCase('pt-BR') || item.category
     const current = expenseDescriptionMap.get(key)
     if (current) {
@@ -5627,16 +5756,25 @@ export default function VetWorkspaceBeatrizV28() {
       ].join(', ')})`
     : 'conic-gradient(#e7e5e4 0% 100%)'
 
+  const expensesForFinanceHistory = [
+    ...paidExpensesThisMonth,
+    ...pendingExpensesThisMonth.filter(
+      pending => !paidExpensesThisMonth.some(paid => paid.id === pending.id)
+    ),
+  ]
+
   const financeHistoryEntries: FinanceHistoryEntry[] = [
-    ...financesThisMonth.map(item => ({
+    ...expensesForFinanceHistory.map(item => ({
       id: `expense-${item.id}`,
       type: 'expense' as const,
       source: 'expense' as const,
       label: item.description,
       category: item.category,
       amount: Number(item.amount) || 0,
-      date: item.date,
+      date: getExpenseStatus(item) === 'Pago' && item.paidDate ? item.paidDate : item.date,
       expenseId: item.id,
+      expenseStatus: getExpenseStatus(item),
+      expensePaidDate: item.paidDate,
     })),
     ...paidShiftsThisMonth.map(shift => {
       const clinic = clinics.find(item => item.id === shift.clinicId)
@@ -5701,7 +5839,12 @@ export default function VetWorkspaceBeatrizV28() {
   const filteredFinanceHistoryEntries = financeHistoryEntries.filter(entry => {
     const matchesFilter =
       financeHistoryFilter === 'all' ||
-      financeHistoryFilter === entry.type
+      (financeHistoryFilter === 'expense' && entry.source === 'expense') ||
+      (financeHistoryFilter === 'received' && entry.type === 'received') ||
+      (financeHistoryFilter === 'pending' && (
+        entry.type === 'pending' ||
+        (entry.source === 'expense' && entry.expenseStatus === 'Pendente')
+      ))
 
     const query = financeHistorySearch.trim().toLocaleLowerCase('pt-BR')
     const matchesSearch =
@@ -5714,16 +5857,25 @@ export default function VetWorkspaceBeatrizV28() {
   const handleAddFinancial = (e: React.FormEvent) => {
     e.preventDefault()
     if (!finDesc || !finAmount) return
+
+    const parsedAmount = parseCurrencyInput(finAmount)
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      alert('Informe um valor válido. Ex.: 1.500,00 ou 1500.00')
+      return
+    }
+
     lastLocalMutationRef.current = Date.now()
     const catFinal = finCategory === 'Outro' && finCustomCategory.trim() ? finCustomCategory.trim() : finCategory
     const newF: FinancialItem = {
       id: Date.now().toString(),
-      description: finDesc,
+      description: finDesc.trim(),
       category: catFinal,
-      amount: parseFloat(finAmount),
-      date: isoToBrDate(finDate)
+      amount: parsedAmount,
+      date: isoToBrDate(finDate),
+      status: finStatus,
+      paidDate: finStatus === 'Pago' ? finDate : undefined,
     }
-    setFinances([newF, ...finances])
+    setFinances(prev => [newF, ...prev])
     setFinDesc('')
     setFinAmount('')
     setFinCustomCategory('')
@@ -7845,7 +7997,7 @@ export default function VetWorkspaceBeatrizV28() {
               <div className="bg-white border border-pink-100 rounded-2xl px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <div className="text-[10px] font-extrabold text-pink-900 uppercase tracking-wider">Editor de estudos estilo mini Word</div>
-                  <div className="text-[9px] text-stone-400 mt-0.5">Formatação, listas numeradas, tópicos, títulos, cores, links, imagens no texto, impressão e anexos persistentes.</div>
+                  <div className="text-[9px] text-stone-400 mt-0.5">Formatação, listas, títulos, cores, links, imagens no texto, impressão, anexos persistentes e prints colados direto com Ctrl + V.</div>
                 </div>
                 <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">Salva automaticamente</span>
               </div>
@@ -9425,19 +9577,18 @@ export default function VetWorkspaceBeatrizV28() {
                   {isEditingIncome ? (
                     <div className="space-y-2">
                       <input
-                        type="number"
-                        min="0"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
                         value={tempIncomeInput}
                         onChange={(e) => setTempIncomeInput(e.target.value)}
                         className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
-                        placeholder="Ex.: 3500"
+                        placeholder="Ex.: 3.500,00"
                       />
                       <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={() => {
-                            const val = Number(tempIncomeInput)
+                            const val = parseCurrencyInput(tempIncomeInput)
                             if (Number.isFinite(val) && val >= 0) {
                               lastLocalMutationRef.current = Date.now()
                               setMonthlyIncomeByMonth(prev => ({ ...prev, [financeSelectedMonth]: val }))
@@ -9455,7 +9606,44 @@ export default function VetWorkspaceBeatrizV28() {
                       </div>
                     </div>
                   ) : (
-                    <div className="text-2xl font-extrabold text-emerald-600">{maskValue(selectedBaseIncome)}</div>
+                    <div className="space-y-3">
+                      <div className="text-2xl font-extrabold text-emerald-600">{maskValue(selectedBaseIncome)}</div>
+
+                      <div className="pt-3 border-t border-pink-100">
+                        <div className="text-[10px] font-extrabold text-stone-600 mb-1.5">Somar um novo valor à renda base</div>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={baseIncomeAddInput}
+                            onChange={(e) => setBaseIncomeAddInput(e.target.value)}
+                            placeholder="Ex.: 1.500,00"
+                            className="min-w-0 flex-1 bg-emerald-50/40 border border-emerald-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none focus:border-emerald-400"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const addValue = parseCurrencyInput(baseIncomeAddInput)
+                              if (!Number.isFinite(addValue) || addValue <= 0) {
+                                alert('Digite um valor válido para somar.')
+                                return
+                              }
+                              const nextValue = selectedBaseIncome + addValue
+                              lastLocalMutationRef.current = Date.now()
+                              setMonthlyIncomeByMonth(prev => ({ ...prev, [financeSelectedMonth]: nextValue }))
+                              if (financeSelectedMonth === currentFinanceMonthKey) setMonthlyIncome(nextValue)
+                              setBaseIncomeAddInput('')
+                            }}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-[10px] font-extrabold whitespace-nowrap"
+                          >
+                            + Somar
+                          </button>
+                        </div>
+                        <p className="text-[9px] text-stone-400 mt-1.5">
+                          Ex.: se já tem {maskValue(selectedBaseIncome)}, digite 1.500,00 e o sistema soma automaticamente.
+                        </p>
+                      </div>
+                    </div>
                   )}
                 </div>
 
@@ -9479,19 +9667,18 @@ export default function VetWorkspaceBeatrizV28() {
                   {isEditingOtherIncome ? (
                     <div className="space-y-2">
                       <input
-                        type="number"
-                        min="0"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
                         value={tempOtherIncomeInput}
                         onChange={(e) => setTempOtherIncomeInput(e.target.value)}
                         className="w-full bg-violet-50/50 border border-violet-200 rounded-xl px-3.5 py-2.5 text-xs text-violet-950 focus:outline-none font-medium"
-                        placeholder="Ex.: 400"
+                        placeholder="Ex.: 400,00"
                       />
                       <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={() => {
-                            const val = Number(tempOtherIncomeInput)
+                            const val = parseCurrencyInput(tempOtherIncomeInput)
                             if (Number.isFinite(val) && val >= 0) {
                               lastLocalMutationRef.current = Date.now()
                               setOtherIncomeByMonth(prev => ({ ...prev, [financeSelectedMonth]: val }))
@@ -9509,7 +9696,41 @@ export default function VetWorkspaceBeatrizV28() {
                       </div>
                     </div>
                   ) : (
-                    <div className="text-2xl font-extrabold text-violet-700">{maskValue(selectedOtherIncome)}</div>
+                    <div className="space-y-3">
+                      <div className="text-2xl font-extrabold text-violet-700">{maskValue(selectedOtherIncome)}</div>
+
+                      <div className="pt-3 border-t border-violet-100">
+                        <div className="text-[10px] font-extrabold text-stone-600 mb-1.5">Somar outra entrada recebida</div>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={otherIncomeAddInput}
+                            onChange={(e) => setOtherIncomeAddInput(e.target.value)}
+                            placeholder="Ex.: 500,00"
+                            className="min-w-0 flex-1 bg-violet-50/40 border border-violet-200 rounded-xl px-3 py-2 text-xs text-violet-950 focus:outline-none focus:border-violet-400"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const addValue = parseCurrencyInput(otherIncomeAddInput)
+                              if (!Number.isFinite(addValue) || addValue <= 0) {
+                                alert('Digite um valor válido para somar.')
+                                return
+                              }
+                              const nextValue = selectedOtherIncome + addValue
+                              lastLocalMutationRef.current = Date.now()
+                              setOtherIncomeByMonth(prev => ({ ...prev, [financeSelectedMonth]: nextValue }))
+                              if (financeSelectedMonth === currentFinanceMonthKey) setOtherIncome(nextValue)
+                              setOtherIncomeAddInput('')
+                            }}
+                            className="bg-violet-600 hover:bg-violet-700 text-white px-3.5 py-2 rounded-xl text-[10px] font-extrabold whitespace-nowrap"
+                          >
+                            + Somar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -9533,19 +9754,24 @@ export default function VetWorkspaceBeatrizV28() {
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-center gap-3 pt-2 border-t border-pink-200/60">
-                  <input 
-                    type="number" 
-                    step="0.01" 
-                    placeholder="Digite o valor (R$)" 
-                    value={cofrinhoInput} 
-                    onChange={(e) => setCofrinhoInput(e.target.value)} 
-                    className="w-full sm:flex-1 bg-white border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
-                  />
-                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <div className="w-full sm:flex-1">
+                    <input 
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Ex.: 55.853,43" 
+                      value={cofrinhoInput} 
+                      onChange={(e) => setCofrinhoInput(e.target.value)} 
+                      className="w-full bg-white border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none focus:border-pink-400 font-medium"
+                    />
+                    <p className="text-[9px] text-pink-600/70 mt-1">
+                      Aceita 55.853,43, 55853,43 ou 55853.43.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                     <button 
                       type="button" 
                       onClick={() => {
-                        const val = parseFloat(cofrinhoInput)
+                        const val = parseCurrencyInput(cofrinhoInput)
                         if (!isNaN(val) && val > 0) {
                           lastLocalMutationRef.current = Date.now()
                           setCofrinhoAmount(prev => prev + val)
@@ -9559,7 +9785,7 @@ export default function VetWorkspaceBeatrizV28() {
                     <button 
                       type="button" 
                       onClick={() => {
-                        const val = parseFloat(cofrinhoInput)
+                        const val = parseCurrencyInput(cofrinhoInput)
                         if (!isNaN(val) && val > 0) {
                           lastLocalMutationRef.current = Date.now()
                           setCofrinhoAmount(prev => Math.max(0, prev - val))
@@ -9570,11 +9796,28 @@ export default function VetWorkspaceBeatrizV28() {
                     >
                       ➖ Retirar
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const val = parseCurrencyInput(cofrinhoInput)
+                        if (!Number.isFinite(val) || val < 0) {
+                          alert('Digite um saldo válido. Ex.: 55.853,43')
+                          return
+                        }
+                        lastLocalMutationRef.current = Date.now()
+                        setCofrinhoAmount(val)
+                        setCofrinhoInput('')
+                      }}
+                      className="flex-1 sm:flex-none bg-white hover:bg-pink-50 text-pink-700 border border-pink-300 px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-2xs flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
+                      title="Use para cadastrar o saldo total que já existe hoje"
+                    >
+                      🎯 Definir saldo
+                    </button>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
                 <div className="bg-emerald-50/70 border border-emerald-200 p-4 rounded-2xl">
                   <span className="text-[10px] font-bold text-emerald-700 uppercase">Total recebido no mês</span>
                   <div className="text-xl font-extrabold text-emerald-800 mt-1">{maskValue(totalRendaGeral)}</div>
@@ -9593,16 +9836,22 @@ export default function VetWorkspaceBeatrizV28() {
                   <div className="text-[9px] text-amber-600 mt-1">Total pendente • não entra no saldo</div>
                 </div>
 
+                <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-2xl">
+                  <span className="text-[10px] font-bold text-amber-700 uppercase">Despesas a pagar</span>
+                  <div className="text-xl font-extrabold text-amber-800 mt-1">{maskValue(totalPendingExpensesForFinance)}</div>
+                  <div className="text-[9px] text-amber-600 mt-1">Pendências em aberto • não saíram do caixa</div>
+                </div>
+
                 <div className="bg-white border border-rose-100 p-4 rounded-2xl">
-                  <span className="text-[10px] font-bold text-stone-500 uppercase">Despesas do mês</span>
-                  <div className="text-xl font-extrabold text-rose-600 mt-1">{maskValue(totalGastos)}</div>
-                  <div className="text-[9px] text-stone-400 mt-1">{financesThisMonth.length} lançamento{financesThisMonth.length === 1 ? '' : 's'}</div>
+                  <span className="text-[10px] font-bold text-stone-500 uppercase">Despesas pagas no mês</span>
+                  <div className="text-xl font-extrabold text-rose-600 mt-1">{maskValue(totalPaidExpensesThisMonth)}</div>
+                  <div className="text-[9px] text-stone-400 mt-1">Valor que realmente saiu do caixa</div>
                 </div>
 
                 <div className={`border p-4 rounded-2xl ${saldoRestante >= 0 ? 'bg-sky-50/70 border-sky-200' : 'bg-rose-50 border-rose-200'}`}>
-                  <span className={`text-[10px] font-bold uppercase ${saldoRestante >= 0 ? 'text-sky-700' : 'text-rose-700'}`}>Saldo após gastos</span>
+                  <span className={`text-[10px] font-bold uppercase ${saldoRestante >= 0 ? 'text-sky-700' : 'text-rose-700'}`}>Saldo disponível</span>
                   <div className={`text-xl font-extrabold mt-1 ${saldoRestante >= 0 ? 'text-sky-800' : 'text-rose-700'}`}>{maskValue(saldoRestante)}</div>
-                  <div className="text-[9px] text-stone-400 mt-1">Recebido − despesas</div>
+                  <div className="text-[9px] text-stone-400 mt-1">Recebido − despesas já pagas</div>
                 </div>
               </div>
 
@@ -9611,7 +9860,7 @@ export default function VetWorkspaceBeatrizV28() {
                   <div>
                     <h3 className="text-xs font-extrabold text-pink-950 uppercase tracking-wider">Comprometimento da renda</h3>
                     <p className="text-[10px] text-stone-400 mt-1">
-                      {maskValue(totalGastos)} gastos de {maskValue(totalRendaGeral)} recebidos em {financeMonthLabel}.
+                      {maskValue(totalPaidExpensesThisMonth)} já pagos de {maskValue(totalRendaGeral)} recebidos em {financeMonthLabel}.
                     </p>
                   </div>
                   <div className={`text-sm font-extrabold ${
@@ -9822,21 +10071,108 @@ export default function VetWorkspaceBeatrizV28() {
                 </div>
               </div>
 
+              <div className="bg-amber-50/50 border border-amber-200 p-5 rounded-3xl shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-xs font-extrabold text-amber-900 uppercase tracking-wider">Despesas que ainda preciso pagar</h3>
+                    <p className="text-[10px] text-amber-700/70 mt-1">
+                      Enquanto estiverem aqui, são pendências e não reduzem o saldo disponível. Ao pagar, confirme abaixo.
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[9px] font-bold uppercase text-amber-600">Total a pagar</div>
+                    <div className="text-xl font-extrabold text-amber-900">{maskValue(totalPendingExpensesForFinance)}</div>
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {pendingExpensesForFinance.length === 0 ? (
+                    <div className="bg-white/70 border border-dashed border-amber-200 rounded-2xl p-6 text-center">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto mb-2" />
+                      <p className="text-xs font-bold text-stone-600">Nenhuma despesa pendente.</p>
+                      <p className="text-[10px] text-stone-400 mt-1">Tudo que foi confirmado como pago já saiu desta lista.</p>
+                    </div>
+                  ) : (
+                    [...pendingExpensesForFinance]
+                      .sort((a, b) => financeDateTimestamp(a.date) - financeDateTimestamp(b.date))
+                      .map(expense => (
+                        <div key={`pending-expense-${expense.id}`} className="bg-white border border-amber-200 rounded-xl p-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-xs font-extrabold text-pink-950">{expense.description}</div>
+                              <div className="text-[10px] text-stone-500 mt-1">{expense.date} • {expense.category}</div>
+                              <div className="text-sm font-extrabold text-amber-800 mt-1">{maskValue(Number(expense.amount) || 0)}</div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                lastLocalMutationRef.current = Date.now()
+                                setFinances(prev => prev.map(item =>
+                                  item.id === expense.id
+                                    ? { ...item, status: 'Pago' as const, paidDate: todayDateKey }
+                                    : item
+                                ))
+                              }}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-[10px] font-extrabold flex items-center justify-center gap-1.5 whitespace-nowrap"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              Marcar como pago
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-2xl shadow-xs space-y-4">
                 <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Adicionar despesa do mês</h3>
                 <form onSubmit={handleAddFinancial} className="space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                    <input type="text" placeholder="Descrição do Gasto" value={finDesc} onChange={(e) => setFinDesc(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
-                    <select value={finCategory} onChange={(e) => setFinCategory(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium">
+                  <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                    <input type="text" placeholder="Descrição do Gasto" value={finDesc} onChange={(e) => setFinDesc(e.target.value)} className="md:col-span-2 bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                    <select
+                      value={finCategory}
+                      onChange={(e) => {
+                        const nextCategory = e.target.value
+                        setFinCategory(nextCategory)
+                        setFinStatus(nextCategory === 'Cartão de Crédito' ? 'Pendente' : 'Pago')
+                      }}
+                      className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
+                    >
                       <option value="Cartão de Crédito">Cartão de Crédito</option>
                       <option value="Insumos / Clínica">Insumos / Clínica</option>
                       <option value="Alimentação">Alimentação</option>
                       <option value="Transporte">Transporte</option>
                       <option value="Outro">Outro (Personalizado)</option>
                     </select>
-                    <input type="number" step="0.01" placeholder="Valor (R$)" value={finAmount} onChange={(e) => setFinAmount(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Valor (Ex.: 10.000,00)"
+                      value={finAmount}
+                      onChange={(e) => setFinAmount(e.target.value)}
+                      className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
+                      required
+                    />
                     <input type="date" value={finDate} onChange={(e) => setFinDate(e.target.value)} className="bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
+                    <select
+                      value={finStatus}
+                      onChange={(e) => setFinStatus(e.target.value as 'Pago' | 'Pendente')}
+                      className={`border rounded-xl px-3.5 py-2.5 text-xs focus:outline-none font-bold ${
+                        finStatus === 'Pago'
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                          : 'bg-amber-50 border-amber-200 text-amber-800'
+                      }`}
+                      title="Situação do pagamento"
+                    >
+                      <option value="Pendente">Pendente</option>
+                      <option value="Pago">Pago</option>
+                    </select>
                   </div>
+                  <p className="text-[9px] text-stone-400">
+                    Deixe como <strong>Pendente</strong> enquanto ainda não saiu dinheiro da conta. Quando pagar a fatura ou despesa, use <strong>Marcar como pago</strong> em “Despesas que ainda preciso pagar”. Ela sai da pendência, desconta do saldo do mês do pagamento e permanece no histórico.
+                  </p>
 
                   {finCategory === 'Outro' && (
                     <input type="text" placeholder="Nome da Categoria Personalizada" value={finCustomCategory} onChange={(e) => setFinCustomCategory(e.target.value)} className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium" required />
@@ -9921,8 +10257,8 @@ export default function VetWorkspaceBeatrizV28() {
                                 placeholder="Descrição"
                               />
                               <input
-                                type="number"
-                                step="0.01"
+                                type="text"
+                                inputMode="decimal"
                                 value={editAmountInput}
                                 onChange={(e) => setEditAmountInput(e.target.value)}
                                 className="bg-white border border-pink-200 rounded-lg px-2.5 py-2 text-xs text-pink-950 w-full sm:w-28"
@@ -9931,8 +10267,8 @@ export default function VetWorkspaceBeatrizV28() {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  const amt = Number(editAmountInput)
-                                  if (Number.isFinite(amt) && entry.expenseId) {
+                                  const amt = parseCurrencyInput(editAmountInput)
+                                  if (Number.isFinite(amt) && amt >= 0 && entry.expenseId) {
                                     lastLocalMutationRef.current = Date.now()
                                     setFinances(prev => prev.map(item =>
                                       item.id === entry.expenseId
@@ -9968,9 +10304,21 @@ export default function VetWorkspaceBeatrizV28() {
                                     {entry.type === 'expense' ? 'GASTO' : entry.type === 'pending' ? 'PENDENTE' : 'RECEBIDO'}
                                   </span>
                                   <span className="font-extrabold text-pink-950">{entry.label}</span>
+                                  {entry.source === 'expense' && (
+                                    <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border ${
+                                      entry.expenseStatus === 'Pago'
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                        : 'bg-amber-50 text-amber-800 border-amber-200'
+                                    }`}>
+                                      {entry.expenseStatus === 'Pago' ? 'PAGO' : 'PENDENTE'}
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="text-[10px] text-stone-400 mt-1">
                                   {displayDate} • {entry.category}
+                                  {entry.source === 'expense' && entry.expenseStatus === 'Pago' && entry.expensePaidDate
+                                    ? ` • pago em ${formatLocalDate(entry.expensePaidDate)}`
+                                    : ''}
                                 </div>
                               </div>
 
@@ -9990,6 +10338,28 @@ export default function VetWorkspaceBeatrizV28() {
                                     <button
                                       type="button"
                                       onClick={() => {
+                                        lastLocalMutationRef.current = Date.now()
+                                        setFinances(prev => prev.map(item => {
+                                          if (item.id !== entry.expenseId) return item
+                                          const currentStatus = getExpenseStatus(item)
+                                          return currentStatus === 'Pago'
+                                            ? { ...item, status: 'Pendente' as const, paidDate: undefined }
+                                            : { ...item, status: 'Pago' as const, paidDate: todayDateKey }
+                                        }))
+                                      }}
+                                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border ${
+                                        entry.expenseStatus === 'Pago'
+                                          ? 'bg-white hover:bg-amber-50 text-amber-700 border-amber-200'
+                                          : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600'
+                                      }`}
+                                      title={entry.expenseStatus === 'Pago' ? 'Voltar despesa para pendente' : 'Confirmar pagamento da despesa/fatura'}
+                                    >
+                                      {entry.expenseStatus === 'Pago' ? 'Voltar p/ pendente' : '✓ Marcar como pago'}
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => {
                                         const expense = finances.find(item => item.id === entry.expenseId)
                                         if (!expense) return
                                         setEditingExpenseId(expense.id)
@@ -10004,6 +10374,7 @@ export default function VetWorkspaceBeatrizV28() {
                                     <button
                                       type="button"
                                       onClick={() => {
+                                        if (!confirm('Excluir esta despesa do histórico?')) return
                                         lastLocalMutationRef.current = Date.now()
                                         setFinances(prev => prev.filter(item => item.id !== entry.expenseId))
                                       }}
