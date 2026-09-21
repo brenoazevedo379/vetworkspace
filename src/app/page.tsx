@@ -274,6 +274,43 @@ interface PersonalPet {
   isMemorial: boolean
 }
 
+type PersonalMediaType = 'Livro' | 'Filme' | 'Série' | 'Jogo'
+type PersonalMediaStatus = 'quero' | 'em_andamento' | 'concluido'
+type PersonalMediaFilter = 'todos' | 'quero' | 'em_andamento' | 'concluido' | 'favoritos'
+type PersonalMediaSort = 'recentes' | 'alfabetico' | 'nota' | 'concluidos'
+
+interface PersonalMediaItem {
+  id: string
+  type: PersonalMediaType
+  title: string
+  notes: string
+  status: PersonalMediaStatus
+  createdAt: string
+  completedAt?: string
+  archived?: boolean
+  imageUrl?: string
+  rating?: number
+  favorite?: boolean
+  review?: string
+  progressCurrent?: number
+  progressTotal?: number
+  progressNote?: string
+}
+
+interface PersonalMediaGoal {
+  monthly: number
+  annual: number
+}
+
+type PersonalMediaGoals = Record<PersonalMediaType, PersonalMediaGoal>
+
+const DEFAULT_PERSONAL_MEDIA_GOALS: PersonalMediaGoals = {
+  Livro: { monthly: 1, annual: 12 },
+  Filme: { monthly: 2, annual: 20 },
+  Série: { monthly: 1, annual: 8 },
+  Jogo: { monthly: 1, annual: 5 },
+}
+
 const INITIAL_DRUGS: VetDrug[] = [
   { name: 'Meloxicam (Cão)', category: 'Anti-inflamatório (AINE)', defaultDosage: 0.1, defaultConcentration: 2, maxDays: 5 },
   { name: 'Meloxicam (Gato)', category: 'Anti-inflamatório (AINE)', defaultDosage: 0.05, defaultConcentration: 0.5, maxDays: 3 },
@@ -4246,6 +4283,331 @@ export default function VetWorkspaceBeatrizV28() {
   const [podcastIndex, setPodcastIndex] = useState(0)
   const [entertainmentIndex, setEntertainmentIndex] = useState(0)
 
+  const [personalMediaItems, setPersonalMediaItems] = useState<PersonalMediaItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_personal_media_v28')
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved)
+          return Array.isArray(parsed) ? parsed : []
+        } catch(e) {}
+      }
+    }
+    return []
+  })
+  const [personalMediaGoals, setPersonalMediaGoals] = useState<PersonalMediaGoals>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_personal_media_goals_v28')
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved)
+          return {
+            Livro: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Livro, ...(parsed.Livro || {}) },
+            Filme: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Filme, ...(parsed.Filme || {}) },
+            Série: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Série, ...(parsed.Série || {}) },
+            Jogo: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Jogo, ...(parsed.Jogo || {}) },
+          }
+        } catch(e) {}
+      }
+    }
+    return DEFAULT_PERSONAL_MEDIA_GOALS
+  })
+  const [newPersonalMediaType, setNewPersonalMediaType] = useState<PersonalMediaType>('Livro')
+  const [newPersonalMediaTitle, setNewPersonalMediaTitle] = useState('')
+  const [newPersonalMediaNotes, setNewPersonalMediaNotes] = useState('')
+  const [newPersonalMediaImageUrl, setNewPersonalMediaImageUrl] = useState('')
+  const [editingPersonalMediaId, setEditingPersonalMediaId] = useState<string | null>(null)
+  const [editingPersonalMediaTitle, setEditingPersonalMediaTitle] = useState('')
+  const [editingPersonalMediaNotes, setEditingPersonalMediaNotes] = useState('')
+  const [editingPersonalMediaReview, setEditingPersonalMediaReview] = useState('')
+  const [editingProgressCurrent, setEditingProgressCurrent] = useState('')
+  const [editingProgressTotal, setEditingProgressTotal] = useState('')
+  const [editingProgressNote, setEditingProgressNote] = useState('')
+  const [isPreparingPersonalMediaImage, setIsPreparingPersonalMediaImage] = useState(false)
+  const [openMediaHistory, setOpenMediaHistory] = useState<Record<PersonalMediaType, boolean>>({
+    Livro: false,
+    Filme: false,
+    Série: false,
+    Jogo: false,
+  })
+  const [personalMediaFilterByType, setPersonalMediaFilterByType] = useState<Record<PersonalMediaType, PersonalMediaFilter>>({
+    Livro: 'todos',
+    Filme: 'todos',
+    Série: 'todos',
+    Jogo: 'todos',
+  })
+  const [personalMediaSortByType, setPersonalMediaSortByType] = useState<Record<PersonalMediaType, PersonalMediaSort>>({
+    Livro: 'recentes',
+    Filme: 'recentes',
+    Série: 'recentes',
+    Jogo: 'recentes',
+  })
+  const [personalMediaPickByType, setPersonalMediaPickByType] = useState<Record<PersonalMediaType, string>>({
+    Livro: '',
+    Filme: '',
+    Série: '',
+    Jogo: '',
+  })
+
+  const personalMediaStatusMeta = (type: PersonalMediaType, status: PersonalMediaStatus) => {
+    if (type === 'Livro') {
+      if (status === 'concluido') return { label: 'Lido', shortLabel: 'Lido', color: 'emerald' }
+      if (status === 'em_andamento') return { label: 'Lendo', shortLabel: 'Lendo', color: 'amber' }
+      return { label: 'Quero ler', shortLabel: 'Quero ler', color: 'rose' }
+    }
+    if (type === 'Jogo') {
+      if (status === 'concluido') return { label: 'Concluído / zerado', shortLabel: 'Concluído', color: 'emerald' }
+      if (status === 'em_andamento') return { label: 'Jogando', shortLabel: 'Jogando', color: 'amber' }
+      return { label: 'Quero jogar', shortLabel: 'Quero jogar', color: 'rose' }
+    }
+    if (type === 'Série') {
+      if (status === 'concluido') return { label: 'Concluída', shortLabel: 'Concluída', color: 'emerald' }
+      if (status === 'em_andamento') return { label: 'Assistindo', shortLabel: 'Assistindo', color: 'amber' }
+      return { label: 'Quero assistir', shortLabel: 'Quero assistir', color: 'rose' }
+    }
+    if (status === 'concluido') return { label: 'Assistido', shortLabel: 'Assistido', color: 'emerald' }
+    if (status === 'em_andamento') return { label: 'Assistindo', shortLabel: 'Assistindo', color: 'amber' }
+    return { label: 'Quero assistir', shortLabel: 'Quero assistir', color: 'rose' }
+  }
+
+  const addPersonalMediaItem = (
+    type: PersonalMediaType,
+    title: string,
+    notes = '',
+    status: PersonalMediaStatus = 'quero',
+    imageUrl = ''
+  ) => {
+    const cleanTitle = title.trim()
+    if (!cleanTitle) return
+
+    const alreadyExists = personalMediaItems.some(item =>
+      item.type === type &&
+      item.title.trim().toLocaleLowerCase('pt-BR') === cleanTitle.toLocaleLowerCase('pt-BR')
+    )
+    if (alreadyExists) {
+      alert(`"${cleanTitle}" já está salvo na lista de ${type.toLocaleLowerCase('pt-BR')}.`)
+      return
+    }
+
+    lastLocalMutationRef.current = Date.now()
+    setPersonalMediaItems(prev => [
+      {
+        id: `media-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        type,
+        title: cleanTitle,
+        notes: notes.trim(),
+        status,
+        createdAt: new Date().toISOString(),
+        completedAt: status === 'concluido' ? new Date().toISOString() : undefined,
+        archived: false,
+        imageUrl: imageUrl || undefined,
+        rating: 0,
+        favorite: false,
+        review: '',
+      },
+      ...prev,
+    ])
+  }
+
+  const handleAddPersonalMedia = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newPersonalMediaTitle.trim()) return
+    addPersonalMediaItem(
+      newPersonalMediaType,
+      newPersonalMediaTitle,
+      newPersonalMediaNotes,
+      'quero',
+      newPersonalMediaImageUrl
+    )
+    setNewPersonalMediaTitle('')
+    setNewPersonalMediaNotes('')
+    setNewPersonalMediaImageUrl('')
+  }
+
+  const patchPersonalMediaItem = (id: string, patch: Partial<PersonalMediaItem>) => {
+    lastLocalMutationRef.current = Date.now()
+    setPersonalMediaItems(prev => prev.map(item =>
+      item.id === id ? { ...item, ...patch } : item
+    ))
+  }
+
+  const updatePersonalMediaStatus = (id: string, status: PersonalMediaStatus) => {
+    lastLocalMutationRef.current = Date.now()
+    setPersonalMediaItems(prev => prev.map(item =>
+      item.id === id
+        ? {
+            ...item,
+            status,
+            completedAt: status === 'concluido'
+              ? (item.completedAt || new Date().toISOString())
+              : undefined,
+          }
+        : item
+    ))
+  }
+
+  const preparePersonalMediaImage = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      throw new Error('Escolha ou cole uma imagem válida.')
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      throw new Error('A imagem ultrapassa 15 MB.')
+    }
+    return compressStudyImage(file, 900, 0.84)
+  }
+
+  const setPersonalMediaItemImage = async (id: string, file: File) => {
+    try {
+      setIsPreparingPersonalMediaImage(true)
+      const imageUrl = await preparePersonalMediaImage(file)
+      patchPersonalMediaItem(id, { imageUrl })
+    } catch (error: any) {
+      alert(error instanceof Error ? error.message : 'Não foi possível preparar a capa.')
+    } finally {
+      setIsPreparingPersonalMediaImage(false)
+    }
+  }
+
+  const setNewPersonalMediaImage = async (type: PersonalMediaType, file: File) => {
+    try {
+      setIsPreparingPersonalMediaImage(true)
+      const imageUrl = await preparePersonalMediaImage(file)
+      setNewPersonalMediaType(type)
+      setNewPersonalMediaImageUrl(imageUrl)
+    } catch (error: any) {
+      alert(error instanceof Error ? error.message : 'Não foi possível preparar a capa.')
+    } finally {
+      setIsPreparingPersonalMediaImage(false)
+    }
+  }
+
+  const handlePersonalMediaCardPaste = async (
+    id: string,
+    e: React.ClipboardEvent<HTMLElement>
+  ) => {
+    const imageFile = Array.from(e.clipboardData?.items || [])
+      .find(item => item.kind === 'file' && item.type.startsWith('image/'))
+      ?.getAsFile()
+    if (!imageFile) return
+    e.preventDefault()
+    await setPersonalMediaItemImage(id, imageFile)
+  }
+
+  const handleNewPersonalMediaPaste = async (
+    type: PersonalMediaType,
+    e: React.ClipboardEvent<HTMLElement>
+  ) => {
+    const imageFile = Array.from(e.clipboardData?.items || [])
+      .find(item => item.kind === 'file' && item.type.startsWith('image/'))
+      ?.getAsFile()
+    if (!imageFile) return
+    e.preventDefault()
+    await setNewPersonalMediaImage(type, imageFile)
+  }
+
+  const savePersonalMediaEdit = (id: string) => {
+    const title = editingPersonalMediaTitle.trim()
+    if (!title) return
+
+    const currentRaw = Number(editingProgressCurrent.replace(',', '.'))
+    const totalRaw = Number(editingProgressTotal.replace(',', '.'))
+
+    patchPersonalMediaItem(id, {
+      title,
+      notes: editingPersonalMediaNotes.trim(),
+      review: editingPersonalMediaReview.trim(),
+      progressCurrent: Number.isFinite(currentRaw) && currentRaw >= 0 ? currentRaw : undefined,
+      progressTotal: Number.isFinite(totalRaw) && totalRaw > 0 ? totalRaw : undefined,
+      progressNote: editingProgressNote.trim() || undefined,
+    })
+
+    setEditingPersonalMediaId(null)
+    setEditingPersonalMediaTitle('')
+    setEditingPersonalMediaNotes('')
+    setEditingPersonalMediaReview('')
+    setEditingProgressCurrent('')
+    setEditingProgressTotal('')
+    setEditingProgressNote('')
+  }
+
+  const startPersonalMediaEdit = (item: PersonalMediaItem) => {
+    setEditingPersonalMediaId(item.id)
+    setEditingPersonalMediaTitle(item.title)
+    setEditingPersonalMediaNotes(item.notes || '')
+    setEditingPersonalMediaReview(item.review || '')
+    setEditingProgressCurrent(item.progressCurrent !== undefined ? String(item.progressCurrent) : '')
+    setEditingProgressTotal(item.progressTotal !== undefined ? String(item.progressTotal) : '')
+    setEditingProgressNote(item.progressNote || '')
+  }
+
+  const cancelPersonalMediaEdit = () => {
+    setEditingPersonalMediaId(null)
+    setEditingPersonalMediaTitle('')
+    setEditingPersonalMediaNotes('')
+    setEditingPersonalMediaReview('')
+    setEditingProgressCurrent('')
+    setEditingProgressTotal('')
+    setEditingProgressNote('')
+  }
+
+  const archivePersonalMediaItem = (id: string) => {
+    patchPersonalMediaItem(id, { archived: true })
+  }
+
+  const restorePersonalMediaItem = (id: string) => {
+    patchPersonalMediaItem(id, { archived: false })
+  }
+
+  const archiveCompletedPersonalMedia = (type: PersonalMediaType) => {
+    const hasCompleted = personalMediaItems.some(item =>
+      item.type === type && item.status === 'concluido' && !item.archived
+    )
+    if (!hasCompleted) return
+    lastLocalMutationRef.current = Date.now()
+    setPersonalMediaItems(prev => prev.map(item =>
+      item.type === type && item.status === 'concluido'
+        ? { ...item, archived: true }
+        : item
+    ))
+  }
+
+  const updatePersonalMediaGoal = (
+    type: PersonalMediaType,
+    field: keyof PersonalMediaGoal,
+    value: number
+  ) => {
+    const safeValue = Math.max(0, Math.floor(Number(value) || 0))
+    lastLocalMutationRef.current = Date.now()
+    setPersonalMediaGoals(prev => ({
+      ...prev,
+      [type]: {
+        ...prev[type],
+        [field]: safeValue,
+      },
+    }))
+  }
+
+  const choosePersonalMediaForMe = (type: PersonalMediaType) => {
+    const candidates = personalMediaItems.filter(item =>
+      item.type === type &&
+      !item.archived &&
+      item.status !== 'concluido'
+    )
+    if (candidates.length === 0) {
+      alert('Não há itens pendentes nessa lista para sortear.')
+      return
+    }
+    const chosen = candidates[Math.floor(Math.random() * candidates.length)]
+    setPersonalMediaPickByType(prev => ({ ...prev, [type]: chosen.id }))
+  }
+
+  const deletePersonalMediaItem = (id: string) => {
+    if (!confirm('Excluir este item definitivamente, inclusive do histórico?')) return
+    lastLocalMutationRef.current = Date.now()
+    setPersonalMediaItems(prev => prev.filter(item => item.id !== id))
+  }
+
+
   const [personalPets, setPersonalPets] = useState<PersonalPet[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vet_personal_pets_v28')
@@ -5173,6 +5535,20 @@ export default function VetWorkspaceBeatrizV28() {
           if (d.shifts) { setShifts(d.shifts); localStorage.setItem('vet_shifts_v28', JSON.stringify(d.shifts)); }
           if (d.specialistConsultations) { setSpecialistConsultations(d.specialistConsultations); localStorage.setItem('vet_specialist_consultations_v28', JSON.stringify(d.specialistConsultations)); }
           if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v28', JSON.stringify(d.personalPets)); }
+          if (Array.isArray(d.personalMediaItems)) {
+            setPersonalMediaItems(d.personalMediaItems)
+            localStorage.setItem('vet_personal_media_v28', JSON.stringify(d.personalMediaItems))
+          }
+          if (d.personalMediaGoals) {
+            const goals = {
+              Livro: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Livro, ...(d.personalMediaGoals.Livro || {}) },
+              Filme: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Filme, ...(d.personalMediaGoals.Filme || {}) },
+              Série: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Série, ...(d.personalMediaGoals.Série || {}) },
+              Jogo: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Jogo, ...(d.personalMediaGoals.Jogo || {}) },
+            }
+            setPersonalMediaGoals(goals)
+            localStorage.setItem('vet_personal_media_goals_v28', JSON.stringify(goals))
+          }
           if (d.skincareDone) { setSkincareDone(d.skincareDone); localStorage.setItem('vet_skincare_checked_v28', JSON.stringify(d.skincareDone)); }
           if (d.mimosWishlist) { setMimosWishlist(d.mimosWishlist); localStorage.setItem('vet_mimos_v28', d.mimosWishlist); }
           if (d.descompressaoNotes) { setDescompressaoNotes(d.descompressaoNotes); localStorage.setItem('vet_descomp_v28', d.descompressaoNotes); }
@@ -5258,6 +5634,20 @@ export default function VetWorkspaceBeatrizV28() {
             if (d.shifts) { setShifts(d.shifts); localStorage.setItem('vet_shifts_v28', JSON.stringify(d.shifts)); }
             if (d.specialistConsultations) { setSpecialistConsultations(d.specialistConsultations); localStorage.setItem('vet_specialist_consultations_v28', JSON.stringify(d.specialistConsultations)); }
             if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v28', JSON.stringify(d.personalPets)); }
+            if (Array.isArray(d.personalMediaItems)) {
+              setPersonalMediaItems(d.personalMediaItems)
+              localStorage.setItem('vet_personal_media_v28', JSON.stringify(d.personalMediaItems))
+            }
+            if (d.personalMediaGoals) {
+              const goals = {
+                Livro: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Livro, ...(d.personalMediaGoals.Livro || {}) },
+                Filme: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Filme, ...(d.personalMediaGoals.Filme || {}) },
+                Série: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Série, ...(d.personalMediaGoals.Série || {}) },
+                Jogo: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Jogo, ...(d.personalMediaGoals.Jogo || {}) },
+              }
+              setPersonalMediaGoals(goals)
+              localStorage.setItem('vet_personal_media_goals_v28', JSON.stringify(goals))
+            }
             if (d.skincareDone) { setSkincareDone(d.skincareDone); localStorage.setItem('vet_skincare_checked_v28', JSON.stringify(d.skincareDone)); }
           }
         }
@@ -5291,6 +5681,8 @@ export default function VetWorkspaceBeatrizV28() {
     localStorage.setItem('vet_shifts_v28', JSON.stringify(shifts))
     localStorage.setItem('vet_specialist_consultations_v28', JSON.stringify(specialistConsultations))
     localStorage.setItem('vet_personal_pets_v28', JSON.stringify(personalPets))
+    localStorage.setItem('vet_personal_media_v28', JSON.stringify(personalMediaItems))
+    localStorage.setItem('vet_personal_media_goals_v28', JSON.stringify(personalMediaGoals))
     localStorage.setItem('vet_skincare_checked_v28', JSON.stringify(skincareDone))
     localStorage.setItem('vet_mimos_v28', mimosWishlist)
     localStorage.setItem('vet_descomp_v28', descompressaoNotes)
@@ -5317,6 +5709,8 @@ export default function VetWorkspaceBeatrizV28() {
           shifts,
           specialistConsultations,
           personalPets,
+          personalMediaItems,
+          personalMediaGoals,
           skincareDone,
           mimosWishlist,
           descompressaoNotes
@@ -5342,7 +5736,753 @@ export default function VetWorkspaceBeatrizV28() {
 
     const timer = setTimeout(syncToCloud, 800)
     return () => clearTimeout(timer)
-  }, [isInitialized, items, patients, recipes, customDrugs, monthlyIncome, otherIncome, monthlyIncomeByMonth, otherIncomeByMonth, cofrinhoAmount, finances, tasks, events, chatSessions, clinics, shifts, specialistConsultations, personalPets, skincareDone, mimosWishlist, descompressaoNotes])
+  }, [isInitialized, items, patients, recipes, customDrugs, monthlyIncome, otherIncome, monthlyIncomeByMonth, otherIncomeByMonth, cofrinhoAmount, finances, tasks, events, chatSessions, clinics, shifts, specialistConsultations, personalPets, personalMediaItems, personalMediaGoals, skincareDone, mimosWishlist, descompressaoNotes])
+
+  const renderPersonalMediaCategory = (
+    type: PersonalMediaType,
+    title: string,
+    subtitle: string,
+    emoji: string
+  ) => {
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth()
+
+    const categoryItems = personalMediaItems.filter(item => item.type === type)
+    const currentItems = categoryItems.filter(item => !item.archived)
+    const archivedItems = categoryItems
+      .filter(item => item.archived)
+      .sort((a, b) => (b.completedAt || b.createdAt).localeCompare(a.completedAt || a.createdAt))
+
+    const completedCurrent = currentItems.filter(item => item.status === 'concluido').length
+    const currentListProgress = currentItems.length > 0
+      ? Math.round((completedCurrent / currentItems.length) * 100)
+      : 0
+
+    const completedThisYear = categoryItems.filter(item => {
+      if (!item.completedAt) return false
+      const date = new Date(item.completedAt)
+      return date.getFullYear() === currentYear
+    }).length
+
+    const completedThisMonth = categoryItems.filter(item => {
+      if (!item.completedAt) return false
+      const date = new Date(item.completedAt)
+      return date.getFullYear() === currentYear && date.getMonth() === currentMonth
+    }).length
+
+    const favoriteCount = categoryItems.filter(item => item.favorite).length
+    const ratings = categoryItems
+      .map(item => Number(item.rating) || 0)
+      .filter(value => value > 0)
+    const averageRating = ratings.length
+      ? ratings.reduce((sum, value) => sum + value, 0) / ratings.length
+      : 0
+
+    const goals = personalMediaGoals[type]
+    const annualGoalProgress = goals.annual > 0
+      ? Math.min(100, Math.round((completedThisYear / goals.annual) * 100))
+      : 0
+    const monthlyGoalProgress = goals.monthly > 0
+      ? Math.min(100, Math.round((completedThisMonth / goals.monthly) * 100))
+      : 0
+
+    const filter = personalMediaFilterByType[type]
+    const sort = personalMediaSortByType[type]
+
+    const filteredCurrentItems = currentItems.filter(item => {
+      if (filter === 'todos') return true
+      if (filter === 'favoritos') return !!item.favorite
+      return item.status === filter
+    })
+
+    const visibleCurrentItems = [...filteredCurrentItems].sort((a, b) => {
+      if (sort === 'alfabetico') return a.title.localeCompare(b.title, 'pt-BR')
+      if (sort === 'nota') return (Number(b.rating) || 0) - (Number(a.rating) || 0)
+      if (sort === 'concluidos') {
+        const aTime = a.completedAt ? new Date(a.completedAt).getTime() : 0
+        const bTime = b.completedAt ? new Date(b.completedAt).getTime() : 0
+        return bTime - aTime
+      }
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    })
+
+    const chosenItem = currentItems.find(item => item.id === personalMediaPickByType[type])
+
+    const statusClass = (status: PersonalMediaStatus) => {
+      if (status === 'concluido') return 'bg-emerald-50 border-emerald-200 text-emerald-900'
+      if (status === 'em_andamento') return 'bg-amber-50 border-amber-200 text-amber-900'
+      return 'bg-rose-50/60 border-rose-200 text-rose-900'
+    }
+
+    const internalProgress = (item: PersonalMediaItem) => {
+      if (type === 'Livro' && item.progressTotal && item.progressTotal > 0) {
+        return Math.min(100, Math.max(0, Math.round(((item.progressCurrent || 0) / item.progressTotal) * 100)))
+      }
+      if (type === 'Jogo' && item.progressCurrent !== undefined) {
+        return Math.min(100, Math.max(0, Math.round(item.progressCurrent)))
+      }
+      return null
+    }
+
+    return (
+      <div className="bg-white/95 border border-pink-100 rounded-3xl p-5 md:p-6 shadow-sm space-y-5">
+        <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-5">
+          <div className="min-w-0">
+            <h4 className="text-sm font-extrabold text-pink-950 flex items-center gap-2">
+              <span>{emoji}</span> {title}
+            </h4>
+            <p className="text-[10px] text-stone-500 mt-1">{subtitle}</p>
+          </div>
+
+          <div className="w-full xl:w-[330px] space-y-3">
+            <div>
+              <div className="flex items-center justify-between text-[10px] font-bold mb-1.5">
+                <span className="text-stone-500">Lista atual</span>
+                <span className="text-pink-700">{completedCurrent}/{currentItems.length} • {currentListProgress}%</span>
+              </div>
+              <div className="h-2.5 rounded-full bg-pink-100 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                  style={{ width: `${currentListProgress}%` }}
+                />
+              </div>
+              <div className="text-[9px] text-stone-400 mt-1">
+                Cada item atual vale a mesma parte da barra. Arquivados ficam no histórico.
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-violet-50 border border-violet-100 rounded-xl p-2.5">
+                <div className="text-[9px] font-extrabold text-violet-700 uppercase">Meta {currentYear}</div>
+                <div className="flex items-center gap-1 mt-1">
+                  <span className="text-sm font-extrabold text-violet-950">{completedThisYear}</span>
+                  <span className="text-[9px] text-violet-500">de</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={goals.annual}
+                    onChange={(e) => updatePersonalMediaGoal(type, 'annual', Number(e.target.value))}
+                    className="w-14 bg-white border border-violet-200 rounded-lg px-1.5 py-1 text-[10px] font-bold text-violet-900 focus:outline-none"
+                    title="Meta anual"
+                  />
+                </div>
+                <div className="h-1.5 bg-white rounded-full overflow-hidden mt-2">
+                  <div className="h-full bg-violet-500 rounded-full" style={{ width: `${annualGoalProgress}%` }} />
+                </div>
+              </div>
+
+              <div className="bg-sky-50 border border-sky-100 rounded-xl p-2.5">
+                <div className="text-[9px] font-extrabold text-sky-700 uppercase">Meta do mês</div>
+                <div className="flex items-center gap-1 mt-1">
+                  <span className="text-sm font-extrabold text-sky-950">{completedThisMonth}</span>
+                  <span className="text-[9px] text-sky-500">de</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={goals.monthly}
+                    onChange={(e) => updatePersonalMediaGoal(type, 'monthly', Number(e.target.value))}
+                    className="w-14 bg-white border border-sky-200 rounded-lg px-1.5 py-1 text-[10px] font-bold text-sky-900 focus:outline-none"
+                    title="Meta mensal"
+                  />
+                </div>
+                <div className="h-1.5 bg-white rounded-full overflow-hidden mt-2">
+                  <div className="h-full bg-sky-500 rounded-full" style={{ width: `${monthlyGoalProgress}%` }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <div className="bg-stone-50 border border-stone-100 rounded-xl p-3">
+            <div className="text-[9px] uppercase font-bold text-stone-400">Concluídos em {currentYear}</div>
+            <div className="text-lg font-extrabold text-pink-950 mt-0.5">{completedThisYear}</div>
+          </div>
+          <div className="bg-stone-50 border border-stone-100 rounded-xl p-3">
+            <div className="text-[9px] uppercase font-bold text-stone-400">Neste mês</div>
+            <div className="text-lg font-extrabold text-pink-950 mt-0.5">{completedThisMonth}</div>
+          </div>
+          <div className="bg-stone-50 border border-stone-100 rounded-xl p-3">
+            <div className="text-[9px] uppercase font-bold text-stone-400">Favoritos</div>
+            <div className="text-lg font-extrabold text-pink-950 mt-0.5">{favoriteCount}</div>
+          </div>
+          <div className="bg-stone-50 border border-stone-100 rounded-xl p-3">
+            <div className="text-[9px] uppercase font-bold text-stone-400">Nota média</div>
+            <div className="text-lg font-extrabold text-pink-950 mt-0.5">
+              {averageRating ? `${averageRating.toFixed(1)} ★` : '—'}
+            </div>
+          </div>
+        </div>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (newPersonalMediaType !== type) setNewPersonalMediaType(type)
+            if (!newPersonalMediaTitle.trim()) return
+            addPersonalMediaItem(
+              type,
+              newPersonalMediaTitle,
+              newPersonalMediaNotes,
+              'quero',
+              newPersonalMediaType === type ? newPersonalMediaImageUrl : ''
+            )
+            setNewPersonalMediaTitle('')
+            setNewPersonalMediaNotes('')
+            setNewPersonalMediaImageUrl('')
+          }}
+          onPaste={(e) => handleNewPersonalMediaPaste(type, e)}
+          className="bg-pink-50/40 border border-pink-100 rounded-2xl p-3 space-y-3"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2">
+            <input
+              value={newPersonalMediaType === type ? newPersonalMediaTitle : ''}
+              onFocus={() => {
+                setNewPersonalMediaType(type)
+                if (newPersonalMediaType !== type) setNewPersonalMediaImageUrl('')
+              }}
+              onChange={(e) => {
+                setNewPersonalMediaType(type)
+                setNewPersonalMediaTitle(e.target.value)
+              }}
+              placeholder={`Adicionar ${type.toLocaleLowerCase('pt-BR')}...`}
+              className="bg-white border border-pink-200 rounded-xl px-3 py-2.5 text-xs text-pink-950 focus:outline-none focus:border-pink-400"
+            />
+            <input
+              value={newPersonalMediaType === type ? newPersonalMediaNotes : ''}
+              onFocus={() => setNewPersonalMediaType(type)}
+              onChange={(e) => {
+                setNewPersonalMediaType(type)
+                setNewPersonalMediaNotes(e.target.value)
+              }}
+              placeholder="Autor, plataforma, temporada ou observação..."
+              className="bg-white border border-pink-200 rounded-xl px-3 py-2.5 text-xs text-pink-950 focus:outline-none focus:border-pink-400"
+            />
+            <button
+              type="submit"
+              className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2.5 rounded-xl text-[10px] font-extrabold flex items-center justify-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" /> Adicionar
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="bg-white hover:bg-pink-50 border border-pink-200 text-pink-700 px-3 py-2 rounded-xl text-[10px] font-bold cursor-pointer flex items-center gap-1.5">
+              <Camera className="w-3.5 h-3.5" />
+              {isPreparingPersonalMediaImage
+                ? 'Preparando imagem...'
+                : newPersonalMediaType === type && newPersonalMediaImageUrl
+                  ? 'Trocar capa'
+                  : 'Adicionar capa'}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  e.target.value = ''
+                  if (file) await setNewPersonalMediaImage(type, file)
+                }}
+              />
+            </label>
+
+            <span className="text-[9px] text-stone-400">
+              ou tire um print e pressione <strong>Ctrl + V</strong> neste formulário.
+            </span>
+
+            {newPersonalMediaType === type && newPersonalMediaImageUrl && (
+              <div className="flex items-center gap-2">
+                <img src={newPersonalMediaImageUrl} alt="Prévia da capa" className="w-10 h-12 rounded-lg object-cover border border-pink-200" />
+                <button
+                  type="button"
+                  onClick={() => setNewPersonalMediaImageUrl('')}
+                  className="text-[9px] font-bold text-rose-600 hover:underline"
+                >
+                  remover
+                </button>
+              </div>
+            )}
+          </div>
+        </form>
+
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-1.5">
+            {([
+              ['todos', 'Todos'],
+              ['quero', personalMediaStatusMeta(type, 'quero').shortLabel],
+              ['em_andamento', personalMediaStatusMeta(type, 'em_andamento').shortLabel],
+              ['concluido', personalMediaStatusMeta(type, 'concluido').shortLabel],
+              ['favoritos', '❤️ Favoritos'],
+            ] as Array<[PersonalMediaFilter, string]>).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setPersonalMediaFilterByType(prev => ({ ...prev, [type]: value }))}
+                className={`px-2.5 py-1.5 rounded-xl border text-[9px] font-bold transition ${
+                  filter === value
+                    ? 'bg-pink-500 border-pink-500 text-white'
+                    : 'bg-white border-pink-100 text-stone-600 hover:bg-pink-50'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={sort}
+              onChange={(e) => setPersonalMediaSortByType(prev => ({
+                ...prev,
+                [type]: e.target.value as PersonalMediaSort,
+              }))}
+              className="bg-white border border-stone-200 rounded-xl px-2.5 py-1.5 text-[9px] font-bold text-stone-600 focus:outline-none"
+            >
+              <option value="recentes">Mais recentes</option>
+              <option value="alfabetico">A–Z</option>
+              <option value="nota">Maior nota</option>
+              <option value="concluidos">Concluídos recentemente</option>
+            </select>
+
+            <button
+              type="button"
+              onClick={() => choosePersonalMediaForMe(type)}
+              className="bg-violet-50 hover:bg-violet-100 border border-violet-200 text-violet-800 px-3 py-1.5 rounded-xl text-[9px] font-extrabold flex items-center gap-1"
+            >
+              <Sparkles className="w-3.5 h-3.5" /> Escolhe por mim
+            </button>
+
+            {completedCurrent > 0 && (
+              <button
+                type="button"
+                onClick={() => archiveCompletedPersonalMedia(type)}
+                className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 px-3 py-1.5 rounded-xl text-[9px] font-bold"
+              >
+                ✓ Arquivar concluídos
+              </button>
+            )}
+          </div>
+        </div>
+
+        {chosenItem && (
+          <div className="bg-violet-50 border border-violet-200 rounded-2xl p-3 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[9px] font-extrabold uppercase text-violet-600">✨ Escolha da vez</div>
+              <div className="text-xs font-extrabold text-violet-950 mt-0.5">{chosenItem.title}</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPersonalMediaPickByType(prev => ({ ...prev, [type]: '' }))}
+              className="text-violet-500 hover:text-violet-800 p-1"
+              title="Fechar sugestão"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {visibleCurrentItems.length === 0 ? (
+          <div className="border border-dashed border-pink-200 rounded-2xl p-6 text-center">
+            <p className="text-xs font-bold text-stone-500">
+              {currentItems.length === 0 ? 'Nenhum item nessa lista agora.' : 'Nenhum item corresponde ao filtro.'}
+            </p>
+            <p className="text-[10px] text-stone-400 mt-1">
+              Adicione acima, troque o filtro ou use uma recomendação.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {visibleCurrentItems.map(item => {
+              const meta = personalMediaStatusMeta(type, item.status)
+              const isEditing = editingPersonalMediaId === item.id
+              const progressValue = internalProgress(item)
+              const isChosen = personalMediaPickByType[type] === item.id
+
+              return (
+                <div
+                  key={item.id}
+                  tabIndex={0}
+                  onPaste={(e) => handlePersonalMediaCardPaste(item.id, e)}
+                  className={`border rounded-2xl p-3.5 transition outline-none focus:ring-2 focus:ring-pink-200 ${
+                    statusClass(item.status)
+                  } ${isChosen ? 'ring-2 ring-violet-300 shadow-md' : ''}`}
+                  title="Você também pode clicar neste card e colar uma capa com Ctrl + V"
+                >
+                  {isEditing ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[9px] font-bold text-stone-500 block mb-1">Título</label>
+                          <input
+                            autoFocus
+                            value={editingPersonalMediaTitle}
+                            onChange={(e) => setEditingPersonalMediaTitle(e.target.value)}
+                            className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold text-stone-500 block mb-1">Autor / plataforma / observação</label>
+                          <input
+                            value={editingPersonalMediaNotes}
+                            onChange={(e) => setEditingPersonalMediaNotes(e.target.value)}
+                            className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs text-pink-950 focus:outline-none"
+                            placeholder="Observação..."
+                          />
+                        </div>
+                      </div>
+
+                      {type === 'Livro' && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[9px] font-bold text-stone-500 block mb-1">Página atual</label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={editingProgressCurrent}
+                              onChange={(e) => setEditingProgressCurrent(e.target.value)}
+                              className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] font-bold text-stone-500 block mb-1">Total de páginas</label>
+                            <input
+                              type="number"
+                              min="1"
+                              value={editingProgressTotal}
+                              onChange={(e) => setEditingProgressTotal(e.target.value)}
+                              className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {type === 'Jogo' && (
+                        <div>
+                          <label className="text-[9px] font-bold text-stone-500 block mb-1">Progresso do jogo (%)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={editingProgressCurrent}
+                            onChange={(e) => setEditingProgressCurrent(e.target.value)}
+                            className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                            placeholder="Ex.: 40"
+                          />
+                        </div>
+                      )}
+
+                      {type === 'Série' && (
+                        <div>
+                          <label className="text-[9px] font-bold text-stone-500 block mb-1">Onde parou</label>
+                          <input
+                            value={editingProgressNote}
+                            onChange={(e) => setEditingProgressNote(e.target.value)}
+                            className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                            placeholder="Ex.: Temporada 2 • Episódio 5"
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="text-[9px] font-bold text-stone-500 block mb-1">Mini resenha / o que achei</label>
+                        <textarea
+                          rows={3}
+                          value={editingPersonalMediaReview}
+                          onChange={(e) => setEditingPersonalMediaReview(e.target.value)}
+                          className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs focus:outline-none resize-none"
+                          placeholder="O que mais gostou, se recomendaria, personagem favorito..."
+                        />
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => savePersonalMediaEdit(item.id)}
+                          className="bg-pink-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold"
+                        >
+                          Salvar alterações
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelPersonalMediaEdit}
+                          className="bg-white border border-stone-200 text-stone-600 px-3 py-1.5 rounded-lg text-[10px] font-bold"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col md:flex-row gap-3">
+                      <div className="shrink-0">
+                        {item.imageUrl ? (
+                          <div className="relative group">
+                            <img
+                              src={item.imageUrl}
+                              alt={`Capa de ${item.title}`}
+                              className="w-20 h-24 rounded-xl object-cover border border-white/80 shadow-sm bg-white"
+                            />
+                            <label
+                              className="absolute inset-x-1 bottom-1 bg-black/60 hover:bg-black/75 text-white text-[8px] font-bold rounded-md py-1 text-center cursor-pointer opacity-0 group-hover:opacity-100 transition"
+                              title="Trocar capa"
+                            >
+                              trocar capa
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0]
+                                  e.target.value = ''
+                                  if (file) await setPersonalMediaItemImage(item.id, file)
+                                }}
+                              />
+                            </label>
+                          </div>
+                        ) : (
+                          <label className="w-20 h-24 rounded-xl bg-white/70 border border-dashed border-pink-300 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-white transition text-pink-500">
+                            <Camera className="w-5 h-5" />
+                            <span className="text-[8px] font-bold text-center px-1">capa / print</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0]
+                                e.target.value = ''
+                                if (file) await setPersonalMediaItemImage(item.id, file)
+                              }}
+                            />
+                          </label>
+                        )}
+                        <div className="text-[8px] text-stone-400 text-center mt-1">ou Ctrl + V</div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => updatePersonalMediaStatus(
+                          item.id,
+                          item.status === 'quero'
+                            ? 'em_andamento'
+                            : item.status === 'em_andamento'
+                              ? 'concluido'
+                              : 'quero'
+                        )}
+                        className={`w-8 h-8 rounded-full border-2 shrink-0 flex items-center justify-center ${
+                          item.status === 'concluido'
+                            ? 'bg-emerald-500 border-emerald-500 text-white'
+                            : item.status === 'em_andamento'
+                              ? 'bg-amber-400 border-amber-400 text-white'
+                              : 'bg-white border-rose-300 text-rose-300'
+                        }`}
+                        title="Clique para avançar o status"
+                      >
+                        {item.status === 'concluido'
+                          ? <Check className="w-4 h-4" />
+                          : item.status === 'em_andamento'
+                            ? '◐'
+                            : <Circle className="w-4 h-4" />}
+                      </button>
+
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div className="flex flex-wrap items-start gap-2">
+                          <div className={`text-xs font-extrabold flex-1 min-w-[160px] ${
+                            item.status === 'concluido' ? 'line-through decoration-emerald-400' : ''
+                          }`}>
+                            {item.title}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => patchPersonalMediaItem(item.id, { favorite: !item.favorite })}
+                            className={`p-1 rounded-lg transition ${
+                              item.favorite
+                                ? 'bg-rose-100 text-rose-600'
+                                : 'bg-white/70 text-stone-400 hover:text-rose-500'
+                            }`}
+                            title={item.favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                          >
+                            <Heart className={`w-4 h-4 ${item.favorite ? 'fill-current' : ''}`} />
+                          </button>
+                        </div>
+
+                        {item.notes && <div className="text-[10px] opacity-75">{item.notes}</div>}
+
+                        <div className="flex flex-wrap items-center gap-1">
+                          {[1, 2, 3, 4, 5].map(star => (
+                            <button
+                              key={star}
+                              type="button"
+                              onClick={() => patchPersonalMediaItem(item.id, {
+                                rating: item.rating === star ? 0 : star
+                              })}
+                              className={`text-base leading-none transition ${
+                                (item.rating || 0) >= star ? 'text-amber-500' : 'text-stone-300 hover:text-amber-300'
+                              }`}
+                              title={`${star} estrela${star === 1 ? '' : 's'}`}
+                            >
+                              ★
+                            </button>
+                          ))}
+                          {item.rating ? <span className="text-[9px] font-bold text-amber-700 ml-1">{item.rating}/5</span> : null}
+                        </div>
+
+                        {progressValue !== null && (
+                          <div>
+                            <div className="flex justify-between text-[9px] font-bold mb-1">
+                              <span className="text-stone-500">
+                                {type === 'Livro' ? 'Progresso de leitura' : 'Progresso do jogo'}
+                              </span>
+                              <span className="text-pink-700">{progressValue}%</span>
+                            </div>
+                            <div className="h-2 rounded-full bg-white/70 overflow-hidden border border-white">
+                              <div className="h-full bg-pink-500 rounded-full" style={{ width: `${progressValue}%` }} />
+                            </div>
+                            {type === 'Livro' && item.progressTotal ? (
+                              <div className="text-[8px] text-stone-400 mt-1">
+                                Página {Math.min(item.progressCurrent || 0, item.progressTotal)} de {item.progressTotal}
+                              </div>
+                            ) : null}
+                          </div>
+                        )}
+
+                        {type === 'Série' && item.progressNote && (
+                          <div className="inline-flex bg-white/70 border border-white px-2 py-1 rounded-lg text-[9px] font-bold text-pink-800">
+                            📺 {item.progressNote}
+                          </div>
+                        )}
+
+                        {item.review && (
+                          <div className="bg-white/60 border border-white rounded-xl p-2.5 text-[10px] leading-relaxed">
+                            <strong>Minha resenha:</strong> {item.review}
+                          </div>
+                        )}
+
+                        {item.completedAt && item.status === 'concluido' && (
+                          <div className="text-[9px] text-emerald-700">
+                            Concluído em {new Date(item.completedAt).toLocaleDateString('pt-BR')}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap md:flex-col items-center md:items-stretch gap-1.5 shrink-0">
+                        <select
+                          value={item.status}
+                          onChange={(e) => updatePersonalMediaStatus(item.id, e.target.value as PersonalMediaStatus)}
+                          className={`border rounded-xl px-2.5 py-1.5 text-[9px] font-bold focus:outline-none ${
+                            item.status === 'concluido'
+                              ? 'bg-emerald-100 border-emerald-200 text-emerald-800'
+                              : item.status === 'em_andamento'
+                                ? 'bg-amber-100 border-amber-200 text-amber-800'
+                                : 'bg-rose-100 border-rose-200 text-rose-800'
+                          }`}
+                        >
+                          <option value="quero">{personalMediaStatusMeta(type, 'quero').label}</option>
+                          <option value="em_andamento">{personalMediaStatusMeta(type, 'em_andamento').label}</option>
+                          <option value="concluido">{personalMediaStatusMeta(type, 'concluido').label}</option>
+                        </select>
+
+                        <button
+                          type="button"
+                          onClick={() => startPersonalMediaEdit(item)}
+                          className="px-2.5 py-1.5 rounded-lg bg-white/70 hover:bg-white text-pink-700 text-[9px] font-bold flex items-center justify-center gap-1"
+                          title="Editar, resenha e progresso"
+                        >
+                          <Edit3 className="w-3 h-3" /> Editar
+                        </button>
+
+                        {item.status === 'concluido' && (
+                          <button
+                            type="button"
+                            onClick={() => archivePersonalMediaItem(item.id)}
+                            className="px-2.5 py-1.5 rounded-lg bg-white/80 hover:bg-white text-emerald-800 text-[9px] font-bold"
+                            title="Tira da lista atual, mas mantém salvo no histórico"
+                          >
+                            Arquivar
+                          </button>
+                        )}
+
+                        {item.imageUrl && (
+                          <button
+                            type="button"
+                            onClick={() => patchPersonalMediaItem(item.id, { imageUrl: undefined })}
+                            className="px-2.5 py-1.5 rounded-lg bg-white/70 hover:bg-white text-stone-500 text-[8px] font-bold"
+                          >
+                            Remover capa
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => deletePersonalMediaItem(item.id)}
+                          className="p-1.5 rounded-lg bg-white/70 hover:bg-red-50 text-stone-400 hover:text-red-500"
+                          title="Excluir definitivamente"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {archivedItems.length > 0 && (
+          <div className="pt-2 border-t border-pink-100">
+            <button
+              type="button"
+              onClick={() => setOpenMediaHistory(prev => ({ ...prev, [type]: !prev[type] }))}
+              className="w-full flex items-center justify-between bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-xl px-3 py-2.5 text-[10px] font-bold text-stone-700"
+            >
+              <span>📚 Histórico concluído ({archivedItems.length})</span>
+              {openMediaHistory[type] ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+
+            {openMediaHistory[type] && (
+              <div className="mt-2 space-y-2">
+                {archivedItems.map(item => (
+                  <div key={`history-${item.id}`} className="bg-emerald-50/50 border border-emerald-100 rounded-xl p-3 flex items-center gap-3">
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt={item.title} className="w-10 h-12 rounded-lg object-cover border border-emerald-100 shrink-0" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[11px] font-extrabold text-emerald-950 truncate">
+                        {item.favorite ? '❤️ ' : ''}{item.title}
+                      </div>
+                      <div className="text-[9px] text-emerald-700">
+                        {personalMediaStatusMeta(type, 'concluido').label}
+                        {item.completedAt ? ` • ${new Date(item.completedAt).toLocaleDateString('pt-BR')}` : ''}
+                        {item.rating ? ` • ${'★'.repeat(item.rating)}` : ''}
+                      </div>
+                      {item.review && <div className="text-[9px] text-stone-500 mt-1 line-clamp-2">{item.review}</div>}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => restorePersonalMediaItem(item.id)}
+                      className="bg-white border border-emerald-200 text-emerald-700 px-2.5 py-1.5 rounded-lg text-[9px] font-bold"
+                    >
+                      Restaurar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deletePersonalMediaItem(item.id)}
+                      className="p-1.5 text-stone-400 hover:text-red-500"
+                      title="Excluir definitivamente"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   const selectedItem = items.find(i => i.id === selectedItemId && i.type === 'page') || items.find(i => i.type === 'page')
 
@@ -6745,7 +7885,7 @@ export default function VetWorkspaceBeatrizV28() {
                   className={`flex items-center gap-2 px-2.5 py-2 rounded-xl cursor-pointer text-xs transition ${activeTab === 'pessoal' && personalSubTab === 'descompressao' ? 'bg-pink-500 text-white font-extrabold shadow-xs' : 'text-stone-700 hover:bg-pink-50'}`}
                 >
                   <BookOpen className="w-3.5 h-3.5 text-pink-500 shrink-0" />
-                  <span className="truncate">Séries, Filmes & Leituras</span>
+                  <span className="truncate">Livros, Filmes & Séries</span>
                 </div>
                 <div 
                   onClick={() => { setActiveTab('pessoal'); setPersonalSubTab('jogos'); }}
@@ -7736,82 +8876,139 @@ export default function VetWorkspaceBeatrizV28() {
 
                 {personalSubTab === 'descompressao' && (
                   <div className="space-y-6">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                       <div>
                         <h3 className="text-sm font-extrabold text-pink-950 flex items-center gap-2">
-                          <BookOpen className="w-4 h-4 text-pink-500" /> Séries, Filmes & Leituras Relaxantes (15 Opções)
+                          <BookOpen className="w-4 h-4 text-pink-500" /> Livros, Filmes & Séries
                         </h3>
-                        <p className="text-xs text-stone-500 mt-0.5">Anotações pessoais e recomendações rotativas para o descanso.</p>
+                        <p className="text-xs text-stone-500 mt-0.5">
+                          Status, capas, estrelas, favoritos, resenhas, metas e progresso automático.
+                        </p>
                       </div>
-                      <button 
-                        onClick={() => setEntertainmentIndex((prev) => (prev + 2) % ENTERTAINMENT_POOL.length)}
-                        className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" /> Ver Outras Opções
-                      </button>
+                      <div className="text-[10px] bg-pink-50 border border-pink-100 text-pink-700 px-3 py-2 rounded-xl font-bold">
+                        🔴 Quero começar • 🟡 Em andamento • 🟢 Concluído
+                      </div>
                     </div>
 
-                    <textarea 
-                      value={descompressaoNotes} 
-                      onChange={(e) => { lastLocalMutationRef.current = Date.now(); setDescompressaoNotes(e.target.value); }} 
-                      rows={4} 
-                      className="w-full bg-pink-50/25 border border-pink-200 p-4 rounded-2xl text-stone-800 text-xs leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300 select-text" 
-                      placeholder="Minhas anotações e favoritos sobre filmes, séries e livros..." 
+                    <textarea
+                      value={descompressaoNotes}
+                      onChange={(e) => {
+                        lastLocalMutationRef.current = Date.now()
+                        setDescompressaoNotes(e.target.value)
+                      }}
+                      rows={3}
+                      className="w-full bg-pink-50/25 border border-pink-200 p-4 rounded-2xl text-stone-800 text-xs leading-relaxed focus:outline-none focus:border-pink-400 resize-none font-normal placeholder-stone-300 select-text"
+                      placeholder="Anotações gerais, autores favoritos, gêneros, plataformas..."
                     />
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {[0, 1].map((offset) => {
-                        const item = ENTERTAINMENT_POOL[(entertainmentIndex + offset) % ENTERTAINMENT_POOL.length]
-                        return (
-                          <div key={offset} className="bg-white p-6 rounded-2xl border border-pink-200 shadow-2xs space-y-2 flex flex-col justify-between">
-                            <div>
-                              <div className="flex items-center justify-between">
-                                <h4 className="font-extrabold text-sm text-pink-950">{item.title}</h4>
-                                <span className="text-[10px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-md font-bold">{item.type}</span>
+                    {renderPersonalMediaCategory(
+                      'Livro',
+                      'Livros',
+                      'Marque como Quero ler, Lendo ou Lido. Os livros concluídos podem sair da lista atual sem serem apagados do histórico.',
+                      '📚'
+                    )}
+
+                    {renderPersonalMediaCategory(
+                      'Filme',
+                      'Filmes',
+                      'Organize o que quer assistir, o que está vendo e o que já foi concluído.',
+                      '🎬'
+                    )}
+
+                    {renderPersonalMediaCategory(
+                      'Série',
+                      'Séries',
+                      'Acompanhe séries desejadas, em andamento e já finalizadas.',
+                      '📺'
+                    )}
+
+                    <div className="bg-white/95 border border-pink-100 rounded-3xl p-5 shadow-sm space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                          <h4 className="text-xs font-extrabold text-pink-950">✨ Recomendações rotativas</h4>
+                          <p className="text-[10px] text-stone-500 mt-1">As recomendações antigas continuam aqui e agora entram de verdade na lista.</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setEntertainmentIndex((prev) => (prev + 2) % ENTERTAINMENT_POOL.length)}
+                          className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" /> Ver outras opções
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {[0, 1].map((offset) => {
+                          const item = ENTERTAINMENT_POOL[(entertainmentIndex + offset) % ENTERTAINMENT_POOL.length]
+                          return (
+                            <div key={`${item.type}-${item.title}`} className="bg-pink-50/30 p-5 rounded-2xl border border-pink-100 space-y-2 flex flex-col justify-between">
+                              <div>
+                                <div className="flex items-start justify-between gap-2">
+                                  <h4 className="font-extrabold text-sm text-pink-950">{item.title}</h4>
+                                  <span className="text-[9px] bg-white border border-pink-100 text-pink-700 px-2 py-0.5 rounded-md font-bold">{item.type}</span>
+                                </div>
+                                <p className="text-xs text-stone-600 mt-2 leading-relaxed">{item.desc}</p>
                               </div>
-                              <p className="text-xs text-stone-600 mt-2 leading-relaxed">{item.desc}</p>
+                              <button
+                                type="button"
+                                onClick={() => addPersonalMediaItem(item.type as PersonalMediaType, item.title, item.desc)}
+                                className="w-full mt-3 bg-white hover:bg-pink-100 text-pink-800 border border-pink-200 py-2 rounded-xl text-xs font-bold transition"
+                              >
+                                + Adicionar à minha lista
+                              </button>
                             </div>
-                            <button onClick={() => alert(`✨ '${item.title}' salvo na sua lista de favoritos!`)} className="w-full mt-4 bg-pink-50 hover:bg-pink-100 text-pink-800 border border-pink-200 py-2 rounded-xl text-xs font-bold transition">
-                              💖 Adicionar aos Favoritos
-                            </button>
-                          </div>
-                        )
-                      })}
+                          )
+                        })}
+                      </div>
                     </div>
                   </div>
                 )}
 
                 {personalSubTab === 'jogos' && (
                   <div className="space-y-6">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                       <div>
                         <h3 className="text-sm font-extrabold text-pink-950 flex items-center gap-2">
-                          <Gamepad2 className="w-4 h-4 text-pink-500" /> Jogos Relaxantes (15 Opções Disponíveis)
+                          <Gamepad2 className="w-4 h-4 text-pink-500" /> Jogos
                         </h3>
-                        <p className="text-xs text-stone-500 mt-0.5">Clique para rodar novas recomendações do catálogo expandido.</p>
+                        <p className="text-xs text-stone-500 mt-0.5">
+                          Quero jogar, Jogando e Concluído, com capa, nota, favoritos, metas e progresso do jogo.
+                        </p>
                       </div>
-                      <button 
+                      <button
+                        type="button"
                         onClick={() => setGameIndex((prev) => (prev + 2) % GAMES_POOL.length)}
-                        className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                        className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
                       >
-                        <RefreshCw className="w-3.5 h-3.5" /> Ver Outras Recomendações
+                        <RefreshCw className="w-3.5 h-3.5" /> Outras recomendações
                       </button>
                     </div>
+
+                    {renderPersonalMediaCategory(
+                      'Jogo',
+                      'Minha lista de jogos',
+                      'Cada jogo concluído aumenta a barra. Você pode arquivar o que terminou e manter salvo no histórico.',
+                      '🎮'
+                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {[0, 1].map((offset) => {
                         const item = GAMES_POOL[(gameIndex + offset) % GAMES_POOL.length]
                         return (
-                          <div key={offset} className="bg-white p-6 rounded-2xl border border-pink-200 shadow-2xs space-y-2 flex flex-col justify-between">
+                          <div key={item.title} className="bg-white p-5 rounded-2xl border border-pink-200 shadow-2xs space-y-2 flex flex-col justify-between">
                             <div>
-                              <div className="flex items-center justify-between">
+                              <div className="flex items-start justify-between gap-2">
                                 <h4 className="font-extrabold text-sm text-pink-950">{item.title}</h4>
-                                <span className="text-[10px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-md font-bold">🎮 Game Zen</span>
+                                <span className="text-[9px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-md font-bold">🎮 Recomendação</span>
                               </div>
                               <p className="text-xs text-stone-600 mt-2 leading-relaxed">{item.desc}</p>
                             </div>
-                            <button onClick={() => alert(`🎮 '${item.title}' adicionado à sua lista de desejos de jogos!`)} className="w-full mt-4 bg-pink-50 hover:bg-pink-100 text-pink-800 border border-pink-200 py-2 rounded-xl text-xs font-bold transition">
-                              ✨ Adicionar à Lista
+                            <button
+                              type="button"
+                              onClick={() => addPersonalMediaItem('Jogo', item.title, item.desc)}
+                              className="w-full mt-3 bg-pink-50 hover:bg-pink-100 text-pink-800 border border-pink-200 py-2 rounded-xl text-xs font-bold transition"
+                            >
+                              + Adicionar à minha lista
                             </button>
                           </div>
                         )
