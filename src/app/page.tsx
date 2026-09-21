@@ -46,6 +46,7 @@ import {
   Sparkle,
   Coffee,
   CheckCircle2,
+  Circle,
   RefreshCw,
   Headphones,
   Edit3,
