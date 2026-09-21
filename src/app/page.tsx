@@ -275,7 +275,7 @@ interface PersonalPet {
   isMemorial: boolean
 }
 
-type PersonalMediaType = 'Livro' | 'Filme' | 'Série' | 'Jogo'
+type PersonalMediaType = 'Livro' | 'Filme' | 'Série' | 'Jogo' | 'Cafeteria' | 'Podcast'
 type PersonalMediaStatus = 'quero' | 'em_andamento' | 'concluido'
 type PersonalMediaFilter = 'todos' | 'quero' | 'em_andamento' | 'concluido' | 'favoritos'
 type PersonalMediaSort = 'recentes' | 'alfabetico' | 'nota' | 'concluidos'
@@ -310,6 +310,8 @@ const DEFAULT_PERSONAL_MEDIA_GOALS: PersonalMediaGoals = {
   Filme: { monthly: 2, annual: 20 },
   Série: { monthly: 1, annual: 8 },
   Jogo: { monthly: 1, annual: 5 },
+  Cafeteria: { monthly: 1, annual: 12 },
+  Podcast: { monthly: 2, annual: 24 },
 }
 
 const INITIAL_DRUGS: VetDrug[] = [
@@ -4307,6 +4309,8 @@ export default function VetWorkspaceBeatrizV28() {
             Filme: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Filme, ...(parsed.Filme || {}) },
             Série: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Série, ...(parsed.Série || {}) },
             Jogo: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Jogo, ...(parsed.Jogo || {}) },
+            Cafeteria: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Cafeteria, ...(parsed.Cafeteria || {}) },
+            Podcast: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Podcast, ...(parsed.Podcast || {}) },
           }
         } catch(e) {}
       }
@@ -4330,27 +4334,45 @@ export default function VetWorkspaceBeatrizV28() {
     Filme: false,
     Série: false,
     Jogo: false,
+    Cafeteria: false,
+    Podcast: false,
   })
   const [personalMediaFilterByType, setPersonalMediaFilterByType] = useState<Record<PersonalMediaType, PersonalMediaFilter>>({
     Livro: 'todos',
     Filme: 'todos',
     Série: 'todos',
     Jogo: 'todos',
+    Cafeteria: 'todos',
+    Podcast: 'todos',
   })
   const [personalMediaSortByType, setPersonalMediaSortByType] = useState<Record<PersonalMediaType, PersonalMediaSort>>({
     Livro: 'recentes',
     Filme: 'recentes',
     Série: 'recentes',
     Jogo: 'recentes',
+    Cafeteria: 'recentes',
+    Podcast: 'recentes',
   })
   const [personalMediaPickByType, setPersonalMediaPickByType] = useState<Record<PersonalMediaType, string>>({
     Livro: '',
     Filme: '',
     Série: '',
     Jogo: '',
+    Cafeteria: '',
+    Podcast: '',
   })
 
   const personalMediaStatusMeta = (type: PersonalMediaType, status: PersonalMediaStatus) => {
+    if (type === 'Cafeteria') {
+      if (status === 'concluido') return { label: 'Visitado', shortLabel: 'Visitado', color: 'emerald' }
+      if (status === 'em_andamento') return { label: 'Visita planejada', shortLabel: 'Planejado', color: 'amber' }
+      return { label: 'Quero conhecer', shortLabel: 'Quero conhecer', color: 'rose' }
+    }
+    if (type === 'Podcast') {
+      if (status === 'concluido') return { label: 'Ouvido', shortLabel: 'Ouvido', color: 'emerald' }
+      if (status === 'em_andamento') return { label: 'Ouvindo', shortLabel: 'Ouvindo', color: 'amber' }
+      return { label: 'Quero ouvir', shortLabel: 'Quero ouvir', color: 'rose' }
+    }
     if (type === 'Livro') {
       if (status === 'concluido') return { label: 'Lido', shortLabel: 'Lido', color: 'emerald' }
       if (status === 'em_andamento') return { label: 'Lendo', shortLabel: 'Lendo', color: 'amber' }
@@ -5546,6 +5568,8 @@ export default function VetWorkspaceBeatrizV28() {
               Filme: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Filme, ...(d.personalMediaGoals.Filme || {}) },
               Série: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Série, ...(d.personalMediaGoals.Série || {}) },
               Jogo: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Jogo, ...(d.personalMediaGoals.Jogo || {}) },
+              Cafeteria: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Cafeteria, ...(d.personalMediaGoals.Cafeteria || {}) },
+              Podcast: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Podcast, ...(d.personalMediaGoals.Podcast || {}) },
             }
             setPersonalMediaGoals(goals)
             localStorage.setItem('vet_personal_media_goals_v28', JSON.stringify(goals))
@@ -5645,6 +5669,8 @@ export default function VetWorkspaceBeatrizV28() {
                 Filme: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Filme, ...(d.personalMediaGoals.Filme || {}) },
                 Série: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Série, ...(d.personalMediaGoals.Série || {}) },
                 Jogo: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Jogo, ...(d.personalMediaGoals.Jogo || {}) },
+                Cafeteria: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Cafeteria, ...(d.personalMediaGoals.Cafeteria || {}) },
+                Podcast: { ...DEFAULT_PERSONAL_MEDIA_GOALS.Podcast, ...(d.personalMediaGoals.Podcast || {}) },
               }
               setPersonalMediaGoals(goals)
               localStorage.setItem('vet_personal_media_goals_v28', JSON.stringify(goals))
@@ -5781,6 +5807,31 @@ export default function VetWorkspaceBeatrizV28() {
       : 0
 
     const goals = personalMediaGoals[type]
+    const addPlaceholder =
+      type === 'Cafeteria'
+        ? 'Adicionar café ou local...'
+        : type === 'Podcast'
+          ? 'Adicionar podcast / true crime...'
+          : `Adicionar ${type.toLocaleLowerCase('pt-BR')}...`
+    const notesPlaceholder =
+      type === 'Cafeteria'
+        ? 'Bairro, endereço, pedido que quer provar ou observação...'
+        : type === 'Podcast'
+          ? 'Plataforma, episódio, temporada ou observação...'
+          : 'Autor, plataforma, temporada ou observação...'
+    const completedMetricLabel =
+      type === 'Cafeteria'
+        ? `Visitados em ${currentYear}`
+        : type === 'Podcast'
+          ? `Ouvidos em ${currentYear}`
+          : `Concluídos em ${currentYear}`
+    const historyLabel =
+      type === 'Cafeteria'
+        ? '☕ Histórico de locais visitados'
+        : type === 'Podcast'
+          ? '🎧 Histórico de podcasts ouvidos'
+          : '📚 Histórico concluído'
+
     const annualGoalProgress = goals.annual > 0
       ? Math.min(100, Math.round((completedThisYear / goals.annual) * 100))
       : 0
@@ -5897,7 +5948,7 @@ export default function VetWorkspaceBeatrizV28() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <div className="bg-stone-50 border border-stone-100 rounded-xl p-3">
-            <div className="text-[9px] uppercase font-bold text-stone-400">Concluídos em {currentYear}</div>
+            <div className="text-[9px] uppercase font-bold text-stone-400">{completedMetricLabel}</div>
             <div className="text-lg font-extrabold text-pink-950 mt-0.5">{completedThisYear}</div>
           </div>
           <div className="bg-stone-50 border border-stone-100 rounded-xl p-3">
@@ -5946,7 +5997,7 @@ export default function VetWorkspaceBeatrizV28() {
                 setNewPersonalMediaType(type)
                 setNewPersonalMediaTitle(e.target.value)
               }}
-              placeholder={`Adicionar ${type.toLocaleLowerCase('pt-BR')}...`}
+              placeholder={addPlaceholder}
               className="bg-white border border-pink-200 rounded-xl px-3 py-2.5 text-xs text-pink-950 focus:outline-none focus:border-pink-400"
             />
             <input
@@ -5956,7 +6007,7 @@ export default function VetWorkspaceBeatrizV28() {
                 setNewPersonalMediaType(type)
                 setNewPersonalMediaNotes(e.target.value)
               }}
-              placeholder="Autor, plataforma, temporada ou observação..."
+              placeholder={notesPlaceholder}
               className="bg-white border border-pink-200 rounded-xl px-3 py-2.5 text-xs text-pink-950 focus:outline-none focus:border-pink-400"
             />
             <button
@@ -6172,14 +6223,16 @@ export default function VetWorkspaceBeatrizV28() {
                         </div>
                       )}
 
-                      {type === 'Série' && (
+                      {(type === 'Série' || type === 'Podcast') && (
                         <div>
-                          <label className="text-[9px] font-bold text-stone-500 block mb-1">Onde parou</label>
+                          <label className="text-[9px] font-bold text-stone-500 block mb-1">
+                            {type === 'Podcast' ? 'Onde parou / episódio atual' : 'Onde parou'}
+                          </label>
                           <input
                             value={editingProgressNote}
                             onChange={(e) => setEditingProgressNote(e.target.value)}
                             className="w-full bg-white border border-pink-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
-                            placeholder="Ex.: Temporada 2 • Episódio 5"
+                            placeholder={type === 'Podcast' ? 'Ex.: Episódio 7 • Caso X' : 'Ex.: Temporada 2 • Episódio 5'}
                           />
                         </div>
                       )}
@@ -6346,9 +6399,9 @@ export default function VetWorkspaceBeatrizV28() {
                           </div>
                         )}
 
-                        {type === 'Série' && item.progressNote && (
+                        {(type === 'Série' || type === 'Podcast') && item.progressNote && (
                           <div className="inline-flex bg-white/70 border border-white px-2 py-1 rounded-lg text-[9px] font-bold text-pink-800">
-                            📺 {item.progressNote}
+                            {type === 'Podcast' ? '🎧' : '📺'} {item.progressNote}
                           </div>
                         )}
 
@@ -6436,7 +6489,7 @@ export default function VetWorkspaceBeatrizV28() {
               onClick={() => setOpenMediaHistory(prev => ({ ...prev, [type]: !prev[type] }))}
               className="w-full flex items-center justify-between bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-xl px-3 py-2.5 text-[10px] font-bold text-stone-700"
             >
-              <span>📚 Histórico concluído ({archivedItems.length})</span>
+              <span>{historyLabel} ({archivedItems.length})</span>
               {openMediaHistory[type] ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
 
@@ -9020,78 +9073,122 @@ export default function VetWorkspaceBeatrizV28() {
 
                 {personalSubTab === 'locais' && (
                   <div className="space-y-6">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                       <div>
                         <h3 className="text-sm font-extrabold text-pink-950 flex items-center gap-2">
-                          <Coffee className="w-4 h-4 text-pink-500" /> Cafés & Locais em Salvador (15 Opções Disponíveis)
+                          <Coffee className="w-4 h-4 text-pink-500" /> Cafés & Locais
                         </h3>
-                        <p className="text-xs text-stone-500 mt-0.5">Lugares aconchegantes pelo catálogo expandido na cidade.</p>
+                        <p className="text-xs text-stone-500 mt-0.5">
+                          Quero conhecer, visita planejada e visitado — com favoritos, estrelas, resenha, metas e histórico.
+                        </p>
                       </div>
-                      <button 
+                      <button
+                        type="button"
                         onClick={() => setCafeIndex((prev) => (prev + 2) % CAFES_POOL.length)}
-                        className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                        className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
                       >
-                        <RefreshCw className="w-3.5 h-3.5" /> Trocar Local
+                        <RefreshCw className="w-3.5 h-3.5" /> Outras recomendações
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {[0, 1].map((offset) => {
-                        const item = CAFES_POOL[(cafeIndex + offset) % CAFES_POOL.length]
-                        return (
-                          <div key={offset} className="bg-white p-6 rounded-2xl border border-pink-200 shadow-2xs space-y-2 flex flex-col justify-between">
-                            <div>
-                              <div className="flex items-center justify-between">
-                                <h4 className="font-extrabold text-sm text-pink-950">{item.name}</h4>
-                                <span className="text-[10px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-md font-bold">☕ Salvador</span>
+                    {renderPersonalMediaCategory(
+                      'Cafeteria',
+                      'Minha lista de cafés & locais',
+                      'Salve lugares que quer conhecer, planeje visitas e arquive os que já visitou sem perder o histórico.',
+                      '☕'
+                    )}
+
+                    <div className="bg-white/95 border border-pink-100 rounded-3xl p-5 shadow-sm space-y-4">
+                      <div>
+                        <h4 className="text-xs font-extrabold text-pink-950">✨ Recomendações de cafés & locais</h4>
+                        <p className="text-[10px] text-stone-500 mt-1">
+                          As recomendações continuam aqui e agora podem entrar direto na lista pessoal.
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {[0, 1].map((offset) => {
+                          const item = CAFES_POOL[(cafeIndex + offset) % CAFES_POOL.length]
+                          return (
+                            <div key={item.name} className="bg-pink-50/30 p-5 rounded-2xl border border-pink-100 space-y-2 flex flex-col justify-between">
+                              <div>
+                                <div className="flex items-start justify-between gap-2">
+                                  <h4 className="font-extrabold text-sm text-pink-950">{item.name}</h4>
+                                  <span className="text-[9px] bg-white border border-pink-100 text-pink-700 px-2 py-0.5 rounded-md font-bold">☕ Recomendação</span>
+                                </div>
+                                <p className="text-xs text-stone-600 mt-2 leading-relaxed">{item.desc}</p>
                               </div>
-                              <p className="text-xs text-stone-600 mt-2 leading-relaxed">{item.desc}</p>
+                              <button
+                                type="button"
+                                onClick={() => addPersonalMediaItem('Cafeteria', item.name, item.desc)}
+                                className="w-full mt-3 bg-white hover:bg-pink-100 text-pink-800 border border-pink-200 py-2 rounded-xl text-xs font-bold transition"
+                              >
+                                + Adicionar à minha lista
+                              </button>
                             </div>
-                            <button onClick={() => alert(`📍 ${item.name} marcado como visitado/favorito!`)} className="w-full mt-4 bg-pink-50 hover:bg-pink-100 text-pink-800 border border-pink-200 py-2 rounded-xl text-xs font-bold transition">
-                              📍 Quero Conhecer / Favorito
-                            </button>
-                          </div>
-                        )
-                      })}
+                          )
+                        })}
+                      </div>
                     </div>
                   </div>
                 )}
 
                 {personalSubTab === 'podcasts' && (
                   <div className="space-y-6">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                       <div>
                         <h3 className="text-sm font-extrabold text-pink-950 flex items-center gap-2">
-                          <Headphones className="w-4 h-4 text-pink-500" /> Podcasts & True Crime (15 Opções Disponíveis)
+                          <Headphones className="w-4 h-4 text-pink-500" /> Podcasts & True Crime
                         </h3>
-                        <p className="text-xs text-stone-500 mt-0.5">Investigações e casos criminais fascinantes do catálogo expandido.</p>
+                        <p className="text-xs text-stone-500 mt-0.5">
+                          Quero ouvir, ouvindo e ouvido — com episódio atual, favoritos, estrelas, resenha, metas e histórico.
+                        </p>
                       </div>
-                      <button 
+                      <button
+                        type="button"
                         onClick={() => setPodcastIndex((prev) => (prev + 2) % PODCASTS_POOL.length)}
-                        className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                        className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
                       >
-                        <RefreshCw className="w-3.5 h-3.5" /> Trocar Indicação
+                        <RefreshCw className="w-3.5 h-3.5" /> Outras recomendações
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {[0, 1].map((offset) => {
-                        const item = PODCASTS_POOL[(podcastIndex + offset) % PODCASTS_POOL.length]
-                        return (
-                          <div key={offset} className="bg-white p-6 rounded-2xl border border-pink-200 shadow-2xs space-y-2 flex flex-col justify-between">
-                            <div>
-                              <div className="flex items-center justify-between">
-                                <h4 className="font-extrabold text-sm text-pink-950">{item.title}</h4>
-                                <span className="text-[10px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-md font-bold">🎧 True Crime</span>
+                    {renderPersonalMediaCategory(
+                      'Podcast',
+                      'Minha lista de podcasts & true crime',
+                      'Salve o que quer ouvir, registre onde parou e mantenha o que já concluiu no histórico.',
+                      '🎧'
+                    )}
+
+                    <div className="bg-white/95 border border-pink-100 rounded-3xl p-5 shadow-sm space-y-4">
+                      <div>
+                        <h4 className="text-xs font-extrabold text-pink-950">✨ Recomendações de podcasts & true crime</h4>
+                        <p className="text-[10px] text-stone-500 mt-1">
+                          Um clique adiciona a indicação à lista para acompanhar, avaliar e arquivar depois.
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {[0, 1].map((offset) => {
+                          const item = PODCASTS_POOL[(podcastIndex + offset) % PODCASTS_POOL.length]
+                          return (
+                            <div key={item.title} className="bg-pink-50/30 p-5 rounded-2xl border border-pink-100 space-y-2 flex flex-col justify-between">
+                              <div>
+                                <div className="flex items-start justify-between gap-2">
+                                  <h4 className="font-extrabold text-sm text-pink-950">{item.title}</h4>
+                                  <span className="text-[9px] bg-white border border-pink-100 text-pink-700 px-2 py-0.5 rounded-md font-bold">🎧 True Crime</span>
+                                </div>
+                                <p className="text-xs text-stone-600 mt-2 leading-relaxed">{item.desc}</p>
                               </div>
-                              <p className="text-xs text-stone-600 mt-2 leading-relaxed">{item.desc}</p>
+                              <button
+                                type="button"
+                                onClick={() => addPersonalMediaItem('Podcast', item.title, item.desc)}
+                                className="w-full mt-3 bg-white hover:bg-pink-100 text-pink-800 border border-pink-200 py-2 rounded-xl text-xs font-bold transition"
+                              >
+                                + Adicionar à minha lista
+                              </button>
                             </div>
-                            <button onClick={() => alert(`🎧 '${item.title}' salvo na sua lista para ouvir no próximo plantão!`)} className="w-full mt-4 bg-pink-50 hover:bg-pink-100 text-pink-800 border border-pink-200 py-2 rounded-xl text-xs font-bold transition">
-                              🎧 Salvar para Ouvir
-                            </button>
-                          </div>
-                        )
-                      })}
+                          )
+                        })}
+                      </div>
                     </div>
                   </div>
                 )}
