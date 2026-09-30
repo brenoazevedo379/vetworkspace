@@ -117,15 +117,26 @@ interface FinancialItem {
 interface FinanceHistoryEntry {
   id: string
   type: 'expense' | 'received' | 'pending'
-  source: 'expense' | 'shift' | 'specialist' | 'base' | 'other'
+  source: 'expense' | 'shift' | 'specialist' | 'base' | 'other' | 'salary' | 'primaryCommission'
   label: string
   category: string
   amount: number
   date: string
   shiftId?: string
   expenseId?: string
+  primaryCommissionId?: string
+  salaryMonth?: string
   expenseStatus?: 'Pago' | 'Pendente'
   expensePaidDate?: string
+}
+
+interface PrimaryClinicCommission {
+  id: string
+  amount: number
+  date: string
+  status: 'Pago' | 'Pendente'
+  notes: string
+  paidDate?: string
 }
 
 interface TaskItem {
@@ -253,6 +264,47 @@ interface ShiftRecord {
   status: 'Pago' | 'Pendente'
   details: string
   paidDate?: string
+}
+
+const PRIMARY_CLINIC_FALLBACK_NAME = 'Pop Caminho de Areia'
+const PRIMARY_SALARY_AMOUNT = 2500
+const PRIMARY_SALARY_START_MONTH = '2026-11'
+
+const normalizeClinicName = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR')
+
+const isPrimaryClinicName = (value: string) => {
+  const normalized = normalizeClinicName(value)
+  return normalized.includes('caminho') && normalized.includes('areia') &&
+    (normalized.includes('pop') || normalized.includes('popular'))
+}
+
+const monthKeysBetween = (start: string, end: string) => {
+  if (!start || !end || start > end) return [] as string[]
+  const [startYear, startMonth] = start.split('-').map(Number)
+  const [endYear, endMonth] = end.split('-').map(Number)
+  if (!startYear || !startMonth || !endYear || !endMonth) return [] as string[]
+
+  const result: string[] = []
+  const cursor = new Date(startYear, startMonth - 1, 1)
+  const finish = new Date(endYear, endMonth - 1, 1)
+
+  while (cursor <= finish) {
+    result.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`)
+    cursor.setMonth(cursor.getMonth() + 1)
+  }
+  return result
+}
+
+const monthKeyLabel = (monthKey: string) => {
+  const [year, month] = monthKey.split('-').map(Number)
+  if (!year || !month) return monthKey
+  return new Date(year, month - 1, 1)
+    .toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
+    .replace('.', '')
 }
 
 interface SpecialistConsultationItem {
@@ -4074,6 +4126,25 @@ export default function VetWorkspaceBeatrizV28() {
   const [shiftDetails, setShiftDetails] = useState('')
   const [isShiftAiLoading, setIsShiftAiLoading] = useState(false)
 
+  const [fixedSalaryReceipts, setFixedSalaryReceipts] = useState<Record<string, string>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_pop_salary_receipts_v28')
+      if (saved) try { return JSON.parse(saved) } catch(e) {}
+    }
+    return {}
+  })
+  const [primaryClinicCommissions, setPrimaryClinicCommissions] = useState<PrimaryClinicCommission[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_pop_commissions_v28')
+      if (saved) try { return JSON.parse(saved) } catch(e) {}
+    }
+    return []
+  })
+  const [primaryCommissionAmount, setPrimaryCommissionAmount] = useState('')
+  const [primaryCommissionDate, setPrimaryCommissionDate] = useState(todayDateKey)
+  const [primaryCommissionStatus, setPrimaryCommissionStatus] = useState<'Pago' | 'Pendente'>('Pendente')
+  const [primaryCommissionNotes, setPrimaryCommissionNotes] = useState('')
+
   // Specialist Consultations state ("finanças extras" por fora) com suporte a clínica e edição
   const [specialistConsultations, setSpecialistConsultations] = useState<SpecialistConsultationItem[]>(() => {
     if (typeof window !== 'undefined') {
@@ -4732,21 +4803,20 @@ export default function VetWorkspaceBeatrizV28() {
     const files = e.target.files
     if (!files || files.length === 0) return
     const file = files[0]
-    setIsShiftAiLoading(true)
-    
-    setTimeout(() => {
-      const mockCommissions = [120, 180, 240, 95, 310, 150]
-      const randomComm = mockCommissions[Math.floor(Math.random() * mockCommissions.length)]
-      setShiftCommission(randomComm.toString())
-      setShiftDetails(`Leitura IA da Imagem (${file.name}): Procedimentos extraídos do relatório da clínica.`)
-      setIsShiftAiLoading(false)
-      alert('📸 IA leu o relatório com sucesso e preencheu as comissões automaticamente!')
-    }, 1200)
+    setIsShiftAiLoading(false)
+    setShiftDetails(prev => prev || `Fechamento para conferência manual: ${file.name}`)
+    alert('📸 Foto anexada como referência. Confira o fechamento e informe a comissão manualmente.')
     e.target.value = ''
   }
 
   const handleAddShift = (e: React.FormEvent) => {
     e.preventDefault()
+
+    const selectedClinic = clinics.find(c => c.id === selectedShiftClinicId)
+    if (selectedClinic && isPrimaryClinicName(selectedClinic.name)) {
+      alert('A Pop Caminho de Areia é a clínica principal. Use o bloco de salário/comissões da Pop. Este formulário é para plantões extras em outras clínicas.')
+      return
+    }
 
     const rate = shiftBaseRate.trim() === '' ? 0 : Number(shiftBaseRate)
     const comm = shiftCommission.trim() === '' ? 0 : Number(shiftCommission)
@@ -4802,6 +4872,50 @@ export default function VetWorkspaceBeatrizV28() {
         return { ...shift, status: 'Pendente', paidDate: undefined }
       }
       return { ...shift, status: 'Pago', paidDate: todayDateKey }
+    }))
+  }
+
+  const handleToggleFixedSalaryReceipt = (monthKey: string) => {
+    if (monthKey < PRIMARY_SALARY_START_MONTH) return
+    lastLocalMutationRef.current = Date.now()
+    setFixedSalaryReceipts(prev => {
+      const next = { ...prev }
+      if (next[monthKey]) delete next[monthKey]
+      else next[monthKey] = todayDateKey
+      return next
+    })
+  }
+
+  const handleAddPrimaryCommission = (e: React.FormEvent) => {
+    e.preventDefault()
+    const amount = parseCurrencyInput(primaryCommissionAmount)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      alert('Informe um valor de comissão válido.')
+      return
+    }
+
+    lastLocalMutationRef.current = Date.now()
+    const newCommission: PrimaryClinicCommission = {
+      id: `pop-commission-${Date.now()}`,
+      amount,
+      date: primaryCommissionDate,
+      status: primaryCommissionStatus,
+      notes: primaryCommissionNotes.trim(),
+      paidDate: primaryCommissionStatus === 'Pago' ? primaryCommissionDate : undefined,
+    }
+
+    setPrimaryClinicCommissions(prev => [newCommission, ...prev])
+    setPrimaryCommissionAmount('')
+    setPrimaryCommissionNotes('')
+    setPrimaryCommissionStatus('Pendente')
+  }
+
+  const handleTogglePrimaryCommissionStatus = (commissionId: string) => {
+    lastLocalMutationRef.current = Date.now()
+    setPrimaryClinicCommissions(prev => prev.map(item => {
+      if (item.id !== commissionId) return item
+      if (item.status === 'Pago') return { ...item, status: 'Pendente', paidDate: undefined }
+      return { ...item, status: 'Pago', paidDate: todayDateKey }
     }))
   }
 
@@ -5556,6 +5670,8 @@ export default function VetWorkspaceBeatrizV28() {
           }
           if (d.clinics) { setClinics(d.clinics); localStorage.setItem('vet_clinics_v28', JSON.stringify(d.clinics)); }
           if (d.shifts) { setShifts(d.shifts); localStorage.setItem('vet_shifts_v28', JSON.stringify(d.shifts)); }
+          if (d.fixedSalaryReceipts) { setFixedSalaryReceipts(d.fixedSalaryReceipts); localStorage.setItem('vet_pop_salary_receipts_v28', JSON.stringify(d.fixedSalaryReceipts)); }
+          if (Array.isArray(d.primaryClinicCommissions)) { setPrimaryClinicCommissions(d.primaryClinicCommissions); localStorage.setItem('vet_pop_commissions_v28', JSON.stringify(d.primaryClinicCommissions)); }
           if (d.specialistConsultations) { setSpecialistConsultations(d.specialistConsultations); localStorage.setItem('vet_specialist_consultations_v28', JSON.stringify(d.specialistConsultations)); }
           if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v28', JSON.stringify(d.personalPets)); }
           if (Array.isArray(d.personalMediaItems)) {
@@ -5657,6 +5773,8 @@ export default function VetWorkspaceBeatrizV28() {
 
             if (d.clinics) { setClinics(d.clinics); localStorage.setItem('vet_clinics_v28', JSON.stringify(d.clinics)); }
             if (d.shifts) { setShifts(d.shifts); localStorage.setItem('vet_shifts_v28', JSON.stringify(d.shifts)); }
+            if (d.fixedSalaryReceipts) { setFixedSalaryReceipts(d.fixedSalaryReceipts); localStorage.setItem('vet_pop_salary_receipts_v28', JSON.stringify(d.fixedSalaryReceipts)); }
+            if (Array.isArray(d.primaryClinicCommissions)) { setPrimaryClinicCommissions(d.primaryClinicCommissions); localStorage.setItem('vet_pop_commissions_v28', JSON.stringify(d.primaryClinicCommissions)); }
             if (d.specialistConsultations) { setSpecialistConsultations(d.specialistConsultations); localStorage.setItem('vet_specialist_consultations_v28', JSON.stringify(d.specialistConsultations)); }
             if (d.personalPets) { setPersonalPets(d.personalPets); localStorage.setItem('vet_personal_pets_v28', JSON.stringify(d.personalPets)); }
             if (Array.isArray(d.personalMediaItems)) {
@@ -5706,6 +5824,8 @@ export default function VetWorkspaceBeatrizV28() {
     localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(chatSessions))
     localStorage.setItem('vet_clinics_v28', JSON.stringify(clinics))
     localStorage.setItem('vet_shifts_v28', JSON.stringify(shifts))
+    localStorage.setItem('vet_pop_salary_receipts_v28', JSON.stringify(fixedSalaryReceipts))
+    localStorage.setItem('vet_pop_commissions_v28', JSON.stringify(primaryClinicCommissions))
     localStorage.setItem('vet_specialist_consultations_v28', JSON.stringify(specialistConsultations))
     localStorage.setItem('vet_personal_pets_v28', JSON.stringify(personalPets))
     localStorage.setItem('vet_personal_media_v28', JSON.stringify(personalMediaItems))
@@ -5734,6 +5854,8 @@ export default function VetWorkspaceBeatrizV28() {
           chatSessions,
           clinics,
           shifts,
+          fixedSalaryReceipts,
+          primaryClinicCommissions,
           specialistConsultations,
           personalPets,
           personalMediaItems,
@@ -5763,7 +5885,7 @@ export default function VetWorkspaceBeatrizV28() {
 
     const timer = setTimeout(syncToCloud, 800)
     return () => clearTimeout(timer)
-  }, [isInitialized, items, patients, recipes, customDrugs, monthlyIncome, otherIncome, monthlyIncomeByMonth, otherIncomeByMonth, cofrinhoAmount, finances, tasks, events, chatSessions, clinics, shifts, specialistConsultations, personalPets, personalMediaItems, personalMediaGoals, skincareDone, mimosWishlist, descompressaoNotes])
+  }, [isInitialized, items, patients, recipes, customDrugs, monthlyIncome, otherIncome, monthlyIncomeByMonth, otherIncomeByMonth, cofrinhoAmount, finances, tasks, events, chatSessions, clinics, shifts, fixedSalaryReceipts, primaryClinicCommissions, specialistConsultations, personalPets, personalMediaItems, personalMediaGoals, skincareDone, mimosWishlist, descompressaoNotes])
 
   const renderPersonalMediaCategory = (
     type: PersonalMediaType,
@@ -6823,6 +6945,36 @@ export default function VetWorkspaceBeatrizV28() {
   const currentOtherIncome =
     otherIncomeByMonth[currentFinanceMonthKey] ?? otherIncome
 
+  const primaryClinic = clinics.find(c => isPrimaryClinicName(c.name))
+  const primaryClinicName = primaryClinic?.name || PRIMARY_CLINIC_FALLBACK_NAME
+
+  const salaryDueForSelectedMonth =
+    financeSelectedMonth >= PRIMARY_SALARY_START_MONTH &&
+    financeSelectedMonth <= currentFinanceMonthKey
+  const salaryReceiptForSelectedMonth = fixedSalaryReceipts[financeSelectedMonth]
+
+  const salaryReceiptsThisMonth = Object.entries(fixedSalaryReceipts)
+    .filter(([, paidDate]) => isIsoInFinanceMonth(paidDate))
+  const totalFixedSalaryReceivedThisMonth = salaryReceiptsThisMonth.length * PRIMARY_SALARY_AMOUNT
+
+  const pendingSalaryMonths = monthKeysBetween(PRIMARY_SALARY_START_MONTH, currentFinanceMonthKey)
+    .filter(monthKey => !fixedSalaryReceipts[monthKey])
+  const totalPendingFixedSalary = pendingSalaryMonths.length * PRIMARY_SALARY_AMOUNT
+
+  const paidPrimaryCommissionsThisMonth = primaryClinicCommissions.filter(
+    item => item.status === 'Pago' && isIsoInFinanceMonth(item.paidDate || item.date)
+  )
+  const pendingPrimaryCommissions = primaryClinicCommissions.filter(item => item.status !== 'Pago')
+  const pendingPrimaryCommissionsSelectedMonth = pendingPrimaryCommissions.filter(
+    item => isIsoInFinanceMonth(item.date)
+  )
+  const totalPaidPrimaryCommissionsThisMonth = paidPrimaryCommissionsThisMonth
+    .reduce((acc, item) => acc + (Number(item.amount) || 0), 0)
+  const totalPendingPrimaryCommissions = pendingPrimaryCommissions
+    .reduce((acc, item) => acc + (Number(item.amount) || 0), 0)
+  const totalPrimaryClinicReceivedThisMonth =
+    totalFixedSalaryReceivedThisMonth + totalPaidPrimaryCommissionsThisMonth
+
   const paidShiftsThisMonth = shifts.filter(
     shift => shift.status === 'Pago' && isIsoInFinanceMonth(shift.paidDate || shift.date)
   )
@@ -6833,6 +6985,8 @@ export default function VetWorkspaceBeatrizV28() {
 
   const totalPaidShiftsThisMonth = paidShiftsThisMonth.reduce((acc, shift) => acc + getShiftValue(shift), 0)
   const totalPendingShiftsForFinance = pendingShiftsForFinance.reduce((acc, shift) => acc + getShiftValue(shift), 0)
+  const totalReceivablesForFinance =
+    totalPendingShiftsForFinance + totalPendingPrimaryCommissions + totalPendingFixedSalary
   const totalPaidDailyThisMonth = paidShiftsThisMonth.reduce((acc, shift) => acc + (Number(shift.baseRate) || 0), 0)
   const totalPaidCommissionThisMonth = paidShiftsThisMonth.reduce((acc, shift) => acc + (Number(shift.commission) || 0), 0)
 
@@ -6881,7 +7035,12 @@ export default function VetWorkspaceBeatrizV28() {
   // "totalGastos" representa o dinheiro que efetivamente saiu do caixa.
   const totalGastos = totalPaidExpensesThisMonth
 
-  const totalRendaGeral = selectedBaseIncome + selectedOtherIncome + totalPaidShiftsThisMonth + specialistIncomeThisMonth
+  const totalRendaGeral =
+    selectedBaseIncome +
+    selectedOtherIncome +
+    totalPrimaryClinicReceivedThisMonth +
+    totalPaidShiftsThisMonth +
+    specialistIncomeThisMonth
   const saldoRestante = totalRendaGeral - totalPaidExpensesThisMonth
 
   // Dashboard principal sempre usa o mês atual, independentemente do mês aberto em Finanças.
@@ -6889,11 +7048,25 @@ export default function VetWorkspaceBeatrizV28() {
     .filter(shift => shift.status === 'Pago' && isIsoInFinanceMonth(shift.paidDate || shift.date, currentFinanceMonthKey))
     .reduce((acc, shift) => acc + getShiftValue(shift), 0)
 
+  const currentFixedSalaryReceived = Object.values(fixedSalaryReceipts)
+    .filter(paidDate => isIsoInFinanceMonth(paidDate, currentFinanceMonthKey))
+    .length * PRIMARY_SALARY_AMOUNT
+
+  const currentPrimaryCommissionIncome = primaryClinicCommissions
+    .filter(item => item.status === 'Pago' && isIsoInFinanceMonth(item.paidDate || item.date, currentFinanceMonthKey))
+    .reduce((acc, item) => acc + (Number(item.amount) || 0), 0)
+
   const currentSpecialistIncome = specialistConsultations
     .filter(item => isIsoInFinanceMonth(item.date, currentFinanceMonthKey))
     .reduce((acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.unitValue) || 0), 0)
 
-  const totalRendaAtualDashboard = currentBaseIncome + currentOtherIncome + currentPaidShiftsAmount + currentSpecialistIncome
+  const totalRendaAtualDashboard =
+    currentBaseIncome +
+    currentOtherIncome +
+    currentFixedSalaryReceived +
+    currentPrimaryCommissionIncome +
+    currentPaidShiftsAmount +
+    currentSpecialistIncome
 
   const expensePalette = ['#db2777', '#7c3aed', '#2563eb', '#0891b2', '#059669', '#d97706', '#dc2626', '#64748b']
 
@@ -6970,6 +7143,46 @@ export default function VetWorkspaceBeatrizV28() {
       expenseStatus: getExpenseStatus(item),
       expensePaidDate: item.paidDate,
     })),
+    ...salaryReceiptsThisMonth.map(([salaryMonth, paidDate]) => ({
+      id: `salary-${salaryMonth}`,
+      type: 'received' as const,
+      source: 'salary' as const,
+      label: `${primaryClinicName} • salário fixo (${monthKeyLabel(salaryMonth)})`,
+      category: 'Salário fixo',
+      amount: PRIMARY_SALARY_AMOUNT,
+      date: paidDate,
+      salaryMonth,
+    })),
+    ...(salaryDueForSelectedMonth && !salaryReceiptForSelectedMonth ? [{
+      id: `pending-salary-${financeSelectedMonth}`,
+      type: 'pending' as const,
+      source: 'salary' as const,
+      label: `${primaryClinicName} • salário a receber (${monthKeyLabel(financeSelectedMonth)})`,
+      category: 'Salário fixo',
+      amount: PRIMARY_SALARY_AMOUNT,
+      date: `${financeSelectedMonth}-01`,
+      salaryMonth: financeSelectedMonth,
+    }] : []),
+    ...paidPrimaryCommissionsThisMonth.map(item => ({
+      id: `primary-commission-paid-${item.id}`,
+      type: 'received' as const,
+      source: 'primaryCommission' as const,
+      label: `${primaryClinicName} • comissão`,
+      category: 'Comissão da clínica principal',
+      amount: Number(item.amount) || 0,
+      date: item.paidDate || item.date,
+      primaryCommissionId: item.id,
+    })),
+    ...pendingPrimaryCommissionsSelectedMonth.map(item => ({
+      id: `primary-commission-pending-${item.id}`,
+      type: 'pending' as const,
+      source: 'primaryCommission' as const,
+      label: `${primaryClinicName} • comissão a receber`,
+      category: 'Comissão da clínica principal',
+      amount: Number(item.amount) || 0,
+      date: item.date,
+      primaryCommissionId: item.id,
+    })),
     ...paidShiftsThisMonth.map(shift => {
       const clinic = clinics.find(item => item.id === shift.clinicId)
       return {
@@ -7014,8 +7227,8 @@ export default function VetWorkspaceBeatrizV28() {
       id: `base-${financeSelectedMonth}`,
       type: 'received' as const,
       source: 'base' as const,
-      label: 'Renda base do mês',
-      category: 'Renda base',
+      label: 'Ajuste manual / outra renda fixa',
+      category: 'Ajuste manual',
       amount: selectedBaseIncome,
       date: `${financeSelectedMonth}-01`,
     }] : []),
@@ -8349,9 +8562,67 @@ export default function VetWorkspaceBeatrizV28() {
                 <div className="flex items-center gap-3 border-b border-pink-100 pb-4">
                   <div className="w-12 h-12 rounded-2xl bg-pink-500 text-white flex items-center justify-center shadow-sm"><Stethoscope className="w-6 h-6" /></div>
                   <div>
-                    <h2 className="text-base font-extrabold text-pink-950">Gestão de Plantões & Alteração de Nomes das Clínicas</h2>
-                    <p className="text-xs text-pink-500 font-medium">Renomeie as clínicas para os nomes reais que você atende, controle diárias, comissões e leitura por IA</p>
+                    <h2 className="text-base font-extrabold text-pink-950">Vínculo Principal & Plantões Extras</h2>
+                    <p className="text-xs text-pink-500 font-medium">Salário fixo da Pop Caminho de Areia, comissões e plantões extras em outras clínicas</p>
                   </div>
+                </div>
+
+                <div className="bg-emerald-50/60 border border-emerald-200 p-5 rounded-3xl shadow-xs space-y-4">
+                  <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                    <div>
+                      <div className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-600">⭐ Clínica principal / vínculo fixo</div>
+                      <h3 className="text-lg font-extrabold text-pink-950 mt-1">{primaryClinicName}</h3>
+                      <p className="text-[10px] text-stone-500 mt-1">Salário fixo de {maskValue(PRIMARY_SALARY_AMOUNT)} por mês a partir de novembro de 2026.</p>
+                    </div>
+                    <div className="bg-white border border-emerald-200 rounded-2xl p-4 min-w-[235px]">
+                      <div className="text-[9px] uppercase font-bold text-stone-400">Salário do mês atual</div>
+                      <div className="text-xl font-extrabold text-pink-950 mt-1">{maskValue(PRIMARY_SALARY_AMOUNT)}</div>
+                      {currentFinanceMonthKey < PRIMARY_SALARY_START_MONTH ? (
+                        <div className="text-[10px] font-bold text-violet-700 mt-2">Inicia em novembro/2026</div>
+                      ) : fixedSalaryReceipts[currentFinanceMonthKey] ? (
+                        <div className="space-y-1.5 mt-2">
+                          <div className="text-[10px] font-extrabold text-emerald-700">✓ Recebido em {formatLocalDate(fixedSalaryReceipts[currentFinanceMonthKey])}</div>
+                          <button type="button" onClick={() => handleToggleFixedSalaryReceipt(currentFinanceMonthKey)} className="text-[9px] font-bold text-stone-500 hover:text-rose-600">Desfazer recebimento</button>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={() => handleToggleFixedSalaryReceipt(currentFinanceMonthKey)} className="mt-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-[10px] font-extrabold">✓ Marcar salário como recebido</button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div className="bg-white border border-emerald-100 rounded-xl p-3"><div className="text-[9px] font-bold uppercase text-stone-400">Salário recebido no mês</div><div className="text-base font-extrabold text-emerald-800 mt-1">{maskValue(currentFixedSalaryReceived)}</div></div>
+                    <div className="bg-white border border-emerald-100 rounded-xl p-3"><div className="text-[9px] font-bold uppercase text-stone-400">Comissões recebidas</div><div className="text-base font-extrabold text-emerald-800 mt-1">{maskValue(currentPrimaryCommissionIncome)}</div></div>
+                    <div className="bg-white border border-emerald-100 rounded-xl p-3"><div className="text-[9px] font-bold uppercase text-stone-400">Total recebido da Pop</div><div className="text-base font-extrabold text-pink-950 mt-1">{maskValue(currentFixedSalaryReceived + currentPrimaryCommissionIncome)}</div></div>
+                  </div>
+
+                  <form onSubmit={handleAddPrimaryCommission} className="bg-white/80 border border-emerald-100 rounded-2xl p-4 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div><div className="text-xs font-extrabold text-pink-950">💸 Registrar comissão da Pop</div><div className="text-[9px] text-stone-400 mt-0.5">Entra no Financeiro somente quando estiver recebida.</div></div>
+                      <div className="text-[9px] font-bold text-amber-700">A receber: {maskValue(totalPendingPrimaryCommissions)}</div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                      <input type="text" inputMode="decimal" value={primaryCommissionAmount} onChange={(e) => setPrimaryCommissionAmount(e.target.value)} placeholder="Valor: 350,00" className="bg-white border border-emerald-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none" required />
+                      <input type="date" value={primaryCommissionDate} onChange={(e) => setPrimaryCommissionDate(e.target.value)} className="bg-white border border-emerald-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none" required />
+                      <select value={primaryCommissionStatus} onChange={(e) => setPrimaryCommissionStatus(e.target.value as 'Pago' | 'Pendente')} className="bg-white border border-emerald-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none"><option value="Pendente">Pendente</option><option value="Pago">Recebida</option></select>
+                      <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-3 py-2.5 text-[10px] font-extrabold">+ Registrar comissão</button>
+                    </div>
+                    <input type="text" value={primaryCommissionNotes} onChange={(e) => setPrimaryCommissionNotes(e.target.value)} placeholder="Observação opcional: procedimento, fechamento, referência..." className="w-full bg-white border border-emerald-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none" />
+
+                    {primaryClinicCommissions.length > 0 && (
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {primaryClinicCommissions.slice(0, 12).map(item => (
+                          <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-emerald-50/50 border border-emerald-100 rounded-xl p-2.5">
+                            <div><div className="text-[10px] font-extrabold text-pink-950">{formatLocalDate(item.date)} • {maskValue(Number(item.amount) || 0)}</div>{item.notes && <div className="text-[9px] text-stone-500 mt-0.5">{item.notes}</div>}</div>
+                            <div className="flex items-center gap-1.5">
+                              <button type="button" onClick={() => handleTogglePrimaryCommissionStatus(item.id)} className={`px-2.5 py-1.5 rounded-lg border text-[9px] font-extrabold ${item.status === 'Pago' ? 'bg-emerald-100 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>{item.status === 'Pago' ? '✓ Recebida' : '○ Pendente'}</button>
+                              <button type="button" onClick={() => { lastLocalMutationRef.current = Date.now(); setPrimaryClinicCommissions(prev => prev.filter(c => c.id !== item.id)) }} className="p-1.5 text-stone-400 hover:text-red-500" title="Excluir comissão"><Trash2 className="w-3.5 h-3.5" /></button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </form>
                 </div>
 
                 <div className="bg-pink-50/60 border border-pink-200 p-5 rounded-2xl space-y-3">
@@ -8417,13 +8688,13 @@ export default function VetWorkspaceBeatrizV28() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                   <div className="space-y-4">
-                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Registrar diária / comissão</h3>
+                    <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">🌙 Registrar plantão extra em outra clínica</h3>
                      
                     <input type="file" ref={shiftPhotoInputRef} onChange={handleShiftPhotoUpload} className="hidden" accept=".png,.jpg,.jpeg" />
 
                     <div className="bg-pink-50/60 border border-pink-200 p-4 rounded-2xl space-y-3">
                       <span className="text-xs font-extrabold text-pink-950 flex items-center gap-1.5">
-                        <Camera className="w-4 h-4 text-pink-500" /> Leitura Automática de Fechamento por Foto (IA)
+                        <Camera className="w-4 h-4 text-pink-500" /> Foto do fechamento para conferência manual
                       </span>
                       <button 
                         type="button" 
@@ -8432,7 +8703,7 @@ export default function VetWorkspaceBeatrizV28() {
                         className="w-full bg-white hover:bg-pink-100 text-pink-800 border border-pink-300 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
                       >
                         {isShiftAiLoading ? <Sparkles className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4 text-pink-500" />}
-                        {isShiftAiLoading ? 'Lendo relatório com IA...' : '📸 Enviar Foto/Print do Fechamento'}
+                        '📸 Selecionar Foto/Print do Fechamento'
                       </button>
                     </div>
 
@@ -8451,7 +8722,9 @@ export default function VetWorkspaceBeatrizV28() {
                           className="w-full bg-pink-50/50 border border-pink-200 rounded-xl px-3.5 py-2.5 text-xs text-pink-950 focus:outline-none font-medium"
                         >
                           {clinics.map(c => (
-                            <option key={c.id} value={c.id}>🏥 {c.name} (Base: R$ {c.defaultRate})</option>
+                            <option key={c.id} value={c.id} disabled={primaryClinic?.id === c.id}>
+                              🏥 {c.name} (Base: R$ {c.defaultRate}){primaryClinic?.id === c.id ? ' — clínica principal' : ''}
+                            </option>
                           ))}
                         </select>
                       </div>
@@ -8532,7 +8805,7 @@ export default function VetWorkspaceBeatrizV28() {
                       </div>
 
                       <button type="submit" className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-xs font-bold transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
-                        <Plus className="w-4 h-4" /> Salvar lançamento
+                        <Plus className="w-4 h-4" /> Salvar plantão extra
                       </button>
                     </form>
                   </div>
@@ -10855,7 +11128,7 @@ export default function VetWorkspaceBeatrizV28() {
                 <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <div>
-                      <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Renda base do mês</h3>
+                      <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Ajuste manual / outra renda fixa</h3>
                       <p className="text-[10px] text-stone-400 mt-1">Salário/fixo. Não inclua plantões, comissões ou especialistas aqui.</p>
                     </div>
                     {!isEditingIncome && (
@@ -11112,11 +11385,17 @@ export default function VetWorkspaceBeatrizV28() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-3">
                 <div className="bg-emerald-50/70 border border-emerald-200 p-4 rounded-2xl">
                   <span className="text-[10px] font-bold text-emerald-700 uppercase">Total recebido no mês</span>
                   <div className="text-xl font-extrabold text-emerald-800 mt-1">{maskValue(totalRendaGeral)}</div>
                   <div className="text-[9px] text-emerald-600 mt-1">Somente dinheiro recebido</div>
+                </div>
+
+                <div className="bg-emerald-50/70 border border-emerald-200 p-4 rounded-2xl">
+                  <span className="text-[10px] font-bold text-emerald-700 uppercase">Pop • salário + comissões</span>
+                  <div className="text-xl font-extrabold text-emerald-800 mt-1">{maskValue(totalPrimaryClinicReceivedThisMonth)}</div>
+                  <div className="text-[9px] text-emerald-600 mt-1">Salário {maskValue(totalFixedSalaryReceivedThisMonth)} • comissões {maskValue(totalPaidPrimaryCommissionsThisMonth)}</div>
                 </div>
 
                 <div className="bg-white border border-pink-100 p-4 rounded-2xl">
@@ -11127,8 +11406,8 @@ export default function VetWorkspaceBeatrizV28() {
 
                 <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-2xl">
                   <span className="text-[10px] font-bold text-amber-700 uppercase">A receber</span>
-                  <div className="text-xl font-extrabold text-amber-800 mt-1">{maskValue(totalPendingShiftsForFinance)}</div>
-                  <div className="text-[9px] text-amber-600 mt-1">Total pendente • não entra no saldo</div>
+                  <div className="text-xl font-extrabold text-amber-800 mt-1">{maskValue(totalReceivablesForFinance)}</div>
+                  <div className="text-[9px] text-amber-600 mt-1">Salário, comissões e plantões pendentes • não entram no saldo</div>
                 </div>
 
                 <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-2xl">
@@ -11207,11 +11486,13 @@ export default function VetWorkspaceBeatrizV28() {
                   </div>
                   <span className="text-[10px] font-bold text-stone-500">{financeMonthLabel}</span>
                 </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-4">
-                  <div className="bg-pink-50 rounded-xl p-3"><div className="text-[9px] text-stone-400 uppercase font-bold">Renda base</div><div className="text-sm font-extrabold text-pink-950 mt-1">{maskValue(selectedBaseIncome)}</div></div>
-                  <div className="bg-pink-50 rounded-xl p-3"><div className="text-[9px] text-stone-400 uppercase font-bold">Plantões + comissões pagos</div><div className="text-sm font-extrabold text-pink-950 mt-1">{maskValue(totalPaidShiftsThisMonth)}</div></div>
+                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2 mt-4">
+                  <div className="bg-emerald-50 rounded-xl p-3"><div className="text-[9px] text-stone-400 uppercase font-bold">Salário Pop</div><div className="text-sm font-extrabold text-emerald-800 mt-1">{maskValue(totalFixedSalaryReceivedThisMonth)}</div></div>
+                  <div className="bg-emerald-50 rounded-xl p-3"><div className="text-[9px] text-stone-400 uppercase font-bold">Comissões Pop</div><div className="text-sm font-extrabold text-emerald-800 mt-1">{maskValue(totalPaidPrimaryCommissionsThisMonth)}</div></div>
+                  <div className="bg-pink-50 rounded-xl p-3"><div className="text-[9px] text-stone-400 uppercase font-bold">Plantões extras</div><div className="text-sm font-extrabold text-pink-950 mt-1">{maskValue(totalPaidDailyThisMonth)}</div></div>
+                  <div className="bg-pink-50 rounded-xl p-3"><div className="text-[9px] text-stone-400 uppercase font-bold">Comissões extras</div><div className="text-sm font-extrabold text-pink-950 mt-1">{maskValue(totalPaidCommissionThisMonth)}</div></div>
                   <div className="bg-pink-50 rounded-xl p-3"><div className="text-[9px] text-stone-400 uppercase font-bold">Especialistas</div><div className="text-sm font-extrabold text-pink-950 mt-1">{maskValue(specialistIncomeThisMonth)}</div></div>
-                  <div className="bg-pink-50 rounded-xl p-3"><div className="text-[9px] text-stone-400 uppercase font-bold">Outras rendas</div><div className="text-sm font-extrabold text-pink-950 mt-1">{maskValue(selectedOtherIncome)}</div></div>
+                  <div className="bg-stone-50 rounded-xl p-3"><div className="text-[9px] text-stone-400 uppercase font-bold">Ajustes / outras rendas</div><div className="text-sm font-extrabold text-pink-950 mt-1">{maskValue(selectedBaseIncome + selectedOtherIncome)}</div></div>
                 </div>
               </div>
 
@@ -11223,12 +11504,30 @@ export default function VetWorkspaceBeatrizV28() {
                   </div>
                   <div className="text-right">
                     <div className="text-[9px] font-bold uppercase text-amber-600">Total a receber</div>
-                    <div className="text-xl font-extrabold text-amber-900">{maskValue(totalPendingShiftsForFinance)}</div>
+                    <div className="text-xl font-extrabold text-amber-900">{maskValue(totalReceivablesForFinance)}</div>
                   </div>
                 </div>
 
                 <div className="mt-4 space-y-2 max-h-72 overflow-y-auto pr-1">
-                  {pendingShiftsForFinance.length === 0 ? (
+                  {pendingSalaryMonths.map(monthKey => (
+                    <div key={`pending-fixed-salary-${monthKey}`} className="bg-white border border-emerald-200 rounded-xl p-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div><div className="text-xs font-extrabold text-pink-950">{primaryClinicName} • salário fixo</div><div className="text-[10px] text-stone-500 mt-1">Referência: {monthKeyLabel(monthKey)} • aguardando recebimento</div></div>
+                        <div className="flex items-center gap-2"><div className="text-sm font-extrabold text-emerald-900">{maskValue(PRIMARY_SALARY_AMOUNT)}</div><button type="button" onClick={() => handleToggleFixedSalaryReceipt(monthKey)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-[10px] font-extrabold">✓ Marcar salário como recebido</button></div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {pendingPrimaryCommissions.map(item => (
+                    <div key={`pending-primary-commission-${item.id}`} className="bg-white border border-amber-200 rounded-xl p-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div><div className="text-xs font-extrabold text-pink-950">{primaryClinicName} • comissão</div><div className="text-[10px] text-stone-500 mt-1">{formatLocalDate(item.date)}</div>{item.notes && <div className="text-[9px] text-stone-400 mt-1">{item.notes}</div>}</div>
+                        <div className="flex items-center gap-2"><div className="text-sm font-extrabold text-amber-900">{maskValue(Number(item.amount) || 0)}</div><button type="button" onClick={() => handleTogglePrimaryCommissionStatus(item.id)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-[10px] font-extrabold">✓ Marcar comissão como recebida</button></div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {totalReceivablesForFinance <= 0 ? (
                     <div className="bg-white/70 border border-dashed border-amber-200 rounded-2xl p-6 text-center">
                       <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto mb-2" />
                       <p className="text-xs font-bold text-stone-600">Nenhum valor pendente.</p>
@@ -11679,6 +11978,18 @@ export default function VetWorkspaceBeatrizV28() {
                                       <Trash2 className="w-3.5 h-3.5" />
                                     </button>
                                   </>
+                                )}
+
+                                {entry.source === 'salary' && entry.salaryMonth && entry.type === 'pending' && (
+                                  <button type="button" onClick={() => handleToggleFixedSalaryReceipt(entry.salaryMonth!)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold">Marcar salário recebido</button>
+                                )}
+
+                                {entry.source === 'salary' && entry.salaryMonth && entry.type === 'received' && (
+                                  <button type="button" onClick={() => handleToggleFixedSalaryReceipt(entry.salaryMonth!)} className="bg-white hover:bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-lg text-[10px] font-bold">Voltar salário p/ pendente</button>
+                                )}
+
+                                {entry.source === 'primaryCommission' && entry.primaryCommissionId && (
+                                  <button type="button" onClick={() => handleTogglePrimaryCommissionStatus(entry.primaryCommissionId!)} className={entry.type === 'pending' ? 'bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold' : 'bg-white hover:bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-lg text-[10px] font-bold'}>{entry.type === 'pending' ? 'Marcar comissão recebida' : 'Voltar comissão p/ pendente'}</button>
                                 )}
 
                                 {entry.source === 'shift' && entry.shiftId && entry.type === 'pending' && (
