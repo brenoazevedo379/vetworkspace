@@ -5575,14 +5575,48 @@ export default function VetWorkspaceBeatrizV28() {
     return []
   })
   const [selectedDate, setSelectedDate] = useState<string>(todayDateKey)
+  const [calendarViewYear, setCalendarViewYear] = useState(currentYear)
+  const [calendarViewMonth, setCalendarViewMonth] = useState(currentMonth)
+  const [calendarFollowsToday, setCalendarFollowsToday] = useState(true)
   const lastTodayDateKeyRef = useRef(todayDateKey)
 
   useEffect(() => {
     if (lastTodayDateKeyRef.current !== todayDateKey) {
       lastTodayDateKeyRef.current = todayDateKey
-      setSelectedDate(todayDateKey)
+
+      if (calendarFollowsToday) {
+        setCalendarViewYear(currentYear)
+        setCalendarViewMonth(currentMonth)
+        setSelectedDate(todayDateKey)
+      }
     }
-  }, [todayDateKey])
+  }, [todayDateKey, currentYear, currentMonth, calendarFollowsToday])
+
+  const goToCalendarMonth = (offset: number) => {
+    const nextMonth = new Date(calendarViewYear, calendarViewMonth + offset, 1)
+    const nextYear = nextMonth.getFullYear()
+    const nextMonthIndex = nextMonth.getMonth()
+    const selectedDay = Number(selectedDate.split('-')[2]) || 1
+    const daysInNextMonth = new Date(nextYear, nextMonthIndex + 1, 0).getDate()
+    const nextSelectedDay = Math.min(selectedDay, daysInNextMonth)
+    const nextDateKey = `${nextYear}-${padZero(nextMonthIndex + 1)}-${padZero(nextSelectedDay)}`
+
+    setCalendarViewYear(nextYear)
+    setCalendarViewMonth(nextMonthIndex)
+    setCalendarFollowsToday(nextYear === currentYear && nextMonthIndex === currentMonth)
+    setSelectedDate(
+      nextYear === currentYear && nextMonthIndex === currentMonth
+        ? todayDateKey
+        : nextDateKey
+    )
+  }
+
+  const goCalendarToday = () => {
+    setCalendarViewYear(currentYear)
+    setCalendarViewMonth(currentMonth)
+    setCalendarFollowsToday(true)
+    setSelectedDate(todayDateKey)
+  }
   const [eventTitle, setEventTitle] = useState('')
   const [eventDesc, setEventDesc] = useState('')
   const [eventTime, setEventTime] = useState('08:00')
@@ -8053,16 +8087,48 @@ export default function VetWorkspaceBeatrizV28() {
 
   const filteredDrugs = customDrugs.filter(d => d.name.toLowerCase().includes(drugSearchQuery.toLowerCase()) || d.category.toLowerCase().includes(drugSearchQuery.toLowerCase()))
 
-  const daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
-  const firstWeekdayOfMonth = new Date(currentYear, currentMonth, 1).getDay()
-  const calendarDays = Array.from({ length: daysInCurrentMonth }, (_, i) => {
+  const daysInCalendarMonth = new Date(calendarViewYear, calendarViewMonth + 1, 0).getDate()
+  const firstWeekdayOfMonth = new Date(calendarViewYear, calendarViewMonth, 1).getDay()
+  const calendarMonthKey = `${calendarViewYear}-${padZero(calendarViewMonth + 1)}`
+  const calendarDays = Array.from({ length: daysInCalendarMonth }, (_, i) => {
     const dayNum = i + 1
     const formattedDay = padZero(dayNum)
-    const formattedMonth = padZero(currentMonth + 1)
-    return { day: dayNum, dateKey: `${currentYear}-${formattedMonth}-${formattedDay}` }
+    const formattedMonth = padZero(calendarViewMonth + 1)
+    return { day: dayNum, dateKey: `${calendarViewYear}-${formattedMonth}-${formattedDay}` }
   })
 
-  const currentMonthName = new Date(currentYear, currentMonth, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+  const calendarMonthName = new Date(calendarViewYear, calendarViewMonth, 1).toLocaleDateString('pt-BR', {
+    month: 'long',
+    year: 'numeric'
+  })
+
+  const calendarMonthEvents = sortAllCalendarEvents(
+    events.filter(ev => ev.dateKey.startsWith(`${calendarMonthKey}-`))
+  )
+
+  const calendarWorkEvents = calendarMonthEvents.filter(ev => {
+    const inferredCategory = ev.category || (getEventClinicName(ev) ? 'work' : 'other')
+    return inferredCategory === 'work'
+  })
+
+  const calendarWorkedDates = Array.from(new Set(calendarWorkEvents.map(ev => ev.dateKey))).sort()
+
+  const calendarClinicRecap = Array.from(
+    calendarWorkEvents.reduce((map, ev) => {
+      const clinicName = getEventClinicName(ev) || ev.title || 'Trabalho / Plantão'
+      const current = map.get(clinicName) || { clinicName, dates: new Set<string>(), count: 0 }
+      current.dates.add(ev.dateKey)
+      current.count += 1
+      map.set(clinicName, current)
+      return map
+    }, new Map<string, { clinicName: string; dates: Set<string>; count: number }>())
+  )
+    .map(([, value]) => ({
+      clinicName: value.clinicName,
+      days: value.dates.size,
+      events: value.count,
+    }))
+    .sort((a, b) => b.days - a.days || a.clinicName.localeCompare(b.clinicName, 'pt-BR'))
 
   if (!isMounted) {
     return <div className="flex h-screen bg-pink-50/40" />
@@ -10662,9 +10728,56 @@ export default function VetWorkspaceBeatrizV28() {
 
           {activeTab === 'calendario' && (
             <div className="max-w-5xl mx-auto space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-extrabold text-pink-950">Calendário Estilo Google Agenda & Metas ({currentMonthName})</h2>
-                <span className="text-xs bg-pink-100 text-pink-800 font-bold px-3 py-1 rounded-xl capitalize">Hoje: {formattedHeaderDate}</span>
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-extrabold text-pink-950">Calendário & Recap Mensal</h2>
+                  <p className="text-[10px] text-stone-400 mt-1">
+                    Volte para qualquer mês para rever dias trabalhados, plantões e compromissos. O resumo se atualiza sozinho.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => goToCalendarMonth(-1)}
+                    className="w-10 h-10 bg-white hover:bg-pink-50 border border-pink-200 rounded-xl flex items-center justify-center text-pink-700"
+                    aria-label="Voltar um mês"
+                    title="Mês anterior"
+                  >
+                    <ChevronRight className="w-4 h-4 rotate-180" />
+                  </button>
+
+                  <div className="min-w-[170px] text-center bg-white border border-pink-200 rounded-xl px-4 py-2">
+                    <div className="text-sm font-extrabold text-pink-950 capitalize">{calendarMonthName}</div>
+                    {calendarViewYear === currentYear && calendarViewMonth === currentMonth && (
+                      <div className="text-[9px] font-bold text-emerald-600 mt-0.5">Mês atual</div>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => goToCalendarMonth(1)}
+                    className="w-10 h-10 bg-white hover:bg-pink-50 border border-pink-200 rounded-xl flex items-center justify-center text-pink-700"
+                    aria-label="Avançar um mês"
+                    title="Próximo mês"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={goCalendarToday}
+                    className="h-10 bg-pink-500 hover:bg-pink-600 text-white px-4 rounded-xl text-[10px] font-extrabold"
+                  >
+                    Hoje
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <span className="text-[10px] bg-pink-100 text-pink-800 font-bold px-3 py-1.5 rounded-xl capitalize">
+                  Hoje: {formattedHeaderDate}
+                </span>
               </div>
 
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-3xl shadow-sm space-y-4">
@@ -10674,7 +10787,7 @@ export default function VetWorkspaceBeatrizV28() {
                   {Array.from(
                     new Map(
                       events
-                        .filter(ev => ev.dateKey.startsWith(`${currentYear}-${padZero(currentMonth + 1)}-`))
+                        .filter(ev => ev.dateKey.startsWith(`${calendarMonthKey}-`))
                         .map(ev => [`${getEventClinicName(ev) || ev.title}|${getEventClinicColor(ev)}`, ev] as const)
                     ).values()
                   ).map(ev => (
@@ -10751,6 +10864,89 @@ export default function VetWorkspaceBeatrizV28() {
                     )
                   })}
                 </div>
+              </div>
+
+              <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-3xl shadow-sm">
+                <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                  <div>
+                    <div className="text-[10px] font-extrabold uppercase tracking-widest text-pink-500">📋 Recap do mês</div>
+                    <h3 className="text-base font-extrabold text-pink-950 mt-1 capitalize">{calendarMonthName}</h3>
+                    <p className="text-[10px] text-stone-400 mt-1">
+                      Calculado automaticamente pelos compromissos de Trabalho / Plantão salvos neste mês.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 w-full lg:w-auto lg:min-w-[390px]">
+                    <div className="bg-pink-50 border border-pink-100 rounded-xl p-3 text-center">
+                      <div className="text-[9px] font-bold uppercase text-stone-400">Dias trabalhados</div>
+                      <div className="text-xl font-extrabold text-pink-950 mt-1">{calendarWorkedDates.length}</div>
+                    </div>
+                    <div className="bg-violet-50 border border-violet-100 rounded-xl p-3 text-center">
+                      <div className="text-[9px] font-bold uppercase text-stone-400">Registros</div>
+                      <div className="text-xl font-extrabold text-violet-900 mt-1">{calendarWorkEvents.length}</div>
+                    </div>
+                    <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-center">
+                      <div className="text-[9px] font-bold uppercase text-stone-400">Clínicas</div>
+                      <div className="text-xl font-extrabold text-emerald-900 mt-1">{calendarClinicRecap.length}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {calendarWorkEvents.length === 0 ? (
+                  <div className="mt-4 bg-stone-50 border border-dashed border-stone-200 rounded-2xl p-5 text-center">
+                    <p className="text-xs font-bold text-stone-600">Nenhum dia de trabalho registrado neste mês.</p>
+                    <p className="text-[10px] text-stone-400 mt-1">Quando Beatriz adicionar Trabalho / Plantão no calendário, o recap aparece aqui automaticamente.</p>
+                  </div>
+                ) : (
+                  <div className="mt-4 space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                      {calendarClinicRecap.map(item => (
+                        <span
+                          key={item.clinicName}
+                          className="bg-pink-50 border border-pink-100 text-pink-800 px-3 py-1.5 rounded-full text-[10px] font-bold"
+                        >
+                          {item.clinicName}: {item.days} dia{item.days === 1 ? '' : 's'}
+                        </span>
+                      ))}
+                    </div>
+
+                    <details className="bg-stone-50/70 border border-stone-200 rounded-2xl overflow-hidden">
+                      <summary className="cursor-pointer select-none px-4 py-3 text-[11px] font-extrabold text-stone-700 hover:bg-stone-100/70">
+                        Ver datas trabalhadas ({calendarWorkEvents.length})
+                      </summary>
+                      <div className="px-4 pb-4 space-y-2 max-h-72 overflow-y-auto">
+                        {calendarWorkEvents.map((ev, idx) => (
+                          <div
+                            key={`${ev.dateKey}-${ev.time || 'sem-hora'}-${ev.title}-${idx}`}
+                            className="bg-white border border-stone-200 rounded-xl p-3 border-l-4"
+                            style={{ borderLeftColor: getEventClinicColor(ev) }}
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <div>
+                                <div className="text-xs font-extrabold text-pink-950">
+                                  {formatLocalDate(ev.dateKey)}
+                                  {ev.time ? ` • ${ev.time}` : ''}
+                                </div>
+                                <div className="text-[10px] font-bold text-stone-600 mt-0.5">
+                                  {getEventClinicName(ev) || ev.title || 'Trabalho / Plantão'}
+                                </div>
+                                {ev.title && getEventClinicName(ev) && ev.title !== getEventClinicName(ev) && (
+                                  <div className="text-[9px] text-stone-400 mt-0.5">{ev.title}</div>
+                                )}
+                                {ev.description && (
+                                  <div className="text-[9px] text-stone-400 mt-1">{ev.description}</div>
+                                )}
+                              </div>
+                              <span className="text-[9px] font-extrabold text-pink-600 bg-pink-50 px-2 py-1 rounded-lg">
+                                Trabalho / Plantão
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -11072,8 +11268,8 @@ export default function VetWorkspaceBeatrizV28() {
             <div className="max-w-4xl mx-auto space-y-6">
               <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-extrabold text-pink-950">Controle Financeiro & Gráficos</h2>
-                  <p className="text-xs text-stone-400 mt-1">Visão mensal de caixa • {financeMonthLabel}</p>
+                  <h2 className="text-xl font-extrabold text-pink-950">Financeiro da Beatriz</h2>
+                  <p className="text-xs text-stone-400 mt-1">Visão simples do que entrou, do que falta receber e do que saiu • {financeMonthLabel}</p>
                 </div>
 
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
@@ -11124,12 +11320,181 @@ export default function VetWorkspaceBeatrizV28() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs space-y-3">
+              <div className={`rounded-3xl border p-5 shadow-xs ${
+                financeSelectedMonth < PRIMARY_SALARY_START_MONTH
+                  ? 'bg-violet-50/70 border-violet-200'
+                  : 'bg-emerald-50/60 border-emerald-200'
+              }`}>
+                <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                  <div>
+                    <div className="text-[10px] font-extrabold uppercase tracking-widest text-pink-600">
+                      ⭐ Rotina principal
+                    </div>
+                    <h3 className="text-base font-extrabold text-pink-950 mt-1">{primaryClinicName}</h3>
+                    {financeSelectedMonth < PRIMARY_SALARY_START_MONTH ? (
+                      <div className="mt-2 space-y-1">
+                        <p className="text-xs font-bold text-violet-900">
+                          O novo modelo começa em novembro de 2026.
+                        </p>
+                        <p className="text-[10px] text-violet-700">
+                          Até outubro, o histórico antigo continua funcionando normalmente. Você não precisa lançar o salário da Pop agora.
+                        </p>
+                      </div>
+                    ) : financeSelectedMonth > currentFinanceMonthKey ? (
+                      <div className="mt-2 space-y-1">
+                        <p className="text-xs font-bold text-emerald-900">
+                          Salário programado: {maskValue(PRIMARY_SALARY_AMOUNT)}
+                        </p>
+                        <p className="text-[10px] text-emerald-700">
+                          Este mês ainda é futuro. Quando chegar, o salário aparecerá automaticamente como valor a receber.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="mt-2 space-y-1">
+                        <p className="text-xs font-bold text-emerald-900">
+                          Salário fixo mensal: {maskValue(PRIMARY_SALARY_AMOUNT)}
+                        </p>
+                        <p className="text-[10px] text-emerald-700">
+                          O salário só entra no caixa quando você confirmar que realmente recebeu.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="w-full lg:w-auto lg:min-w-[265px] bg-white border border-white/80 rounded-2xl p-4 shadow-2xs">
+                    <div className="text-[9px] uppercase font-bold text-stone-400">Salário da Pop • {financeMonthLabel}</div>
+                    <div className="text-2xl font-extrabold text-pink-950 mt-1">
+                      {financeSelectedMonth >= PRIMARY_SALARY_START_MONTH ? maskValue(PRIMARY_SALARY_AMOUNT) : '—'}
+                    </div>
+
+                    {financeSelectedMonth < PRIMARY_SALARY_START_MONTH ? (
+                      <div className="text-[10px] font-bold text-violet-700 mt-2">Começa em novembro/2026</div>
+                    ) : financeSelectedMonth > currentFinanceMonthKey ? (
+                      <div className="text-[10px] font-bold text-sky-700 mt-2">Programado para este mês</div>
+                    ) : salaryReceiptForSelectedMonth ? (
+                      <div className="mt-2 space-y-1">
+                        <div className="text-[10px] font-extrabold text-emerald-700">
+                          ✓ Recebido em {formatLocalDate(salaryReceiptForSelectedMonth)}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleFixedSalaryReceipt(financeSelectedMonth)}
+                          className="text-[9px] font-bold text-stone-400 hover:text-rose-600"
+                        >
+                          Desfazer confirmação
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleFixedSalaryReceipt(financeSelectedMonth)}
+                        className="mt-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-[10px] font-extrabold"
+                      >
+                        ✓ Marcar salário como recebido
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-4">
+                  <div className="bg-white/90 rounded-xl p-3 border border-emerald-100">
+                    <div className="text-[9px] uppercase font-bold text-stone-400">Salário recebido</div>
+                    <div className="text-base font-extrabold text-emerald-800 mt-1">{maskValue(totalFixedSalaryReceivedThisMonth)}</div>
+                  </div>
+                  <div className="bg-white/90 rounded-xl p-3 border border-emerald-100">
+                    <div className="text-[9px] uppercase font-bold text-stone-400">Comissões Pop</div>
+                    <div className="text-base font-extrabold text-emerald-800 mt-1">{maskValue(totalPaidPrimaryCommissionsThisMonth)}</div>
+                  </div>
+                  <div className="bg-white/90 rounded-xl p-3 border border-amber-100">
+                    <div className="text-[9px] uppercase font-bold text-stone-400">A receber</div>
+                    <div className="text-base font-extrabold text-amber-800 mt-1">{maskValue(totalReceivablesForFinance)}</div>
+                  </div>
+                  <div className="bg-white/90 rounded-xl p-3 border border-sky-100">
+                    <div className="text-[9px] uppercase font-bold text-stone-400">Saldo disponível</div>
+                    <div className={`text-base font-extrabold mt-1 ${saldoRestante >= 0 ? 'text-sky-800' : 'text-rose-700'}`}>{maskValue(saldoRestante)}</div>
+                  </div>
+                </div>
+
+                <form onSubmit={handleAddPrimaryCommission} className="mt-4 bg-white/90 border border-emerald-100 rounded-2xl p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                    <div>
+                      <div className="text-xs font-extrabold text-pink-950">💸 Comissão da Pop</div>
+                      <div className="text-[9px] text-stone-400 mt-0.5">Pode lançar aqui mesmo sem ir para a aba de clínicas.</div>
+                    </div>
+                    <span className="text-[9px] font-bold text-amber-700">
+                      Pendentes: {maskValue(totalPendingPrimaryCommissions)}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={primaryCommissionAmount}
+                      onChange={(e) => setPrimaryCommissionAmount(e.target.value)}
+                      placeholder="Valor da comissão"
+                      className="bg-white border border-emerald-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none"
+                      required
+                    />
+                    <input
+                      type="date"
+                      value={primaryCommissionDate}
+                      onChange={(e) => setPrimaryCommissionDate(e.target.value)}
+                      className="bg-white border border-emerald-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none"
+                      required
+                    />
+                    <select
+                      value={primaryCommissionStatus}
+                      onChange={(e) => setPrimaryCommissionStatus(e.target.value as 'Pago' | 'Pendente')}
+                      className="bg-white border border-emerald-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none"
+                    >
+                      <option value="Pendente">Ainda vou receber</option>
+                      <option value="Pago">Já recebi</option>
+                    </select>
+                    <input
+                      type="text"
+                      value={primaryCommissionNotes}
+                      onChange={(e) => setPrimaryCommissionNotes(e.target.value)}
+                      placeholder="Observação opcional"
+                      className="bg-white border border-emerald-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-3 py-2.5 text-[10px] font-extrabold"
+                    >
+                      + Registrar comissão
+                    </button>
+                  </div>
+                </form>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('clinicas')}
+                    className="bg-white hover:bg-pink-50 border border-pink-200 text-pink-700 px-3 py-2 rounded-xl text-[10px] font-bold"
+                  >
+                    🌙 Registrar plantão extra
+                  </button>
+                  <span className="text-[9px] text-stone-400 self-center">
+                    Plantões extras continuam separados e podem ter diária + comissão.
+                  </span>
+                </div>
+              </div>
+
+              <details className="bg-white/70 border border-stone-200 rounded-2xl overflow-hidden">
+                <summary className="cursor-pointer select-none px-5 py-4 flex items-center justify-between gap-3 hover:bg-stone-50">
+                  <div>
+                    <div className="text-xs font-extrabold text-stone-700">⚙️ Ajustes manuais e rendas antigas</div>
+                    <div className="text-[9px] text-stone-400 mt-0.5">Use só quando precisar manter/corrigir lançamentos do modelo antigo.</div>
+                  </div>
+                  <span className="text-[9px] font-bold text-stone-400">Abrir opções</span>
+                </summary>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 pt-0">
+                  <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-5 rounded-2xl shadow-xs space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <div>
                       <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Ajuste manual / outra renda fixa</h3>
-                      <p className="text-[10px] text-stone-400 mt-1">Salário/fixo. Não inclua plantões, comissões ou especialistas aqui.</p>
+                      <p className="text-[10px] text-stone-400 mt-1">Campo legado para correções ou valores antigos. Não use para o salário da Pop.</p>
                     </div>
                     {!isEditingIncome && (
                       <button
@@ -11178,7 +11543,7 @@ export default function VetWorkspaceBeatrizV28() {
                       <div className="text-2xl font-extrabold text-emerald-600">{maskValue(selectedBaseIncome)}</div>
 
                       <div className="pt-3 border-t border-pink-100">
-                        <div className="text-[10px] font-extrabold text-stone-600 mb-1.5">Somar um novo valor à renda base</div>
+                        <div className="text-[10px] font-extrabold text-stone-600 mb-1.5">Somar ajuste manual</div>
                         <div className="flex gap-2">
                           <input
                             type="text"
@@ -11219,7 +11584,7 @@ export default function VetWorkspaceBeatrizV28() {
                   <div className="flex items-center justify-between gap-2">
                     <div>
                       <h3 className="text-xs font-bold text-violet-900 uppercase tracking-wider">Outras rendas recebidas</h3>
-                      <p className="text-[10px] text-stone-400 mt-1">Somente valores que não estejam em plantões/comissões ou especialistas.</p>
+                      <p className="text-[10px] text-stone-400 mt-1">Campo legado para entradas excepcionais que não estejam cadastradas em outro lugar.</p>
                     </div>
                     {!isEditingOtherIncome && (
                       <button
@@ -11301,7 +11666,8 @@ export default function VetWorkspaceBeatrizV28() {
                     </div>
                   )}
                 </div>
-              </div>
+                </div>
+              </details>
 
               {/* CARD DE COFRINHO */}
               <div className="bg-gradient-to-br from-pink-50 to-pink-100/60 border border-pink-200 p-6 rounded-3xl shadow-xs space-y-4">
@@ -11385,49 +11751,55 @@ export default function VetWorkspaceBeatrizV28() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 <div className="bg-emerald-50/70 border border-emerald-200 p-4 rounded-2xl">
-                  <span className="text-[10px] font-bold text-emerald-700 uppercase">Total recebido no mês</span>
+                  <span className="text-[10px] font-bold text-emerald-700 uppercase">Recebido</span>
                   <div className="text-xl font-extrabold text-emerald-800 mt-1">{maskValue(totalRendaGeral)}</div>
-                  <div className="text-[9px] text-emerald-600 mt-1">Somente dinheiro recebido</div>
-                </div>
-
-                <div className="bg-emerald-50/70 border border-emerald-200 p-4 rounded-2xl">
-                  <span className="text-[10px] font-bold text-emerald-700 uppercase">Pop • salário + comissões</span>
-                  <div className="text-xl font-extrabold text-emerald-800 mt-1">{maskValue(totalPrimaryClinicReceivedThisMonth)}</div>
-                  <div className="text-[9px] text-emerald-600 mt-1">Salário {maskValue(totalFixedSalaryReceivedThisMonth)} • comissões {maskValue(totalPaidPrimaryCommissionsThisMonth)}</div>
-                </div>
-
-                <div className="bg-white border border-pink-100 p-4 rounded-2xl">
-                  <span className="text-[10px] font-bold text-stone-500 uppercase">Plantões/comissões pagos</span>
-                  <div className="text-xl font-extrabold text-pink-950 mt-1">{maskValue(totalPaidShiftsThisMonth)}</div>
-                  <div className="text-[9px] text-stone-400 mt-1">Diárias {maskValue(totalPaidDailyThisMonth)} • Comissões {maskValue(totalPaidCommissionThisMonth)}</div>
+                  <div className="text-[9px] text-emerald-600 mt-1">Dinheiro que já entrou</div>
                 </div>
 
                 <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-2xl">
                   <span className="text-[10px] font-bold text-amber-700 uppercase">A receber</span>
                   <div className="text-xl font-extrabold text-amber-800 mt-1">{maskValue(totalReceivablesForFinance)}</div>
-                  <div className="text-[9px] text-amber-600 mt-1">Salário, comissões e plantões pendentes • não entram no saldo</div>
-                </div>
-
-                <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-2xl">
-                  <span className="text-[10px] font-bold text-amber-700 uppercase">Despesas a pagar</span>
-                  <div className="text-xl font-extrabold text-amber-800 mt-1">{maskValue(totalPendingExpensesForFinance)}</div>
-                  <div className="text-[9px] text-amber-600 mt-1">Pendências em aberto • não saíram do caixa</div>
+                  <div className="text-[9px] text-amber-600 mt-1">Ainda não entrou no caixa</div>
                 </div>
 
                 <div className="bg-white border border-rose-100 p-4 rounded-2xl">
-                  <span className="text-[10px] font-bold text-stone-500 uppercase">Despesas pagas no mês</span>
+                  <span className="text-[10px] font-bold text-stone-500 uppercase">Gastos pagos</span>
                   <div className="text-xl font-extrabold text-rose-600 mt-1">{maskValue(totalPaidExpensesThisMonth)}</div>
-                  <div className="text-[9px] text-stone-400 mt-1">Valor que realmente saiu do caixa</div>
+                  <div className="text-[9px] text-stone-400 mt-1">Dinheiro que já saiu</div>
                 </div>
 
                 <div className={`border p-4 rounded-2xl ${saldoRestante >= 0 ? 'bg-sky-50/70 border-sky-200' : 'bg-rose-50 border-rose-200'}`}>
                   <span className={`text-[10px] font-bold uppercase ${saldoRestante >= 0 ? 'text-sky-700' : 'text-rose-700'}`}>Saldo disponível</span>
                   <div className={`text-xl font-extrabold mt-1 ${saldoRestante >= 0 ? 'text-sky-800' : 'text-rose-700'}`}>{maskValue(saldoRestante)}</div>
-                  <div className="text-[9px] text-stone-400 mt-1">Recebido − despesas já pagas</div>
+                  <div className="text-[9px] text-stone-400 mt-1">Recebido − gastos pagos</div>
                 </div>
               </div>
+
+              <details className="bg-white border border-pink-100 rounded-2xl shadow-xs overflow-hidden">
+                <summary className="cursor-pointer select-none px-5 py-4 text-xs font-extrabold text-pink-950 hover:bg-pink-50/50">
+                  📊 Ver detalhes do mês
+                </summary>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 px-5 pb-5">
+                  <div className="bg-emerald-50 rounded-xl p-3">
+                    <div className="text-[9px] uppercase font-bold text-stone-400">Pop • salário + comissões</div>
+                    <div className="text-sm font-extrabold text-emerald-800 mt-1">{maskValue(totalPrimaryClinicReceivedThisMonth)}</div>
+                  </div>
+                  <div className="bg-pink-50 rounded-xl p-3">
+                    <div className="text-[9px] uppercase font-bold text-stone-400">Plantões extras</div>
+                    <div className="text-sm font-extrabold text-pink-950 mt-1">{maskValue(totalPaidShiftsThisMonth)}</div>
+                  </div>
+                  <div className="bg-amber-50 rounded-xl p-3">
+                    <div className="text-[9px] uppercase font-bold text-stone-400">Despesas a pagar</div>
+                    <div className="text-sm font-extrabold text-amber-800 mt-1">{maskValue(totalPendingExpensesForFinance)}</div>
+                  </div>
+                  <div className="bg-stone-50 rounded-xl p-3">
+                    <div className="text-[9px] uppercase font-bold text-stone-400">Ajustes / outras rendas</div>
+                    <div className="text-sm font-extrabold text-pink-950 mt-1">{maskValue(selectedBaseIncome + selectedOtherIncome)}</div>
+                  </div>
+                </div>
+              </details>
 
               <div className="bg-white/95 border border-pink-100 p-5 rounded-2xl shadow-xs">
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
@@ -11478,29 +11850,30 @@ export default function VetWorkspaceBeatrizV28() {
                 )}
               </div>
 
-              <div className="bg-white/95 border border-pink-100 p-5 rounded-2xl shadow-xs">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-xs font-extrabold text-pink-950 uppercase tracking-wider">Composição da renda recebida</h3>
-                    <p className="text-[10px] text-stone-400 mt-1">Cada valor entra uma vez, sem duplicar plantões ou especialistas.</p>
+              <details className="bg-white/95 border border-pink-100 rounded-2xl shadow-xs overflow-hidden">
+                <summary className="cursor-pointer select-none px-5 py-4 hover:bg-pink-50/50">
+                  <div className="inline-flex flex-col">
+                    <span className="text-xs font-extrabold text-pink-950 uppercase tracking-wider">Composição completa da renda</span>
+                    <span className="text-[9px] text-stone-400 mt-0.5">Abra só quando quiser conferir de onde veio cada valor.</span>
                   </div>
-                  <span className="text-[10px] font-bold text-stone-500">{financeMonthLabel}</span>
-                </div>
-                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2 mt-4">
+                </summary>
+                <div className="px-5 pb-5">
+                  <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2">
                   <div className="bg-emerald-50 rounded-xl p-3"><div className="text-[9px] text-stone-400 uppercase font-bold">Salário Pop</div><div className="text-sm font-extrabold text-emerald-800 mt-1">{maskValue(totalFixedSalaryReceivedThisMonth)}</div></div>
                   <div className="bg-emerald-50 rounded-xl p-3"><div className="text-[9px] text-stone-400 uppercase font-bold">Comissões Pop</div><div className="text-sm font-extrabold text-emerald-800 mt-1">{maskValue(totalPaidPrimaryCommissionsThisMonth)}</div></div>
                   <div className="bg-pink-50 rounded-xl p-3"><div className="text-[9px] text-stone-400 uppercase font-bold">Plantões extras</div><div className="text-sm font-extrabold text-pink-950 mt-1">{maskValue(totalPaidDailyThisMonth)}</div></div>
                   <div className="bg-pink-50 rounded-xl p-3"><div className="text-[9px] text-stone-400 uppercase font-bold">Comissões extras</div><div className="text-sm font-extrabold text-pink-950 mt-1">{maskValue(totalPaidCommissionThisMonth)}</div></div>
                   <div className="bg-pink-50 rounded-xl p-3"><div className="text-[9px] text-stone-400 uppercase font-bold">Especialistas</div><div className="text-sm font-extrabold text-pink-950 mt-1">{maskValue(specialistIncomeThisMonth)}</div></div>
                   <div className="bg-stone-50 rounded-xl p-3"><div className="text-[9px] text-stone-400 uppercase font-bold">Ajustes / outras rendas</div><div className="text-sm font-extrabold text-pink-950 mt-1">{maskValue(selectedBaseIncome + selectedOtherIncome)}</div></div>
+                  </div>
                 </div>
-              </div>
+              </details>
 
               <div className="bg-amber-50/50 border border-amber-200 p-5 rounded-3xl shadow-xs">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-xs font-extrabold text-amber-900 uppercase tracking-wider">Dinheiro que ainda vão me pagar</h3>
-                    <p className="text-[10px] text-amber-700/70 mt-1">Pendências de clínicas e comissões. Confirmar aqui atualiza a renda automaticamente.</p>
+                    <h3 className="text-xs font-extrabold text-amber-900 uppercase tracking-wider">A receber</h3>
+                    <p className="text-[10px] text-amber-700/70 mt-1">Salário, comissões e plantões pendentes. Ao confirmar o recebimento, o caixa atualiza sozinho.</p>
                   </div>
                   <div className="text-right">
                     <div className="text-[9px] font-bold uppercase text-amber-600">Total a receber</div>
