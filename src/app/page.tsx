@@ -157,6 +157,7 @@ interface CalendarEvent {
   clinicName?: string
   clinicColor?: string
   category?: 'work' | 'return' | 'other'
+  source?: 'pop-fixed'
 }
 
 interface PatientEvolution {
@@ -5574,6 +5575,18 @@ export default function VetWorkspaceBeatrizV28() {
     }
     return []
   })
+  const [popFixedSeededMonths, setPopFixedSeededMonths] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_pop_fixed_calendar_months_v28')
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved)
+          return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : []
+        } catch(e) {}
+      }
+    }
+    return []
+  })
   const [selectedDate, setSelectedDate] = useState<string>(todayDateKey)
   const [calendarViewYear, setCalendarViewYear] = useState(currentYear)
   const [calendarViewMonth, setCalendarViewMonth] = useState(currentMonth)
@@ -5686,6 +5699,10 @@ export default function VetWorkspaceBeatrizV28() {
             setEvents(normalizedEvents)
             localStorage.setItem('vet_events_v28', JSON.stringify(normalizedEvents))
           }
+          if (Array.isArray(d.popFixedSeededMonths)) {
+            setPopFixedSeededMonths(d.popFixedSeededMonths)
+            localStorage.setItem('vet_pop_fixed_calendar_months_v28', JSON.stringify(d.popFixedSeededMonths))
+          }
           if (Array.isArray(d.chatSessions) && d.chatSessions.length > 0) {
             setChatSessions(prevSessions => {
               const meaningfulLocal = prevSessions.filter(session => !(session.id === 'default-session' && session.messages.length === 1))
@@ -5786,6 +5803,10 @@ export default function VetWorkspaceBeatrizV28() {
             setEvents(normalizedEvents)
             localStorage.setItem('vet_events_v28', JSON.stringify(normalizedEvents))
           }
+            if (Array.isArray(d.popFixedSeededMonths)) {
+              setPopFixedSeededMonths(d.popFixedSeededMonths)
+              localStorage.setItem('vet_pop_fixed_calendar_months_v28', JSON.stringify(d.popFixedSeededMonths))
+            }
             
             if (d.chatSessions) {
               setChatSessions(prevSessions => {
@@ -5855,6 +5876,7 @@ export default function VetWorkspaceBeatrizV28() {
     localStorage.setItem('vet_finances_v28', JSON.stringify(finances))
     localStorage.setItem('vet_tasks_v28', JSON.stringify(tasks))
     localStorage.setItem('vet_events_v28', JSON.stringify(events))
+    localStorage.setItem('vet_pop_fixed_calendar_months_v28', JSON.stringify(popFixedSeededMonths))
     localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(chatSessions))
     localStorage.setItem('vet_clinics_v28', JSON.stringify(clinics))
     localStorage.setItem('vet_shifts_v28', JSON.stringify(shifts))
@@ -5885,6 +5907,7 @@ export default function VetWorkspaceBeatrizV28() {
           finances,
           tasks,
           events,
+          popFixedSeededMonths,
           chatSessions,
           clinics,
           shifts,
@@ -5919,7 +5942,7 @@ export default function VetWorkspaceBeatrizV28() {
 
     const timer = setTimeout(syncToCloud, 800)
     return () => clearTimeout(timer)
-  }, [isInitialized, items, patients, recipes, customDrugs, monthlyIncome, otherIncome, monthlyIncomeByMonth, otherIncomeByMonth, cofrinhoAmount, finances, tasks, events, chatSessions, clinics, shifts, fixedSalaryReceipts, primaryClinicCommissions, specialistConsultations, personalPets, personalMediaItems, personalMediaGoals, skincareDone, mimosWishlist, descompressaoNotes])
+  }, [isInitialized, items, patients, recipes, customDrugs, monthlyIncome, otherIncome, monthlyIncomeByMonth, otherIncomeByMonth, cofrinhoAmount, finances, tasks, events, popFixedSeededMonths, chatSessions, clinics, shifts, fixedSalaryReceipts, primaryClinicCommissions, specialistConsultations, personalPets, personalMediaItems, personalMediaGoals, skincareDone, mimosWishlist, descompressaoNotes])
 
   const renderPersonalMediaCategory = (
     type: PersonalMediaType,
@@ -8084,6 +8107,75 @@ export default function VetWorkspaceBeatrizV28() {
       return a.title.localeCompare(b.title, 'pt-BR')
     })
   }
+
+  useEffect(() => {
+    if (!isMounted || !isInitialized) return
+
+    const viewedMonthKey = `${calendarViewYear}-${padZero(calendarViewMonth + 1)}`
+    const monthsToEnsure = new Set<string>([PRIMARY_SALARY_START_MONTH])
+
+    if (viewedMonthKey >= PRIMARY_SALARY_START_MONTH) {
+      monthsToEnsure.add(viewedMonthKey)
+    }
+
+    const monthsToSeed = Array.from(monthsToEnsure)
+      .filter(monthKey => !popFixedSeededMonths.includes(monthKey))
+      .sort()
+
+    if (monthsToSeed.length === 0) return
+
+    lastLocalMutationRef.current = Date.now()
+
+    setEvents(prevEvents => {
+      const nextEvents = [...prevEvents]
+
+      monthsToSeed.forEach(monthKey => {
+        const [year, month] = monthKey.split('-').map(Number)
+        if (!year || !month) return
+
+        const daysInMonth = new Date(year, month, 0).getDate()
+
+        for (let day = 1; day <= daysInMonth; day += 1) {
+          const weekday = new Date(year, month - 1, day).getDay()
+          const isWeekday = weekday >= 1 && weekday <= 5
+          if (!isWeekday) continue
+
+          const dateKey = `${year}-${padZero(month)}-${padZero(day)}`
+
+          const alreadyHasPopWork = nextEvents.some(ev => {
+            if (ev.dateKey !== dateKey) return false
+            if ((ev.category || 'other') !== 'work') return false
+
+            const clinicName = ev.clinicName || ''
+            return isPrimaryClinicName(clinicName)
+          })
+
+          if (alreadyHasPopWork) continue
+
+          nextEvents.push({
+            dateKey,
+            title: 'Expediente fixo',
+            description: 'Jornada fixa na Pop Caminho de Areia • 08:00–17:00',
+            time: '08:00',
+            clinicName: PRIMARY_CLINIC_FALLBACK_NAME,
+            clinicColor: '#111827',
+            category: 'work',
+            source: 'pop-fixed',
+          })
+        }
+      })
+
+      return sortAllCalendarEvents(nextEvents)
+    })
+
+    setPopFixedSeededMonths(prev => Array.from(new Set([...prev, ...monthsToSeed])).sort())
+  }, [
+    isMounted,
+    isInitialized,
+    calendarViewYear,
+    calendarViewMonth,
+    popFixedSeededMonths,
+  ])
 
   const filteredDrugs = customDrugs.filter(d => d.name.toLowerCase().includes(drugSearchQuery.toLowerCase()) || d.category.toLowerCase().includes(drugSearchQuery.toLowerCase()))
 
@@ -10780,6 +10872,18 @@ export default function VetWorkspaceBeatrizV28() {
                 </span>
               </div>
 
+              {calendarMonthKey >= PRIMARY_SALARY_START_MONTH && (
+                <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <div className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">⭐ Agenda fixa da Pop</div>
+                    <div className="text-xs font-bold text-emerald-950 mt-0.5">Segunda a sexta • 08:00–17:00</div>
+                  </div>
+                  <div className="text-[9px] text-emerald-700">
+                    Preenchimento automático desde novembro/2026. Você ainda pode editar ou excluir uma data específica.
+                  </div>
+                </div>
+              )}
+
               <div className="bg-white/95 backdrop-blur-md border border-pink-100 p-6 rounded-3xl shadow-sm space-y-4">
                 <h3 className="text-xs font-bold text-pink-900 uppercase tracking-wider">Visão em Grade do Mês</h3>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 bg-pink-50/40 border border-pink-100 rounded-2xl px-4 py-3">
@@ -10938,7 +11042,7 @@ export default function VetWorkspaceBeatrizV28() {
                                 )}
                               </div>
                               <span className="text-[9px] font-extrabold text-pink-600 bg-pink-50 px-2 py-1 rounded-lg">
-                                Trabalho / Plantão
+                                {ev.source === 'pop-fixed' ? '⭐ Expediente fixo' : 'Trabalho / Plantão'}
                               </span>
                             </div>
                           </div>
