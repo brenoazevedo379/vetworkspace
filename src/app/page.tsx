@@ -157,7 +157,7 @@ interface CalendarEvent {
   clinicName?: string
   clinicColor?: string
   category?: 'work' | 'return' | 'other'
-  source?: 'pop-fixed'
+  source?: 'pop-fixed' | 'pop-7-portas-fixed'
 }
 
 interface PatientEvolution {
@@ -268,8 +268,10 @@ interface ShiftRecord {
 }
 
 const PRIMARY_CLINIC_FALLBACK_NAME = 'Pop Caminho de Areia'
+const SUNDAY_CLINIC_NAME = 'Pop 7 Portas'
 const PRIMARY_SALARY_AMOUNT = 2500
 const PRIMARY_SALARY_START_MONTH = '2026-11'
+const FIXED_SCHEDULE_MONTHS = ['2026-11', '2026-12'] as const
 
 const normalizeClinicName = (value: string) =>
   value
@@ -5587,6 +5589,30 @@ export default function VetWorkspaceBeatrizV28() {
     }
     return []
   })
+  const [popSundaySeededMonths, setPopSundaySeededMonths] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vet_pop_7_portas_calendar_months_v28')
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved)
+          return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : []
+        } catch(e) {}
+      }
+    }
+    return []
+  })
+  const [popWeekdayColor, setPopWeekdayColor] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('vet_pop_weekday_color_v28') || '#EC4899'
+    }
+    return '#EC4899'
+  })
+  const [popSundayColor, setPopSundayColor] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('vet_pop_sunday_color_v28') || '#8B5CF6'
+    }
+    return '#8B5CF6'
+  })
   const [selectedDate, setSelectedDate] = useState<string>(todayDateKey)
   const [calendarViewYear, setCalendarViewYear] = useState(currentYear)
   const [calendarViewMonth, setCalendarViewMonth] = useState(currentMonth)
@@ -5703,6 +5729,18 @@ export default function VetWorkspaceBeatrizV28() {
             setPopFixedSeededMonths(d.popFixedSeededMonths)
             localStorage.setItem('vet_pop_fixed_calendar_months_v28', JSON.stringify(d.popFixedSeededMonths))
           }
+          if (Array.isArray(d.popSundaySeededMonths)) {
+            setPopSundaySeededMonths(d.popSundaySeededMonths)
+            localStorage.setItem('vet_pop_7_portas_calendar_months_v28', JSON.stringify(d.popSundaySeededMonths))
+          }
+          if (typeof d.popWeekdayColor === 'string') {
+            setPopWeekdayColor(d.popWeekdayColor)
+            localStorage.setItem('vet_pop_weekday_color_v28', d.popWeekdayColor)
+          }
+          if (typeof d.popSundayColor === 'string') {
+            setPopSundayColor(d.popSundayColor)
+            localStorage.setItem('vet_pop_sunday_color_v28', d.popSundayColor)
+          }
           if (Array.isArray(d.chatSessions) && d.chatSessions.length > 0) {
             setChatSessions(prevSessions => {
               const meaningfulLocal = prevSessions.filter(session => !(session.id === 'default-session' && session.messages.length === 1))
@@ -5807,6 +5845,18 @@ export default function VetWorkspaceBeatrizV28() {
               setPopFixedSeededMonths(d.popFixedSeededMonths)
               localStorage.setItem('vet_pop_fixed_calendar_months_v28', JSON.stringify(d.popFixedSeededMonths))
             }
+            if (Array.isArray(d.popSundaySeededMonths)) {
+              setPopSundaySeededMonths(d.popSundaySeededMonths)
+              localStorage.setItem('vet_pop_7_portas_calendar_months_v28', JSON.stringify(d.popSundaySeededMonths))
+            }
+            if (typeof d.popWeekdayColor === 'string') {
+              setPopWeekdayColor(d.popWeekdayColor)
+              localStorage.setItem('vet_pop_weekday_color_v28', d.popWeekdayColor)
+            }
+            if (typeof d.popSundayColor === 'string') {
+              setPopSundayColor(d.popSundayColor)
+              localStorage.setItem('vet_pop_sunday_color_v28', d.popSundayColor)
+            }
             
             if (d.chatSessions) {
               setChatSessions(prevSessions => {
@@ -5877,6 +5927,9 @@ export default function VetWorkspaceBeatrizV28() {
     localStorage.setItem('vet_tasks_v28', JSON.stringify(tasks))
     localStorage.setItem('vet_events_v28', JSON.stringify(events))
     localStorage.setItem('vet_pop_fixed_calendar_months_v28', JSON.stringify(popFixedSeededMonths))
+    localStorage.setItem('vet_pop_7_portas_calendar_months_v28', JSON.stringify(popSundaySeededMonths))
+    localStorage.setItem('vet_pop_weekday_color_v28', popWeekdayColor)
+    localStorage.setItem('vet_pop_sunday_color_v28', popSundayColor)
     localStorage.setItem('vet_chat_sessions_v28', JSON.stringify(chatSessions))
     localStorage.setItem('vet_clinics_v28', JSON.stringify(clinics))
     localStorage.setItem('vet_shifts_v28', JSON.stringify(shifts))
@@ -5908,6 +5961,9 @@ export default function VetWorkspaceBeatrizV28() {
           tasks,
           events,
           popFixedSeededMonths,
+          popSundaySeededMonths,
+          popWeekdayColor,
+          popSundayColor,
           chatSessions,
           clinics,
           shifts,
@@ -5942,7 +5998,7 @@ export default function VetWorkspaceBeatrizV28() {
 
     const timer = setTimeout(syncToCloud, 800)
     return () => clearTimeout(timer)
-  }, [isInitialized, items, patients, recipes, customDrugs, monthlyIncome, otherIncome, monthlyIncomeByMonth, otherIncomeByMonth, cofrinhoAmount, finances, tasks, events, popFixedSeededMonths, chatSessions, clinics, shifts, fixedSalaryReceipts, primaryClinicCommissions, specialistConsultations, personalPets, personalMediaItems, personalMediaGoals, skincareDone, mimosWishlist, descompressaoNotes])
+  }, [isInitialized, items, patients, recipes, customDrugs, monthlyIncome, otherIncome, monthlyIncomeByMonth, otherIncomeByMonth, cofrinhoAmount, finances, tasks, events, popFixedSeededMonths, popSundaySeededMonths, popWeekdayColor, popSundayColor, chatSessions, clinics, shifts, fixedSalaryReceipts, primaryClinicCommissions, specialistConsultations, personalPets, personalMediaItems, personalMediaGoals, skincareDone, mimosWishlist, descompressaoNotes])
 
   const renderPersonalMediaCategory = (
     type: PersonalMediaType,
@@ -8111,25 +8167,20 @@ export default function VetWorkspaceBeatrizV28() {
   useEffect(() => {
     if (!isMounted || !isInitialized) return
 
-    const viewedMonthKey = `${calendarViewYear}-${padZero(calendarViewMonth + 1)}`
-    const monthsToEnsure = new Set<string>([PRIMARY_SALARY_START_MONTH])
-
-    if (viewedMonthKey >= PRIMARY_SALARY_START_MONTH) {
-      monthsToEnsure.add(viewedMonthKey)
-    }
-
-    const monthsToSeed = Array.from(monthsToEnsure)
+    const weekdayMonthsToSeed = FIXED_SCHEDULE_MONTHS
       .filter(monthKey => !popFixedSeededMonths.includes(monthKey))
-      .sort()
 
-    if (monthsToSeed.length === 0) return
+    const sundayMonthsToSeed = FIXED_SCHEDULE_MONTHS
+      .filter(monthKey => !popSundaySeededMonths.includes(monthKey))
+
+    if (weekdayMonthsToSeed.length === 0 && sundayMonthsToSeed.length === 0) return
 
     lastLocalMutationRef.current = Date.now()
 
     setEvents(prevEvents => {
       const nextEvents = [...prevEvents]
 
-      monthsToSeed.forEach(monthKey => {
+      weekdayMonthsToSeed.forEach(monthKey => {
         const [year, month] = monthKey.split('-').map(Number)
         if (!year || !month) return
 
@@ -8141,14 +8192,11 @@ export default function VetWorkspaceBeatrizV28() {
           if (!isWeekday) continue
 
           const dateKey = `${year}-${padZero(month)}-${padZero(day)}`
-
-          const alreadyHasPopWork = nextEvents.some(ev => {
-            if (ev.dateKey !== dateKey) return false
-            if ((ev.category || 'other') !== 'work') return false
-
-            const clinicName = ev.clinicName || ''
-            return isPrimaryClinicName(clinicName)
-          })
+          const alreadyHasPopWork = nextEvents.some(ev =>
+            ev.dateKey === dateKey &&
+            (ev.category || 'other') === 'work' &&
+            (ev.source === 'pop-fixed' || isPrimaryClinicName(ev.clinicName || ''))
+          )
 
           if (alreadyHasPopWork) continue
 
@@ -8158,9 +8206,40 @@ export default function VetWorkspaceBeatrizV28() {
             description: 'Jornada fixa na Pop Caminho de Areia • 08:00–17:00',
             time: '08:00',
             clinicName: PRIMARY_CLINIC_FALLBACK_NAME,
-            clinicColor: '#111827',
+            clinicColor: popWeekdayColor,
             category: 'work',
             source: 'pop-fixed',
+          })
+        }
+      })
+
+      sundayMonthsToSeed.forEach(monthKey => {
+        const [year, month] = monthKey.split('-').map(Number)
+        if (!year || !month) return
+
+        const daysInMonth = new Date(year, month, 0).getDate()
+
+        for (let day = 1; day <= daysInMonth; day += 1) {
+          const weekday = new Date(year, month - 1, day).getDay()
+          if (weekday !== 0) continue
+
+          const dateKey = `${year}-${padZero(month)}-${padZero(day)}`
+          const alreadyHasSundayPop = nextEvents.some(ev =>
+            ev.dateKey === dateKey &&
+            (ev.category || 'other') === 'work' &&
+            (ev.source === 'pop-7-portas-fixed' || normalizeClinicName(ev.clinicName || '') === normalizeClinicName(SUNDAY_CLINIC_NAME))
+          )
+
+          if (alreadyHasSundayPop) continue
+
+          nextEvents.push({
+            dateKey,
+            title: 'Domingo fixo',
+            description: 'Domingo fixo na Pop 7 Portas',
+            clinicName: SUNDAY_CLINIC_NAME,
+            clinicColor: popSundayColor,
+            category: 'work',
+            source: 'pop-7-portas-fixed',
           })
         }
       })
@@ -8168,14 +8247,53 @@ export default function VetWorkspaceBeatrizV28() {
       return sortAllCalendarEvents(nextEvents)
     })
 
-    setPopFixedSeededMonths(prev => Array.from(new Set([...prev, ...monthsToSeed])).sort())
+    if (weekdayMonthsToSeed.length > 0) {
+      setPopFixedSeededMonths(prev =>
+        Array.from(new Set([...prev, ...weekdayMonthsToSeed])).sort()
+      )
+    }
+
+    if (sundayMonthsToSeed.length > 0) {
+      setPopSundaySeededMonths(prev =>
+        Array.from(new Set([...prev, ...sundayMonthsToSeed])).sort()
+      )
+    }
   }, [
     isMounted,
     isInitialized,
-    calendarViewYear,
-    calendarViewMonth,
     popFixedSeededMonths,
+    popSundaySeededMonths,
+    popWeekdayColor,
+    popSundayColor,
   ])
+
+  useEffect(() => {
+    if (!isInitialized) return
+
+    setEvents(prevEvents => {
+      let changed = false
+      const nextEvents = prevEvents.map(ev => {
+        if (ev.source === 'pop-fixed' && ev.clinicColor !== popWeekdayColor) {
+          changed = true
+          return { ...ev, clinicColor: popWeekdayColor }
+        }
+
+        if (ev.source === 'pop-7-portas-fixed' && ev.clinicColor !== popSundayColor) {
+          changed = true
+          return { ...ev, clinicColor: popSundayColor }
+        }
+
+        return ev
+      })
+
+      if (changed) {
+        lastLocalMutationRef.current = Date.now()
+        return sortAllCalendarEvents(nextEvents)
+      }
+
+      return prevEvents
+    })
+  }, [isInitialized, popWeekdayColor, popSundayColor])
 
   const filteredDrugs = customDrugs.filter(d => d.name.toLowerCase().includes(drugSearchQuery.toLowerCase()) || d.category.toLowerCase().includes(drugSearchQuery.toLowerCase()))
 
@@ -10872,14 +10990,59 @@ export default function VetWorkspaceBeatrizV28() {
                 </span>
               </div>
 
-              {calendarMonthKey >= PRIMARY_SALARY_START_MONTH && (
-                <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              {FIXED_SCHEDULE_MONTHS.includes(calendarMonthKey as typeof FIXED_SCHEDULE_MONTHS[number]) && (
+                <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4 space-y-3">
                   <div>
-                    <div className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">⭐ Agenda fixa da Pop</div>
-                    <div className="text-xs font-bold text-emerald-950 mt-0.5">Segunda a sexta • 08:00–17:00</div>
+                    <div className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">⭐ Agenda fixa • novembro e dezembro de 2026</div>
+                    <div className="text-[9px] text-emerald-700 mt-1">
+                      Os horários fixos entram automaticamente no calendário e no recap mensal.
+                    </div>
                   </div>
-                  <div className="text-[9px] text-emerald-700">
-                    Preenchimento automático desde novembro/2026. Você ainda pode editar ou excluir uma data específica.
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="bg-white border border-emerald-100 rounded-xl p-3 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-xs font-extrabold text-pink-950">Pop Caminho de Areia</div>
+                        <div className="text-[10px] text-stone-500 mt-0.5">Segunda a sexta • 08:00–17:00</div>
+                      </div>
+                      <label className="shrink-0 flex items-center gap-2 text-[9px] font-bold text-stone-500">
+                        Cor
+                        <input
+                          type="color"
+                          value={popWeekdayColor}
+                          onChange={(e) => {
+                            lastLocalMutationRef.current = Date.now()
+                            setPopWeekdayColor(e.target.value)
+                          }}
+                          className="w-10 h-10 rounded-lg border border-stone-200 bg-white cursor-pointer p-1"
+                          title="Mudar cor da Pop Caminho de Areia"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="bg-white border border-violet-100 rounded-xl p-3 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-xs font-extrabold text-pink-950">Pop 7 Portas</div>
+                        <div className="text-[10px] text-stone-500 mt-0.5">Todos os domingos • horário não informado</div>
+                      </div>
+                      <label className="shrink-0 flex items-center gap-2 text-[9px] font-bold text-stone-500">
+                        Cor
+                        <input
+                          type="color"
+                          value={popSundayColor}
+                          onChange={(e) => {
+                            lastLocalMutationRef.current = Date.now()
+                            setPopSundayColor(e.target.value)
+                          }}
+                          className="w-10 h-10 rounded-lg border border-stone-200 bg-white cursor-pointer p-1"
+                          title="Mudar cor da Pop 7 Portas"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="text-[9px] text-stone-500">
+                    Se um dia específico mudar, você continua podendo editar ou excluir aquele compromisso manualmente.
                   </div>
                 </div>
               )}
@@ -11042,7 +11205,11 @@ export default function VetWorkspaceBeatrizV28() {
                                 )}
                               </div>
                               <span className="text-[9px] font-extrabold text-pink-600 bg-pink-50 px-2 py-1 rounded-lg">
-                                {ev.source === 'pop-fixed' ? '⭐ Expediente fixo' : 'Trabalho / Plantão'}
+                                {ev.source === 'pop-fixed'
+                                  ? '⭐ Expediente fixo'
+                                  : ev.source === 'pop-7-portas-fixed'
+                                    ? '⭐ Domingo fixo'
+                                    : 'Trabalho / Plantão'}
                               </span>
                             </div>
                           </div>
